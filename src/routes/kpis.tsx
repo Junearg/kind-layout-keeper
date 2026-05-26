@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Layout } from "@/components/Layout";
+import { SectionDivider } from "@/components/SectionDivider";
 import { kpiTargets, iniciativas } from "@/data/mockData";
 
 export const Route = createFileRoute("/kpis")({
@@ -7,12 +8,106 @@ export const Route = createFileRoute("/kpis")({
   component: Kpis,
 });
 
-const statusTag = (s: string) => {
-  if (s === "rojo" || s === "critico") return <span className="tag red">{s}</span>;
-  if (s === "vigilar" || s === "estable") return <span className="tag amber">{s}</span>;
-  if (s === "verde") return <span className="tag orange">{s}</span>;
-  return <span className="tag outline">{s}</span>;
-};
+// Parse a numeric value (current/baseline/target) from the messy strings in mockData
+function parseNum(s: string): number | null {
+  if (!s || s === "—" || /sin dato/i.test(s)) return null;
+  const m = s.replace(/,/g, "").match(/-?\d+(\.\d+)?/);
+  return m ? parseFloat(m[0]) : null;
+}
+
+const statusMap = {
+  critico:  { bg: "#FBEAE9",          fg: "var(--red)",   label: "CRÍTICO"  },
+  rojo:     { bg: "#FBEAE9",          fg: "var(--red)",   label: "ROJO"     },
+  vigilar:  { bg: "#FDF4E7",          fg: "var(--amber)", label: "VIGILAR"  },
+  estable:  { bg: "#FDF4E7",          fg: "var(--amber)", label: "ESTABLE"  },
+  verde:    { bg: "var(--orange-soft)", fg: "var(--orange-deep)", label: "VERDE" },
+  sindato:  { bg: "#E8F0FB",          fg: "var(--blue)",  label: "SIN DATO" },
+} as const;
+
+const statusColor = (s: string) =>
+  statusMap[s as keyof typeof statusMap] ?? { bg: "var(--paper-2)", fg: "var(--ink-3)", label: s.toUpperCase() };
+
+function ProgressTrack({ baseline, t3, t6, current, color }: {
+  baseline: number | null; t3: number | null; t6: number | null; current: number | null; color: string;
+}) {
+  if (baseline === null || t6 === null) {
+    return <div className="muted fs-11" style={{ marginTop: 14 }}>Sin escala disponible</div>;
+  }
+  // Normalize positions on a track from min(baseline, t6) to max(baseline, t6).
+  const min = Math.min(baseline, t6, t3 ?? baseline, current ?? baseline);
+  const max = Math.max(baseline, t6, t3 ?? baseline, current ?? baseline);
+  const span = max - min || 1;
+  const pos = (v: number) => ((v - min) / span) * 100;
+
+  return (
+    <div style={{ marginTop: 18 }}>
+      <div style={{ position: "relative", height: 8, background: "var(--paper-3)", borderRadius: 99 }}>
+        {/* fill from baseline → target6m */}
+        <div style={{
+          position: "absolute", left: `${Math.min(pos(baseline), pos(t6))}%`,
+          width: `${Math.abs(pos(t6) - pos(baseline))}%`,
+          top: 0, bottom: 0, background: color, opacity: 0.25, borderRadius: 99,
+        }} />
+        {/* t3 tick */}
+        {t3 !== null && (
+          <div style={{
+            position: "absolute", left: `${pos(t3)}%`, top: -4, bottom: -4,
+            width: 2, background: "var(--ink-4)", transform: "translateX(-1px)",
+          }} />
+        )}
+        {/* current marker */}
+        {current !== null && (
+          <div style={{
+            position: "absolute", left: `${pos(current)}%`, top: -5, bottom: -5,
+            width: 12, height: 18, borderRadius: 4, background: color,
+            transform: "translateX(-6px)", boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+          }} />
+        )}
+      </div>
+      <div className="row-flex mono fs-11 muted" style={{ justifyContent: "space-between", marginTop: 6 }}>
+        <span>baseline</span>
+        <span>3M</span>
+        <span>6M</span>
+      </div>
+    </div>
+  );
+}
+
+function KpiCell({ k }: { k: typeof kpiTargets[number] }) {
+  const s = statusColor(k.status);
+  const baseline = parseNum(k.baseline);
+  const t3 = parseNum(k.target3m);
+  const t6 = parseNum(k.target6m);
+  const current = parseNum(k.current);
+
+  return (
+    <div className="card lg" style={{ display: "flex", flexDirection: "column" }}>
+      <div className="minihead" style={{ marginBottom: 12 }}>
+        <div>
+          <div className="card-eyebrow">KPI</div>
+          <div className="card-title" style={{ fontSize: 19 }}>{k.kpi}</div>
+        </div>
+        <span className="tag" style={{ background: s.bg, color: s.fg, fontWeight: 600 }}>{s.label}</span>
+      </div>
+      <div className="bignum" style={{ fontSize: 44 }}>{k.current}</div>
+      <ProgressTrack baseline={baseline} t3={t3} t6={t6} current={current} color={s.fg} />
+      <div className="row-flex mono fs-11" style={{ justifyContent: "space-between", marginTop: 14, gap: 8 }}>
+        <div>
+          <div className="muted">Baseline</div>
+          <div style={{ color: "var(--ink-2)" }}>{k.baseline}</div>
+        </div>
+        <div>
+          <div className="muted">Target 3M</div>
+          <div style={{ color: "var(--ink-2)" }}>{k.target3m}</div>
+        </div>
+        <div>
+          <div className="muted">Target 6M</div>
+          <div style={{ color: "var(--ink-2)" }}>{k.target6m}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const prioTag = (p: string) => {
   if (p === "ALTA") return <span className="tag red">{p}</span>;
@@ -23,33 +118,14 @@ const prioTag = (p: string) => {
 function Kpis() {
   return (
     <Layout>
-      <div className="card lg">
-        <div className="minihead">
-          <div>
-            <div className="card-eyebrow">Targets a 3 y 6 meses</div>
-            <div className="card-title">8 KPIs de seguimiento</div>
-          </div>
-        </div>
-        <table className="tbl">
-          <thead>
-            <tr><th>KPI</th><th>Baseline</th><th>3 meses</th><th>6 meses</th><th>Actual</th><th>Estado</th></tr>
-          </thead>
-          <tbody>
-            {kpiTargets.map((k) => (
-              <tr key={k.kpi}>
-                <td className="strong">{k.kpi}</td>
-                <td className="mono muted">{k.baseline}</td>
-                <td className="mono">{k.target3m}</td>
-                <td className="mono">{k.target6m}</td>
-                <td className="mono strong">{k.current}</td>
-                <td>{statusTag(k.status)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="bento cols-4">
+        {kpiTargets.slice(0, 4).map((k) => <KpiCell key={k.kpi} k={k} />)}
+      </div>
+      <div className="bento cols-4" style={{ marginTop: 16 }}>
+        {kpiTargets.slice(4, 8).map((k) => <KpiCell key={k.kpi} k={k} />)}
       </div>
 
-      <div className="divider"><span className="kicker">Iniciativas</span><span className="alt">/ roadmap de retención</span><span className="rule" /></div>
+      <SectionDivider kicker="Iniciativas" alt="roadmap de retención" />
 
       <div className="bento equal-2">
         {iniciativas.map((it) => (
