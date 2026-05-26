@@ -11,12 +11,12 @@ const TABS = [
 ] as const;
 
 const HELLO: Record<string, { crumbs: string; h1: ReactNode; sub: string }> = {
-  "/resumen":   { crumbs: "Fudo CS Ops · Mayo 2026", h1: <>Resumen <span className="alt">ejecutivo</span></>, sub: "Análisis consolidado · Dic 2025 – May 2026 · 5,852 cuentas" },
-  "/tendencia": { crumbs: "Fudo CS Ops · Tendencia", h1: <>Tendencia <span className="alt">mensual</span></>, sub: "Bajas, motivos y proyección · 5 meses cerrados + 2 proyectados" },
-  "/nps":       { crumbs: "Fudo CS Ops · Voz del cliente", h1: <>Net Promoter <span className="alt">Score</span></>, sub: "6,915 respuestas · LATAM · Q1+Q2 2026" },
-  "/health":    { crumbs: "Fudo CS Ops · Health Score", h1: <>Salud de la <span className="alt">base</span></>, sub: "818 cuentas activas · scoring 0-100 · tiers + flags" },
-  "/cola":      { crumbs: "Fudo CS Ops · Workflow", h1: <>Cola de <span className="alt">trabajo</span></>, sub: "Priorización CS · cuentas en riesgo ordenadas por urgencia" },
-  "/kpis":      { crumbs: "Fudo CS Ops · Iniciativas", h1: <>KPIs e <span className="alt">iniciativas</span></>, sub: "Targets a 3 y 6 meses · roadmap de retención" },
+  "/resumen":   { crumbs: "Fudo Churn Center · Mayo 2026", h1: <>Fudo <span className="alt">Churn Center</span></>, sub: "Análisis consolidado · Dic 2025 – May 2026 · 5,852 cuentas" },
+  "/tendencia": { crumbs: "Fudo Churn Center · Tendencia", h1: <>Tendencia <span className="alt">mensual</span></>, sub: "Bajas, motivos y proyección · 5 meses cerrados + 2 proyectados" },
+  "/nps":       { crumbs: "Fudo Churn Center · Voz del cliente", h1: <>Net Promoter <span className="alt">Score</span></>, sub: "6,915 respuestas · LATAM · Q1+Q2 2026" },
+  "/health":    { crumbs: "Fudo Churn Center · Health Score", h1: <>Salud de la <span className="alt">base</span></>, sub: "818 cuentas activas · scoring 0-100 · tiers + flags" },
+  "/cola":      { crumbs: "Fudo Churn Center · Workflow", h1: <>Cola de <span className="alt">trabajo</span></>, sub: "Priorización CS · cuentas en riesgo ordenadas por urgencia" },
+  "/kpis":      { crumbs: "Fudo Churn Center · Iniciativas", h1: <>KPIs e <span className="alt">iniciativas</span></>, sub: "Targets a 3 y 6 meses · roadmap de retención" },
 };
 
 export function Layout({ children, actions }: { children: ReactNode; actions?: ReactNode }) {

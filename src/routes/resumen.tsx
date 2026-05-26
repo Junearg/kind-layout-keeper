@@ -12,7 +12,7 @@ import {
 import type { ReactNode } from "react";
 
 export const Route = createFileRoute("/resumen")({
-  head: () => ({ meta: [{ title: "Resumen · Churn Intelligence Hub" }] }),
+  head: () => ({ meta: [{ title: "Fudo Churn Center" }] }),
   component: Resumen,
 });
 
