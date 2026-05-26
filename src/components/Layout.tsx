@@ -8,6 +8,7 @@ const TABS = [
   { to: "/health",    label: "Health Score" },
   { to: "/cola",      label: "Cola CS" },
   { to: "/kpis",      label: "KPIs" },
+  { to: "/importar",  label: "Importar" },
 ] as const;
 
 const HELLO: Record<string, { crumbs: string; h1: ReactNode; sub: string }> = {
@@ -17,6 +18,7 @@ const HELLO: Record<string, { crumbs: string; h1: ReactNode; sub: string }> = {
   "/health":    { crumbs: "Fudo Churn Center · Health Score", h1: <>Salud de la <span className="alt">base</span></>, sub: "818 cuentas activas · scoring 0-100 · tiers + flags" },
   "/cola":      { crumbs: "Fudo Churn Center · Workflow", h1: <>Cola de <span className="alt">trabajo</span></>, sub: "Priorización CS · cuentas en riesgo ordenadas por urgencia" },
   "/kpis":      { crumbs: "Fudo Churn Center · Iniciativas", h1: <>KPIs e <span className="alt">iniciativas</span></>, sub: "Targets a 3 y 6 meses · roadmap de retención" },
+  "/importar":  { crumbs: "Fudo Churn Center · Datos", h1: <>Importar <span className="alt">cuentas</span></>, sub: "Validación automática antes de cargar el snapshot mensual" },
 };
 
 export function Layout({ children, actions }: { children: ReactNode; actions?: ReactNode }) {

@@ -13,6 +13,7 @@ import { Route as TendenciaRouteImport } from './routes/tendencia'
 import { Route as ResumenRouteImport } from './routes/resumen'
 import { Route as NpsRouteImport } from './routes/nps'
 import { Route as KpisRouteImport } from './routes/kpis'
+import { Route as ImportarRouteImport } from './routes/importar'
 import { Route as HealthRouteImport } from './routes/health'
 import { Route as ColaRouteImport } from './routes/cola'
 import { Route as IndexRouteImport } from './routes/index'
@@ -36,6 +37,11 @@ const NpsRoute = NpsRouteImport.update({
 const KpisRoute = KpisRouteImport.update({
   id: '/kpis',
   path: '/kpis',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImportarRoute = ImportarRouteImport.update({
+  id: '/importar',
+  path: '/importar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HealthRoute = HealthRouteImport.update({
@@ -63,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/cola': typeof ColaRoute
   '/health': typeof HealthRoute
+  '/importar': typeof ImportarRoute
   '/kpis': typeof KpisRoute
   '/nps': typeof NpsRoute
   '/resumen': typeof ResumenRoute
@@ -73,6 +80,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cola': typeof ColaRoute
   '/health': typeof HealthRoute
+  '/importar': typeof ImportarRoute
   '/kpis': typeof KpisRoute
   '/nps': typeof NpsRoute
   '/resumen': typeof ResumenRoute
@@ -84,6 +92,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/cola': typeof ColaRoute
   '/health': typeof HealthRoute
+  '/importar': typeof ImportarRoute
   '/kpis': typeof KpisRoute
   '/nps': typeof NpsRoute
   '/resumen': typeof ResumenRoute
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | '/'
     | '/cola'
     | '/health'
+    | '/importar'
     | '/kpis'
     | '/nps'
     | '/resumen'
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/cola'
     | '/health'
+    | '/importar'
     | '/kpis'
     | '/nps'
     | '/resumen'
@@ -116,6 +127,7 @@ export interface FileRouteTypes {
     | '/'
     | '/cola'
     | '/health'
+    | '/importar'
     | '/kpis'
     | '/nps'
     | '/resumen'
@@ -127,6 +139,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ColaRoute: typeof ColaRoute
   HealthRoute: typeof HealthRoute
+  ImportarRoute: typeof ImportarRoute
   KpisRoute: typeof KpisRoute
   NpsRoute: typeof NpsRoute
   ResumenRoute: typeof ResumenRoute
@@ -164,6 +177,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof KpisRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/importar': {
+      id: '/importar'
+      path: '/importar'
+      fullPath: '/importar'
+      preLoaderRoute: typeof ImportarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/health': {
       id: '/health'
       path: '/health'
@@ -199,6 +219,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ColaRoute: ColaRoute,
   HealthRoute: HealthRoute,
+  ImportarRoute: ImportarRoute,
   KpisRoute: KpisRoute,
   NpsRoute: NpsRoute,
   ResumenRoute: ResumenRoute,
