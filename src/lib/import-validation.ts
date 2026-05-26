@@ -111,6 +111,29 @@ export function detectMonth(rows: NormalizedRow[]): string {
 }
 
 const LOADED_KEY = "fudo-loaded-months-v1";
+const SNAPSHOT_KEY = "customer_monthly_snapshot";
+
+export type MonthlySnapshot = {
+  month: string;
+  savedAt: string;       // ISO timestamp
+  rowCount: number;
+  rows: NormalizedRow[];
+};
+
+type SnapshotStore = Record<string, MonthlySnapshot>;
+
+function readSnapshots(): SnapshotStore {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(localStorage.getItem(SNAPSHOT_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
+function writeSnapshots(store: SnapshotStore) {
+  localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(store));
+}
 
 export function getLoadedMonths(): string[] {
   if (typeof window === "undefined") return [];
@@ -127,6 +150,44 @@ export function markMonthLoaded(month: string) {
   cur.add(month);
   localStorage.setItem(LOADED_KEY, JSON.stringify([...cur]));
 }
+
+export function getSnapshot(month: string): MonthlySnapshot | null {
+  return readSnapshots()[month] ?? null;
+}
+
+export function listSnapshots(): MonthlySnapshot[] {
+  return Object.values(readSnapshots()).sort((a, b) => a.month.localeCompare(b.month));
+}
+
+/**
+ * Save the monthly customer snapshot.
+ * - If month already exists and `reprocess` is false, throws and does NOT overwrite.
+ * - If `reprocess` is true, overwrites the previous snapshot for that month.
+ */
+export function saveSnapshot(
+  month: string,
+  rows: NormalizedRow[],
+  reprocess: boolean,
+): MonthlySnapshot {
+  if (!month) throw new Error("No se pudo inferir el mes del archivo.");
+  const store = readSnapshots();
+  if (store[month] && !reprocess) {
+    throw new Error(
+      `El mes ${month} ya tiene snapshot guardado. Marcá "Reprocesar mes" para sobrescribirlo.`,
+    );
+  }
+  const snap: MonthlySnapshot = {
+    month,
+    savedAt: new Date().toISOString(),
+    rowCount: rows.length,
+    rows,
+  };
+  store[month] = snap;
+  writeSnapshots(store);
+  markMonthLoaded(month);
+  return snap;
+}
+
 
 export function validate(rows: NormalizedRow[]): Issue[] {
   const issues: Issue[] = [];

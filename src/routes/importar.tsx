@@ -5,10 +5,13 @@ import { Layout } from "@/components/Layout";
 import {
   detectMonth,
   getLoadedMonths,
-  markMonthLoaded,
+  getSnapshot,
+  listSnapshots,
   normalizeRows,
+  saveSnapshot,
   validate,
   type Issue,
+  type MonthlySnapshot,
   type NormalizedRow,
 } from "@/lib/import-validation";
 
@@ -28,15 +31,20 @@ function ImportarPage() {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [stage, setStage] = useState<Stage>("idle");
   const [error, setError] = useState<string>("");
+  const [reprocess, setReprocess] = useState<boolean>(false);
+  const [savedSnap, setSavedSnap] = useState<MonthlySnapshot | null>(null);
 
   const month = useMemo(() => detectMonth(rows), [rows]);
+  const existingSnap = useMemo(() => (month ? getSnapshot(month) : null), [month, stage]);
   const blocking = issues.some((i) => i.severity === "error");
+  const needsReprocess = !!existingSnap && !reprocess;
   const errCount = issues.filter((i) => i.severity === "error").length;
   const warnCount = issues.filter((i) => i.severity === "warning").length;
 
   async function handleFile(file: File) {
     setError("");
     setStage("idle");
+    setReprocess(false);
     try {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: "array" });
@@ -60,14 +68,22 @@ function ImportarPage() {
     setFileName("");
     setStage("idle");
     setError("");
+    setReprocess(false);
+    setSavedSnap(null);
     if (inputRef.current) inputRef.current.value = "";
   }
 
   function confirm() {
-    if (blocking) return;
-    if (month) markMonthLoaded(month);
-    setStage("confirmed");
+    if (blocking || needsReprocess) return;
+    try {
+      const snap = saveSnapshot(month, rows, reprocess);
+      setSavedSnap(snap);
+      setStage("confirmed");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No pudimos guardar el snapshot.");
+    }
   }
+
 
   return (
     <Layout>
@@ -101,17 +117,27 @@ function ImportarPage() {
             errCount={errCount}
             warnCount={warnCount}
             blocking={blocking}
+            existingSnap={existingSnap}
+            reprocess={reprocess}
+            onReprocessChange={setReprocess}
+            needsReprocess={needsReprocess}
+            saveError={error}
             onConfirm={confirm}
             onCancel={reset}
           />
         )}
 
-        {stage === "confirmed" && (
-          <ConfirmedPanel rows={rows.length} month={month} onAgain={reset} />
+        {stage === "confirmed" && savedSnap && (
+          <ConfirmedPanel snap={savedSnap} wasReprocess={reprocess} onAgain={reset} />
         )}
       </section>
 
-      {stage === "idle" && <ExpectedSchema />}
+      {stage === "idle" && (
+        <>
+          <SnapshotsList />
+          <ExpectedSchema />
+        </>
+      )}
     </Layout>
   );
 }
@@ -178,7 +204,9 @@ function Dropzone({
 }
 
 function ReviewPanel({
-  fileName, rows, issues, month, errCount, warnCount, blocking, onConfirm, onCancel,
+  fileName, rows, issues, month, errCount, warnCount, blocking,
+  existingSnap, reprocess, onReprocessChange, needsReprocess, saveError,
+  onConfirm, onCancel,
 }: {
   fileName: string;
   rows: NormalizedRow[];
@@ -187,12 +215,25 @@ function ReviewPanel({
   errCount: number;
   warnCount: number;
   blocking: boolean;
+  existingSnap: MonthlySnapshot | null;
+  reprocess: boolean;
+  onReprocessChange: (v: boolean) => void;
+  needsReprocess: boolean;
+  saveError: string;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const disabled = blocking || needsReprocess;
+  const btnLabel = blocking
+    ? "Bloqueado por errores"
+    : needsReprocess
+      ? "Marcá Reprocesar para sobrescribir"
+      : reprocess
+        ? `Reprocesar ${month} (${rows.length})`
+        : `Guardar snapshot ${month} (${rows.length})`;
+
   return (
     <div>
-      {/* Resumen */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
         <SummaryStat label="Archivo" value={fileName} mono />
         <SummaryStat label="Filas detectadas" value={String(rows.length)} />
@@ -204,7 +245,29 @@ function ReviewPanel({
         />
       </div>
 
-      {/* Issues list */}
+      {existingSnap && (
+        <div style={{
+          marginBottom: 16, padding: "12px 14px", borderRadius: 10,
+          background: "rgba(181,116,15,0.06)", borderLeft: "3px solid var(--amber)",
+        }}>
+          <div className="strong" style={{ color: "var(--amber)", fontSize: 13 }}>
+            ⚠ Ya existe un snapshot para {month}
+          </div>
+          <div className="fs-12" style={{ color: "var(--ink-2)", marginTop: 4 }}>
+            Guardado el {new Date(existingSnap.savedAt).toLocaleString()} · {existingSnap.rowCount} filas.
+            Los meses pasados no se sobrescriben salvo que actives <em>reprocess month</em>.
+          </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={reprocess}
+              onChange={(e) => onReprocessChange(e.target.checked)}
+            />
+            <span className="fs-12 strong">Reprocesar mes (sobrescribir snapshot anterior)</span>
+          </label>
+        </div>
+      )}
+
       {issues.length > 0 ? (
         <div>
           <div className="serif" style={{ fontSize: 18, marginBottom: 10 }}>
@@ -223,7 +286,6 @@ function ReviewPanel({
         </div>
       )}
 
-      {/* Already loaded months hint */}
       <div className="fs-12" style={{ color: "var(--ink-3)", marginTop: 16 }}>
         Meses previamente cargados:{" "}
         <span className="mono">
@@ -231,22 +293,29 @@ function ReviewPanel({
         </span>
       </div>
 
-      {/* Actions */}
+      {saveError && (
+        <div style={{
+          marginTop: 12, padding: "10px 14px", borderLeft: "3px solid var(--red)",
+          background: "rgba(179,38,30,0.06)", borderRadius: 10, color: "var(--red)",
+        }} className="fs-12 strong">
+          {saveError}
+        </div>
+      )}
+
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 22 }}>
         <button className="btn ghost" onClick={onCancel}>Cancelar</button>
         <button
           className="btn"
           onClick={onConfirm}
-          disabled={blocking}
+          disabled={disabled}
           style={{
-            background: blocking ? "var(--ink-5)" : "var(--ink)",
+            background: disabled ? "var(--ink-5)" : "var(--ink)",
             color: "var(--paper)",
-            cursor: blocking ? "not-allowed" : "pointer",
-            opacity: blocking ? 0.7 : 1,
+            cursor: disabled ? "not-allowed" : "pointer",
+            opacity: disabled ? 0.7 : 1,
           }}
-          title={blocking ? "Resolvé los errores antes de confirmar" : undefined}
         >
-          {blocking ? "Bloqueado por errores" : `Confirmar importación (${rows.length})`}
+          {btnLabel}
         </button>
       </div>
     </div>
@@ -312,20 +381,58 @@ function SummaryStat({
   );
 }
 
-function ConfirmedPanel({ rows, month, onAgain }: { rows: number; month: string; onAgain: () => void }) {
+function ConfirmedPanel({ snap, wasReprocess, onAgain }: { snap: MonthlySnapshot; wasReprocess: boolean; onAgain: () => void }) {
   return (
     <div style={{ textAlign: "center", padding: "32px 12px" }}>
       <div style={{ fontSize: 36, color: "var(--blue)" }}>✓</div>
       <h3 className="serif" style={{ fontSize: 22, marginTop: 8 }}>
-        Importación <em>confirmada</em>
+        Snapshot <em>{wasReprocess ? "reprocesado" : "guardado"}</em>
       </h3>
       <p className="fs-12" style={{ color: "var(--ink-3)", marginTop: 6 }}>
-        {rows} filas{month ? ` · mes ${month}` : ""} listas para procesar.
+        {snap.rowCount} filas guardadas en <span className="mono">customer_monthly_snapshot</span>
+        {snap.month ? ` · mes ${snap.month}` : ""}.
+      </p>
+      <p className="fs-12" style={{ color: "var(--ink-4)", marginTop: 2 }}>
+        {new Date(snap.savedAt).toLocaleString()}
       </p>
       <button className="btn" onClick={onAgain} style={{ marginTop: 18, background: "var(--ink)", color: "var(--paper)" }}>
         Cargar otro archivo
       </button>
     </div>
+  );
+}
+
+function SnapshotsList() {
+  const snaps = listSnapshots();
+  if (!snaps.length) return null;
+  return (
+    <section className="card" style={{ padding: 24, marginTop: 16 }}>
+      <h3 className="serif" style={{ fontSize: 18, margin: 0 }}>
+        Snapshots <em>guardados</em>
+      </h3>
+      <p className="fs-12" style={{ color: "var(--ink-3)", marginTop: 4 }}>
+        Cada mes queda inmutable. Para sobrescribir uno, subí el archivo de nuevo y activá <em>reprocess month</em>.
+      </p>
+      <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+        {snaps.map((s) => (
+          <div key={s.month} style={{
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            padding: "10px 14px", borderRadius: 8, background: "var(--paper)",
+            border: "1px solid var(--rule)",
+          }}>
+            <div>
+              <div className="mono strong" style={{ fontSize: 13 }}>{s.month}</div>
+              <div className="fs-12" style={{ color: "var(--ink-3)" }}>
+                {s.rowCount} filas · guardado {new Date(s.savedAt).toLocaleString()}
+              </div>
+            </div>
+            <span className="tag" style={{ background: "var(--paper-2)", color: "var(--ink-3)" }}>
+              inmutable
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
