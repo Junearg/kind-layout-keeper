@@ -381,20 +381,58 @@ function SummaryStat({
   );
 }
 
-function ConfirmedPanel({ rows, month, onAgain }: { rows: number; month: string; onAgain: () => void }) {
+function ConfirmedPanel({ snap, wasReprocess, onAgain }: { snap: MonthlySnapshot; wasReprocess: boolean; onAgain: () => void }) {
   return (
     <div style={{ textAlign: "center", padding: "32px 12px" }}>
       <div style={{ fontSize: 36, color: "var(--blue)" }}>✓</div>
       <h3 className="serif" style={{ fontSize: 22, marginTop: 8 }}>
-        Importación <em>confirmada</em>
+        Snapshot <em>{wasReprocess ? "reprocesado" : "guardado"}</em>
       </h3>
       <p className="fs-12" style={{ color: "var(--ink-3)", marginTop: 6 }}>
-        {rows} filas{month ? ` · mes ${month}` : ""} listas para procesar.
+        {snap.rowCount} filas guardadas en <span className="mono">customer_monthly_snapshot</span>
+        {snap.month ? ` · mes ${snap.month}` : ""}.
+      </p>
+      <p className="fs-12" style={{ color: "var(--ink-4)", marginTop: 2 }}>
+        {new Date(snap.savedAt).toLocaleString()}
       </p>
       <button className="btn" onClick={onAgain} style={{ marginTop: 18, background: "var(--ink)", color: "var(--paper)" }}>
         Cargar otro archivo
       </button>
     </div>
+  );
+}
+
+function SnapshotsList() {
+  const snaps = listSnapshots();
+  if (!snaps.length) return null;
+  return (
+    <section className="card" style={{ padding: 24, marginTop: 16 }}>
+      <h3 className="serif" style={{ fontSize: 18, margin: 0 }}>
+        Snapshots <em>guardados</em>
+      </h3>
+      <p className="fs-12" style={{ color: "var(--ink-3)", marginTop: 4 }}>
+        Cada mes queda inmutable. Para sobrescribir uno, subí el archivo de nuevo y activá <em>reprocess month</em>.
+      </p>
+      <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+        {snaps.map((s) => (
+          <div key={s.month} style={{
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            padding: "10px 14px", borderRadius: 8, background: "var(--paper)",
+            border: "1px solid var(--rule)",
+          }}>
+            <div>
+              <div className="mono strong" style={{ fontSize: 13 }}>{s.month}</div>
+              <div className="fs-12" style={{ color: "var(--ink-3)" }}>
+                {s.rowCount} filas · guardado {new Date(s.savedAt).toLocaleString()}
+              </div>
+            </div>
+            <span className="tag" style={{ background: "var(--paper-2)", color: "var(--ink-3)" }}>
+              inmutable
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
