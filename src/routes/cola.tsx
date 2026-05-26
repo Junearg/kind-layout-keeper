@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
+import { ExportButton } from "@/components/ExportButton";
 import { healthAccounts, tierDist, riskFlagDist, type HealthAccount } from "@/data/mockData";
 
 export const Route = createFileRoute("/cola")({
@@ -111,7 +112,18 @@ function Cola() {
   const pct = queue.length ? Math.round((contactados / queue.length) * 100) : 0;
 
   return (
-    <Layout>
+    <Layout actions={
+      <ExportButton
+        filename="cola-cs.xlsx"
+        sheets={[
+          { name: "Cola completa", rows: queue.map((a) => ({
+            ...a,
+            flags: a.flags.join(", "),
+            contactado: contactedSet.has(a.id) ? "Sí" : "No",
+          })) },
+        ]}
+      />
+    }>
       {/* Row 1 — KPIs */}
       <div className="bento cols-3">
         <div className="card ink lg">

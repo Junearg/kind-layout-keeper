@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Layout } from "@/components/Layout";
+import { ExportButton } from "@/components/ExportButton";
 import { churnTrend, motivosBaja, ORANGE } from "@/data/mockData";
 import {
   ResponsiveContainer, ComposedChart, Bar, Area, LabelList,
@@ -27,7 +28,15 @@ function Tendencia() {
   const sinMotivo = motivosBaja[0];
 
   return (
-    <Layout>
+    <Layout actions={
+      <ExportButton
+        filename="tendencia-churn.xlsx"
+        sheets={[
+          { name: "Tendencia mensual", rows: churnTrend },
+          { name: "Motivos de baja", rows: motivosBaja },
+        ]}
+      />
+    }>
       {/* Fila 1 — KPIs */}
       <div className="bento cols-3" style={{ marginBottom: 20 }}>
         <div className="card lg">

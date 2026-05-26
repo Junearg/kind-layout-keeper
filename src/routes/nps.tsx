@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Layout } from "@/components/Layout";
+import { ExportButton } from "@/components/ExportButton";
 import {
   npsPais, motivosDetraccion, motivosPromocion, csatMensual, ORANGE,
 } from "@/data/mockData";
@@ -15,7 +16,17 @@ export const Route = createFileRoute("/nps")({
 
 function Nps() {
   return (
-    <Layout>
+    <Layout actions={
+      <ExportButton
+        filename="nps-csat.xlsx"
+        sheets={[
+          { name: "NPS por país", rows: npsPais },
+          { name: "Motivos detracción", rows: motivosDetraccion },
+          { name: "Motivos promoción", rows: motivosPromocion },
+          { name: "CSAT mensual", rows: csatMensual },
+        ]}
+      />
+    }>
       {/* Fila 1 — KPIs */}
       <div className="bento cols-4">
         <div className="card lg" style={{ borderLeft: "4px solid var(--amber)" }}>
