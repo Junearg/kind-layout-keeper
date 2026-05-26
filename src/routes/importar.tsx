@@ -136,12 +136,13 @@ function ImportarPage() {
         )}
       </section>
 
-      {stage === "idle" && (
-        <>
-          <SnapshotsList />
-          <ExpectedSchema />
-        </>
-      )}
+        {stage === "idle" && (
+          <>
+            <CompareSection />
+            <SnapshotsList />
+            <ExpectedSchema />
+          </>
+        )}
     </Layout>
   );
 }
