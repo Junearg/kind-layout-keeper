@@ -9,8 +9,44 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TendenciaRouteImport } from './routes/tendencia'
+import { Route as ResumenRouteImport } from './routes/resumen'
+import { Route as NpsRouteImport } from './routes/nps'
+import { Route as KpisRouteImport } from './routes/kpis'
+import { Route as HealthRouteImport } from './routes/health'
+import { Route as ColaRouteImport } from './routes/cola'
 import { Route as IndexRouteImport } from './routes/index'
 
+const TendenciaRoute = TendenciaRouteImport.update({
+  id: '/tendencia',
+  path: '/tendencia',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResumenRoute = ResumenRouteImport.update({
+  id: '/resumen',
+  path: '/resumen',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NpsRoute = NpsRouteImport.update({
+  id: '/nps',
+  path: '/nps',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KpisRoute = KpisRouteImport.update({
+  id: '/kpis',
+  path: '/kpis',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HealthRoute = HealthRouteImport.update({
+  id: '/health',
+  path: '/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ColaRoute = ColaRouteImport.update({
+  id: '/cola',
+  path: '/cola',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -19,28 +55,109 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/cola': typeof ColaRoute
+  '/health': typeof HealthRoute
+  '/kpis': typeof KpisRoute
+  '/nps': typeof NpsRoute
+  '/resumen': typeof ResumenRoute
+  '/tendencia': typeof TendenciaRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/cola': typeof ColaRoute
+  '/health': typeof HealthRoute
+  '/kpis': typeof KpisRoute
+  '/nps': typeof NpsRoute
+  '/resumen': typeof ResumenRoute
+  '/tendencia': typeof TendenciaRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/cola': typeof ColaRoute
+  '/health': typeof HealthRoute
+  '/kpis': typeof KpisRoute
+  '/nps': typeof NpsRoute
+  '/resumen': typeof ResumenRoute
+  '/tendencia': typeof TendenciaRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/cola'
+    | '/health'
+    | '/kpis'
+    | '/nps'
+    | '/resumen'
+    | '/tendencia'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/cola' | '/health' | '/kpis' | '/nps' | '/resumen' | '/tendencia'
+  id:
+    | '__root__'
+    | '/'
+    | '/cola'
+    | '/health'
+    | '/kpis'
+    | '/nps'
+    | '/resumen'
+    | '/tendencia'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ColaRoute: typeof ColaRoute
+  HealthRoute: typeof HealthRoute
+  KpisRoute: typeof KpisRoute
+  NpsRoute: typeof NpsRoute
+  ResumenRoute: typeof ResumenRoute
+  TendenciaRoute: typeof TendenciaRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tendencia': {
+      id: '/tendencia'
+      path: '/tendencia'
+      fullPath: '/tendencia'
+      preLoaderRoute: typeof TendenciaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/resumen': {
+      id: '/resumen'
+      path: '/resumen'
+      fullPath: '/resumen'
+      preLoaderRoute: typeof ResumenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nps': {
+      id: '/nps'
+      path: '/nps'
+      fullPath: '/nps'
+      preLoaderRoute: typeof NpsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kpis': {
+      id: '/kpis'
+      path: '/kpis'
+      fullPath: '/kpis'
+      preLoaderRoute: typeof KpisRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/health': {
+      id: '/health'
+      path: '/health'
+      fullPath: '/health'
+      preLoaderRoute: typeof HealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cola': {
+      id: '/cola'
+      path: '/cola'
+      fullPath: '/cola'
+      preLoaderRoute: typeof ColaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -53,7 +170,23 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ColaRoute: ColaRoute,
+  HealthRoute: HealthRoute,
+  KpisRoute: KpisRoute,
+  NpsRoute: NpsRoute,
+  ResumenRoute: ResumenRoute,
+  TendenciaRoute: TendenciaRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
