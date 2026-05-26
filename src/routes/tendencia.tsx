@@ -105,7 +105,7 @@ function Tendencia() {
                   dataKey="bajas"
                   position="top"
                   style={{ fontSize: 11, fill: "#0B0B0A", fontWeight: 500 }}
-                  formatter={(v: number) => v.toLocaleString()}
+                  formatter={(v: any) => Number(v).toLocaleString()}
                 />
               </Bar>
             </ComposedChart>
@@ -152,7 +152,7 @@ function Tendencia() {
                 </Pie>
                 <Tooltip
                   contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid #E8E6DC" }}
-                  formatter={(v: number, _n, p: any) => [`${v.toLocaleString()} · ${p?.payload?.pct}%`, p?.payload?.motivo]}
+                  formatter={(v: any, _n: any, p: any) => [`${Number(v).toLocaleString()} · ${p?.payload?.pct}%`, p?.payload?.motivo]}
                 />
               </PieChart>
             </ResponsiveContainer>
