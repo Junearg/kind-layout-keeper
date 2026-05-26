@@ -4,15 +4,19 @@ import * as XLSX from "xlsx";
 import { Layout } from "@/components/Layout";
 import {
   detectMonth,
+  diffSnapshots,
   getLoadedMonths,
+  getPreviousSnapshot,
   getSnapshot,
   listSnapshots,
   normalizeRows,
   saveSnapshot,
   validate,
+  type ChangeType,
   type Issue,
   type MonthlySnapshot,
   type NormalizedRow,
+  type SnapshotDiff,
 } from "@/lib/import-validation";
 
 export const Route = createFileRoute("/importar")({
