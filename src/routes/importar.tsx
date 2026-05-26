@@ -204,7 +204,9 @@ function Dropzone({
 }
 
 function ReviewPanel({
-  fileName, rows, issues, month, errCount, warnCount, blocking, onConfirm, onCancel,
+  fileName, rows, issues, month, errCount, warnCount, blocking,
+  existingSnap, reprocess, onReprocessChange, needsReprocess, saveError,
+  onConfirm, onCancel,
 }: {
   fileName: string;
   rows: NormalizedRow[];
@@ -213,12 +215,25 @@ function ReviewPanel({
   errCount: number;
   warnCount: number;
   blocking: boolean;
+  existingSnap: MonthlySnapshot | null;
+  reprocess: boolean;
+  onReprocessChange: (v: boolean) => void;
+  needsReprocess: boolean;
+  saveError: string;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const disabled = blocking || needsReprocess;
+  const btnLabel = blocking
+    ? "Bloqueado por errores"
+    : needsReprocess
+      ? "Marcá Reprocesar para sobrescribir"
+      : reprocess
+        ? `Reprocesar ${month} (${rows.length})`
+        : `Guardar snapshot ${month} (${rows.length})`;
+
   return (
     <div>
-      {/* Resumen */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
         <SummaryStat label="Archivo" value={fileName} mono />
         <SummaryStat label="Filas detectadas" value={String(rows.length)} />
@@ -230,7 +245,29 @@ function ReviewPanel({
         />
       </div>
 
-      {/* Issues list */}
+      {existingSnap && (
+        <div style={{
+          marginBottom: 16, padding: "12px 14px", borderRadius: 10,
+          background: "rgba(181,116,15,0.06)", borderLeft: "3px solid var(--amber)",
+        }}>
+          <div className="strong" style={{ color: "var(--amber)", fontSize: 13 }}>
+            ⚠ Ya existe un snapshot para {month}
+          </div>
+          <div className="fs-12" style={{ color: "var(--ink-2)", marginTop: 4 }}>
+            Guardado el {new Date(existingSnap.savedAt).toLocaleString()} · {existingSnap.rowCount} filas.
+            Los meses pasados no se sobrescriben salvo que actives <em>reprocess month</em>.
+          </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={reprocess}
+              onChange={(e) => onReprocessChange(e.target.checked)}
+            />
+            <span className="fs-12 strong">Reprocesar mes (sobrescribir snapshot anterior)</span>
+          </label>
+        </div>
+      )}
+
       {issues.length > 0 ? (
         <div>
           <div className="serif" style={{ fontSize: 18, marginBottom: 10 }}>
@@ -249,7 +286,6 @@ function ReviewPanel({
         </div>
       )}
 
-      {/* Already loaded months hint */}
       <div className="fs-12" style={{ color: "var(--ink-3)", marginTop: 16 }}>
         Meses previamente cargados:{" "}
         <span className="mono">
@@ -257,22 +293,29 @@ function ReviewPanel({
         </span>
       </div>
 
-      {/* Actions */}
+      {saveError && (
+        <div style={{
+          marginTop: 12, padding: "10px 14px", borderLeft: "3px solid var(--red)",
+          background: "rgba(179,38,30,0.06)", borderRadius: 10, color: "var(--red)",
+        }} className="fs-12 strong">
+          {saveError}
+        </div>
+      )}
+
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 22 }}>
         <button className="btn ghost" onClick={onCancel}>Cancelar</button>
         <button
           className="btn"
           onClick={onConfirm}
-          disabled={blocking}
+          disabled={disabled}
           style={{
-            background: blocking ? "var(--ink-5)" : "var(--ink)",
+            background: disabled ? "var(--ink-5)" : "var(--ink)",
             color: "var(--paper)",
-            cursor: blocking ? "not-allowed" : "pointer",
-            opacity: blocking ? 0.7 : 1,
+            cursor: disabled ? "not-allowed" : "pointer",
+            opacity: disabled ? 0.7 : 1,
           }}
-          title={blocking ? "Resolvé los errores antes de confirmar" : undefined}
         >
-          {blocking ? "Bloqueado por errores" : `Confirmar importación (${rows.length})`}
+          {btnLabel}
         </button>
       </div>
     </div>
