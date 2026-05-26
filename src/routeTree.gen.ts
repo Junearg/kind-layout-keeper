@@ -16,6 +16,7 @@ import { Route as KpisRouteImport } from './routes/kpis'
 import { Route as HealthRouteImport } from './routes/health'
 import { Route as ColaRouteImport } from './routes/cola'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiChatRouteImport } from './routes/api/chat'
 
 const TendenciaRoute = TendenciaRouteImport.update({
   id: '/tendencia',
@@ -52,6 +53,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiChatRoute = ApiChatRouteImport.update({
+  id: '/api/chat',
+  path: '/api/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -61,6 +67,7 @@ export interface FileRoutesByFullPath {
   '/nps': typeof NpsRoute
   '/resumen': typeof ResumenRoute
   '/tendencia': typeof TendenciaRoute
+  '/api/chat': typeof ApiChatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -70,6 +77,7 @@ export interface FileRoutesByTo {
   '/nps': typeof NpsRoute
   '/resumen': typeof ResumenRoute
   '/tendencia': typeof TendenciaRoute
+  '/api/chat': typeof ApiChatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -80,6 +88,7 @@ export interface FileRoutesById {
   '/nps': typeof NpsRoute
   '/resumen': typeof ResumenRoute
   '/tendencia': typeof TendenciaRoute
+  '/api/chat': typeof ApiChatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -91,8 +100,17 @@ export interface FileRouteTypes {
     | '/nps'
     | '/resumen'
     | '/tendencia'
+    | '/api/chat'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/cola' | '/health' | '/kpis' | '/nps' | '/resumen' | '/tendencia'
+  to:
+    | '/'
+    | '/cola'
+    | '/health'
+    | '/kpis'
+    | '/nps'
+    | '/resumen'
+    | '/tendencia'
+    | '/api/chat'
   id:
     | '__root__'
     | '/'
@@ -102,6 +120,7 @@ export interface FileRouteTypes {
     | '/nps'
     | '/resumen'
     | '/tendencia'
+    | '/api/chat'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -112,6 +131,7 @@ export interface RootRouteChildren {
   NpsRoute: typeof NpsRoute
   ResumenRoute: typeof ResumenRoute
   TendenciaRoute: typeof TendenciaRoute
+  ApiChatRoute: typeof ApiChatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -165,6 +185,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/chat': {
+      id: '/api/chat'
+      path: '/api/chat'
+      fullPath: '/api/chat'
+      preLoaderRoute: typeof ApiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -176,6 +203,7 @@ const rootRouteChildren: RootRouteChildren = {
   NpsRoute: NpsRoute,
   ResumenRoute: ResumenRoute,
   TendenciaRoute: TendenciaRoute,
+  ApiChatRoute: ApiChatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
