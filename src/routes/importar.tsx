@@ -5,10 +5,13 @@ import { Layout } from "@/components/Layout";
 import {
   detectMonth,
   getLoadedMonths,
-  markMonthLoaded,
+  getSnapshot,
+  listSnapshots,
   normalizeRows,
+  saveSnapshot,
   validate,
   type Issue,
+  type MonthlySnapshot,
   type NormalizedRow,
 } from "@/lib/import-validation";
 
@@ -28,15 +31,20 @@ function ImportarPage() {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [stage, setStage] = useState<Stage>("idle");
   const [error, setError] = useState<string>("");
+  const [reprocess, setReprocess] = useState<boolean>(false);
+  const [savedSnap, setSavedSnap] = useState<MonthlySnapshot | null>(null);
 
   const month = useMemo(() => detectMonth(rows), [rows]);
+  const existingSnap = useMemo(() => (month ? getSnapshot(month) : null), [month, stage]);
   const blocking = issues.some((i) => i.severity === "error");
+  const needsReprocess = !!existingSnap && !reprocess;
   const errCount = issues.filter((i) => i.severity === "error").length;
   const warnCount = issues.filter((i) => i.severity === "warning").length;
 
   async function handleFile(file: File) {
     setError("");
     setStage("idle");
+    setReprocess(false);
     try {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: "array" });
@@ -60,14 +68,22 @@ function ImportarPage() {
     setFileName("");
     setStage("idle");
     setError("");
+    setReprocess(false);
+    setSavedSnap(null);
     if (inputRef.current) inputRef.current.value = "";
   }
 
   function confirm() {
-    if (blocking) return;
-    if (month) markMonthLoaded(month);
-    setStage("confirmed");
+    if (blocking || needsReprocess) return;
+    try {
+      const snap = saveSnapshot(month, rows, reprocess);
+      setSavedSnap(snap);
+      setStage("confirmed");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No pudimos guardar el snapshot.");
+    }
   }
+
 
   return (
     <Layout>
