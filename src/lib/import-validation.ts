@@ -188,6 +188,100 @@ export function saveSnapshot(
   return snap;
 }
 
+/* -------------------- month-over-month comparison -------------------- */
+
+export type ChangeType =
+  | "new"
+  | "churn"
+  | "contraction"
+  | "expansion"
+  | "reactivation"
+  | "no_change";
+
+export type CustomerChange = {
+  company_id: string;
+  customer_name: string;
+  type: ChangeType;
+  prevMrr: number | null;
+  currMrr: number | null;
+  mrrDelta: number; // current - previous (treats null as 0)
+};
+
+export type SnapshotDiff = {
+  prevMonth: string;
+  currMonth: string;
+  counts: Record<ChangeType, number>;
+  mrrDelta: number;
+  changes: CustomerChange[];
+};
+
+function isActive(r: NormalizedRow | undefined): boolean {
+  if (!r) return false;
+  // Anything not explicitly churned is considered active for the snapshot it appears in.
+  return r.status !== "churned";
+}
+
+function mrrOf(r: NormalizedRow | undefined): number {
+  return r?.mrr ?? 0;
+}
+
+export function diffSnapshots(prev: MonthlySnapshot, curr: MonthlySnapshot): SnapshotDiff {
+  const prevById = new Map(prev.rows.map((r) => [r.company_id, r]));
+  const currById = new Map(curr.rows.map((r) => [r.company_id, r]));
+  const ids = new Set<string>([...prevById.keys(), ...currById.keys()]);
+
+  const counts: Record<ChangeType, number> = {
+    new: 0, churn: 0, contraction: 0, expansion: 0, reactivation: 0, no_change: 0,
+  };
+  const changes: CustomerChange[] = [];
+  let totalDelta = 0;
+
+  ids.forEach((id) => {
+    if (!id) return;
+    const p = prevById.get(id);
+    const c = currById.get(id);
+    const pActive = isActive(p);
+    const cActive = isActive(c);
+    const pMrr = mrrOf(p);
+    const cMrr = mrrOf(c);
+
+    let type: ChangeType;
+    if (!p && cActive) type = "new";
+    else if (p && !pActive && cActive) type = "reactivation";
+    else if (pActive && !cActive) type = "churn";
+    else if (pActive && cActive && cMrr < pMrr) type = "contraction";
+    else if (pActive && cActive && cMrr > pMrr) type = "expansion";
+    else type = "no_change";
+
+    counts[type]++;
+    const delta = cMrr - pMrr;
+    totalDelta += delta;
+    changes.push({
+      company_id: id,
+      customer_name: c?.customer_name || p?.customer_name || "—",
+      type,
+      prevMrr: p?.mrr ?? null,
+      currMrr: c?.mrr ?? null,
+      mrrDelta: delta,
+    });
+  });
+
+  return {
+    prevMonth: prev.month,
+    currMonth: curr.month,
+    counts,
+    mrrDelta: totalDelta,
+    changes,
+  };
+}
+
+/** Returns the most recent snapshot whose month sorts before `month`. */
+export function getPreviousSnapshot(month: string): MonthlySnapshot | null {
+  const all = listSnapshots().filter((s) => s.month.localeCompare(month) < 0);
+  return all.length ? all[all.length - 1]! : null;
+}
+
+
 
 export function validate(rows: NormalizedRow[]): Issue[] {
   const issues: Issue[] = [];

@@ -4,15 +4,19 @@ import * as XLSX from "xlsx";
 import { Layout } from "@/components/Layout";
 import {
   detectMonth,
+  diffSnapshots,
   getLoadedMonths,
+  getPreviousSnapshot,
   getSnapshot,
   listSnapshots,
   normalizeRows,
   saveSnapshot,
   validate,
+  type ChangeType,
   type Issue,
   type MonthlySnapshot,
   type NormalizedRow,
+  type SnapshotDiff,
 } from "@/lib/import-validation";
 
 export const Route = createFileRoute("/importar")({
@@ -132,12 +136,13 @@ function ImportarPage() {
         )}
       </section>
 
-      {stage === "idle" && (
-        <>
-          <SnapshotsList />
-          <ExpectedSchema />
-        </>
-      )}
+        {stage === "idle" && (
+          <>
+            <CompareSection />
+            <SnapshotsList />
+            <ExpectedSchema />
+          </>
+        )}
     </Layout>
   );
 }
@@ -382,25 +387,191 @@ function SummaryStat({
 }
 
 function ConfirmedPanel({ snap, wasReprocess, onAgain }: { snap: MonthlySnapshot; wasReprocess: boolean; onAgain: () => void }) {
+  const prev = useMemo(() => getPreviousSnapshot(snap.month), [snap.month]);
+  const diff = useMemo(() => (prev ? diffSnapshots(prev, snap) : null), [prev, snap]);
   return (
-    <div style={{ textAlign: "center", padding: "32px 12px" }}>
-      <div style={{ fontSize: 36, color: "var(--blue)" }}>✓</div>
-      <h3 className="serif" style={{ fontSize: 22, marginTop: 8 }}>
-        Snapshot <em>{wasReprocess ? "reprocesado" : "guardado"}</em>
-      </h3>
-      <p className="fs-12" style={{ color: "var(--ink-3)", marginTop: 6 }}>
-        {snap.rowCount} filas guardadas en <span className="mono">customer_monthly_snapshot</span>
-        {snap.month ? ` · mes ${snap.month}` : ""}.
-      </p>
-      <p className="fs-12" style={{ color: "var(--ink-4)", marginTop: 2 }}>
-        {new Date(snap.savedAt).toLocaleString()}
-      </p>
-      <button className="btn" onClick={onAgain} style={{ marginTop: 18, background: "var(--ink)", color: "var(--paper)" }}>
-        Cargar otro archivo
-      </button>
+    <div style={{ padding: "16px 4px" }}>
+      <div style={{ textAlign: "center", padding: "12px 0 24px" }}>
+        <div style={{ fontSize: 36, color: "var(--blue)" }}>✓</div>
+        <h3 className="serif" style={{ fontSize: 22, marginTop: 8 }}>
+          Snapshot <em>{wasReprocess ? "reprocesado" : "guardado"}</em>
+        </h3>
+        <p className="fs-12" style={{ color: "var(--ink-3)", marginTop: 6 }}>
+          {snap.rowCount} filas guardadas en <span className="mono">customer_monthly_snapshot</span>
+          {snap.month ? ` · mes ${snap.month}` : ""}.
+        </p>
+        <p className="fs-12" style={{ color: "var(--ink-4)", marginTop: 2 }}>
+          {new Date(snap.savedAt).toLocaleString()}
+        </p>
+      </div>
+
+      {diff ? (
+        <DiffView diff={diff} />
+      ) : (
+        <div className="fs-12" style={{ color: "var(--ink-3)", textAlign: "center" }}>
+          No hay snapshot anterior contra el cual comparar.
+        </div>
+      )}
+
+      <div style={{ textAlign: "center", marginTop: 22 }}>
+        <button className="btn" onClick={onAgain} style={{ background: "var(--ink)", color: "var(--paper)" }}>
+          Cargar otro archivo
+        </button>
+      </div>
     </div>
   );
 }
+
+const CHANGE_META: Record<ChangeType, { label: string; color: string; bg: string }> = {
+  new:          { label: "New",           color: "var(--blue)",  bg: "rgba(30,93,191,0.08)" },
+  reactivation: { label: "Reactivation",  color: "var(--blue)",  bg: "rgba(30,93,191,0.08)" },
+  expansion:    { label: "Expansion",     color: "#0a6b3a",      bg: "rgba(10,107,58,0.08)" },
+  no_change:    { label: "No change",     color: "var(--ink-3)", bg: "var(--paper-2)" },
+  contraction:  { label: "Contraction",   color: "var(--amber)", bg: "rgba(181,116,15,0.08)" },
+  churn:        { label: "Churn",         color: "var(--red)",   bg: "rgba(179,38,30,0.08)" },
+};
+
+const CHANGE_ORDER: ChangeType[] = ["new", "reactivation", "expansion", "no_change", "contraction", "churn"];
+
+function DiffView({ diff }: { diff: SnapshotDiff }) {
+  const [filter, setFilter] = useState<ChangeType | "all">("all");
+  const filtered = filter === "all" ? diff.changes : diff.changes.filter((c) => c.type === filter);
+  const sample = filtered
+    .filter((c) => c.type !== "no_change" || filter === "no_change")
+    .slice(0, 20);
+
+  return (
+    <div>
+      <div className="serif" style={{ fontSize: 18, marginBottom: 4 }}>
+        Cambios vs <em>{diff.prevMonth}</em>
+      </div>
+      <div className="fs-12" style={{ color: "var(--ink-3)", marginBottom: 12 }}>
+        Comparación cliente por cliente · MRR neto{" "}
+        <span className="strong mono" style={{ color: diff.mrrDelta >= 0 ? "#0a6b3a" : "var(--red)" }}>
+          {diff.mrrDelta >= 0 ? "+" : ""}{Math.round(diff.mrrDelta).toLocaleString()}
+        </span>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 8, marginBottom: 14 }}>
+        {CHANGE_ORDER.map((t) => {
+          const m = CHANGE_META[t];
+          const active = filter === t;
+          return (
+            <button
+              key={t}
+              onClick={() => setFilter(active ? "all" : t)}
+              style={{
+                textAlign: "left", padding: "10px 12px", borderRadius: 10,
+                background: m.bg, border: `1px solid ${active ? m.color : "transparent"}`,
+                cursor: "pointer",
+              }}
+            >
+              <div className="fs-12 strong" style={{ color: m.color, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                {m.label}
+              </div>
+              <div className="strong" style={{ fontSize: 20, color: "var(--ink)", marginTop: 4 }}>
+                {diff.counts[t].toLocaleString()}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {sample.length > 0 && (
+        <div style={{ border: "1px solid var(--rule)", borderRadius: 10, overflow: "hidden" }}>
+          <div style={{
+            display: "grid", gridTemplateColumns: "1.6fr 1fr 0.9fr 0.9fr 0.9fr",
+            padding: "8px 12px", background: "var(--paper-2)",
+            fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--ink-3)",
+          }} className="strong">
+            <div>Cliente</div>
+            <div>Cambio</div>
+            <div style={{ textAlign: "right" }}>MRR prev</div>
+            <div style={{ textAlign: "right" }}>MRR actual</div>
+            <div style={{ textAlign: "right" }}>Δ</div>
+          </div>
+          {sample.map((c) => {
+            const m = CHANGE_META[c.type];
+            return (
+              <div
+                key={c.company_id}
+                style={{
+                  display: "grid", gridTemplateColumns: "1.6fr 1fr 0.9fr 0.9fr 0.9fr",
+                  padding: "8px 12px", borderTop: "1px solid var(--rule)", alignItems: "center",
+                }}
+              >
+                <div>
+                  <div className="fs-12 strong">{c.customer_name}</div>
+                  <div className="mono fs-12" style={{ color: "var(--ink-4)" }}>{c.company_id}</div>
+                </div>
+                <div>
+                  <span className="tag" style={{ background: m.bg, color: m.color }}>{m.label}</span>
+                </div>
+                <div className="mono fs-12" style={{ textAlign: "right", color: "var(--ink-3)" }}>
+                  {c.prevMrr === null ? "—" : Math.round(c.prevMrr).toLocaleString()}
+                </div>
+                <div className="mono fs-12" style={{ textAlign: "right" }}>
+                  {c.currMrr === null ? "—" : Math.round(c.currMrr).toLocaleString()}
+                </div>
+                <div
+                  className="mono fs-12 strong"
+                  style={{ textAlign: "right", color: c.mrrDelta > 0 ? "#0a6b3a" : c.mrrDelta < 0 ? "var(--red)" : "var(--ink-3)" }}
+                >
+                  {c.mrrDelta > 0 ? "+" : ""}{Math.round(c.mrrDelta).toLocaleString()}
+                </div>
+              </div>
+            );
+          })}
+          {filtered.length > sample.length && (
+            <div className="fs-12" style={{ padding: "8px 12px", color: "var(--ink-3)", background: "var(--paper)", borderTop: "1px solid var(--rule)" }}>
+              Mostrando {sample.length} de {filtered.length} cambios.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CompareSection() {
+  const snaps = listSnapshots();
+  const [currIdx, setCurrIdx] = useState(snaps.length - 1);
+  const [prevIdx, setPrevIdx] = useState(Math.max(0, snaps.length - 2));
+  if (snaps.length < 2) return null;
+  const curr = snaps[currIdx];
+  const prev = snaps[prevIdx];
+  const diff = curr && prev && curr.month !== prev.month ? diffSnapshots(prev, curr) : null;
+
+  return (
+    <section className="card" style={{ padding: 24, marginTop: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 12 }}>
+        <div>
+          <h3 className="serif" style={{ fontSize: 18, margin: 0 }}>
+            Comparar <em>meses</em>
+          </h3>
+          <p className="fs-12" style={{ color: "var(--ink-3)", marginTop: 4 }}>
+            Diff cliente por cliente entre dos snapshots guardados.
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <select value={prevIdx} onChange={(e) => setPrevIdx(Number(e.target.value))}
+            style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid var(--rule-2)", background: "var(--paper)" }}>
+            {snaps.map((s, i) => <option key={s.month} value={i}>{s.month}</option>)}
+          </select>
+          <span className="fs-12" style={{ color: "var(--ink-3)" }}>→</span>
+          <select value={currIdx} onChange={(e) => setCurrIdx(Number(e.target.value))}
+            style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid var(--rule-2)", background: "var(--paper)" }}>
+            {snaps.map((s, i) => <option key={s.month} value={i}>{s.month}</option>)}
+          </select>
+        </div>
+      </div>
+      {diff ? <DiffView diff={diff} /> : (
+        <div className="fs-12" style={{ color: "var(--ink-3)" }}>Elegí dos meses distintos.</div>
+      )}
+    </section>
+  );
+}
+
 
 function SnapshotsList() {
   const snaps = listSnapshots();
