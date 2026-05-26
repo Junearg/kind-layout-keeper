@@ -201,7 +201,7 @@ export function ChatWidget() {
                   }
                   return (
                     <Message key={m.id} from="assistant">
-                      <MessageContent variant="flat">
+                      <MessageContent style={{ background: "transparent", padding: 0, color: "var(--ink)" }}>
                         <MessageResponse>{text}</MessageResponse>
                       </MessageContent>
                     </Message>
