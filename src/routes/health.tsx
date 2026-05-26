@@ -5,6 +5,7 @@ import {
   ReferenceLine, ResponsiveContainer, BarChart, Bar, LabelList, Cell,
 } from "recharts";
 import { Layout } from "@/components/Layout";
+import { ExportButton } from "@/components/ExportButton";
 import { healthAccounts, tierDist, riskFlagDist, type HealthAccount } from "@/data/mockData";
 
 export const Route = createFileRoute("/health")({
@@ -58,7 +59,16 @@ function Health() {
   );
 
   return (
-    <Layout>
+    <Layout actions={
+      <ExportButton
+        filename="health-score.xlsx"
+        sheets={[
+          { name: "Cuentas", rows: healthAccounts.map((a) => ({ ...a, flags: a.flags.join(", ") })) },
+          { name: "Distribución tiers", rows: tierDist },
+          { name: "Risk flags", rows: riskFlagDist },
+        ]}
+      />
+    }>
       {/* Row 1 — Tier KPIs */}
       <div className="bento cols-4">
         <div className="card lg orange">

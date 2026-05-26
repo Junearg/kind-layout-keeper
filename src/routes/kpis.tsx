@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Layout } from "@/components/Layout";
+import { ExportButton } from "@/components/ExportButton";
 import { SectionDivider } from "@/components/SectionDivider";
 import { kpiTargets, iniciativas } from "@/data/mockData";
 
@@ -117,7 +118,15 @@ const prioTag = (p: string) => {
 
 function Kpis() {
   return (
-    <Layout>
+    <Layout actions={
+      <ExportButton
+        filename="kpis-iniciativas.xlsx"
+        sheets={[
+          { name: "KPIs seguimiento", rows: kpiTargets },
+          { name: "Iniciativas", rows: iniciativas },
+        ]}
+      />
+    }>
       <div className="bento cols-4">
         {kpiTargets.slice(0, 4).map((k) => <KpiCell key={k.kpi} k={k} />)}
       </div>
