@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Layout } from "@/components/Layout";
+import { ExportButton } from "@/components/ExportButton";
 import {
   churnTrend, tierDist, ORANGE,
 } from "@/data/mockData";
@@ -21,7 +22,22 @@ function Resumen() {
   const cuentasActivas = tierDist.reduce((s, t) => s + t.count, 0);
 
   return (
-    <Layout>
+    <Layout actions={
+      <ExportButton
+        filename="resumen-ejecutivo.xlsx"
+        sheets={[
+          { name: "Tendencia churn", rows: churnTrend },
+          { name: "Distribución tiers", rows: tierDist },
+          { name: "KPIs Q1", rows: [
+            { kpi: "NPS Global", valor: 47.71 },
+            { kpi: "CSAT", valor: 4.78 },
+            { kpi: "CVR Neto", valor: "19.9%" },
+            { kpi: "Cuentas activas", valor: cuentasActivas },
+            { kpi: "Bajas del mes", valor: 1446 },
+          ] },
+        ]}
+      />
+    }>
       {/* ── Fila 1: Alertas activas (2×2) ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
         <AlertBanner tone="red"   icon="●" text="Chile NPS 37.05 — gap -16.9 pts vs Argentina"  to="/nps" />
