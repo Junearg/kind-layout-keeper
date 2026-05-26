@@ -19,7 +19,7 @@ const HELLO: Record<string, { crumbs: string; h1: ReactNode; sub: string }> = {
   "/kpis":      { crumbs: "Fudo CS Ops · Iniciativas", h1: <>KPIs e <span className="alt">iniciativas</span></>, sub: "Targets a 3 y 6 meses · roadmap de retención" },
 };
 
-export function Layout({ children }: { children: ReactNode }) {
+export function Layout({ children, actions }: { children: ReactNode; actions?: ReactNode }) {
   const { pathname } = useLocation();
   const active = TABS.find((t) => pathname.startsWith(t.to))?.to ?? "/resumen";
   const hello = HELLO[active] ?? HELLO["/resumen"]!;
@@ -54,9 +54,12 @@ export function Layout({ children }: { children: ReactNode }) {
             <h1>{hello.h1}</h1>
             <p className="sub">{hello.sub}</p>
           </div>
-          <div className="stamp">
-            última actualización<br />
-            <span className="v">23 May 2026</span>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 12 }}>
+            {actions}
+            <div className="stamp">
+              última actualización<br />
+              <span className="v">23 May 2026</span>
+            </div>
           </div>
         </div>
 
