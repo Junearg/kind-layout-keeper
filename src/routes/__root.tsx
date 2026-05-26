@@ -73,10 +73,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Churn Intelligence Hub · Fudo CS Ops" },
+      { title: "Fudo Churn Center" },
       { name: "description", content: "Análisis editorial de churn, NPS y health score para Customer Success de Fudo." },
-      { name: "author", content: "Fudo CS Ops" },
-      { property: "og:title", content: "Churn Intelligence Hub · Fudo CS Ops" },
+      { name: "author", content: "Fudo Churn Center" },
+      { property: "og:title", content: "Fudo Churn Center" },
       { property: "og:description", content: "Análisis editorial de churn, NPS y health score." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
