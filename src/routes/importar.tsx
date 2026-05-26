@@ -117,17 +117,27 @@ function ImportarPage() {
             errCount={errCount}
             warnCount={warnCount}
             blocking={blocking}
+            existingSnap={existingSnap}
+            reprocess={reprocess}
+            onReprocessChange={setReprocess}
+            needsReprocess={needsReprocess}
+            saveError={error}
             onConfirm={confirm}
             onCancel={reset}
           />
         )}
 
-        {stage === "confirmed" && (
-          <ConfirmedPanel rows={rows.length} month={month} onAgain={reset} />
+        {stage === "confirmed" && savedSnap && (
+          <ConfirmedPanel snap={savedSnap} wasReprocess={reprocess} onAgain={reset} />
         )}
       </section>
 
-      {stage === "idle" && <ExpectedSchema />}
+      {stage === "idle" && (
+        <>
+          <SnapshotsList />
+          <ExpectedSchema />
+        </>
+      )}
     </Layout>
   );
 }
