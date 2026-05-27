@@ -161,12 +161,19 @@ function Dropzone({ onFile, inputRef, error }: { onFile: (f: File) => void; inpu
   );
 }
 
-function PreviewPanel({ fileName, report, onConfirm, onCancel }: {
-  fileName: string; report: ParseReport; onConfirm: () => void; onCancel: () => void;
+function PreviewPanel({ fileName, report, mesesDetectados, mesElegido, onMesChange, onConfirm, onCancel }: {
+  fileName: string;
+  report: ParseReport;
+  mesesDetectados: string[];
+  mesElegido: string;
+  onMesChange: (m: string) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
 }) {
   const errores = report.hojas.filter((h) => h.status === "error").length;
   const warns = report.hojas.filter((h) => h.status === "warn").length;
   const missing = report.hojas.filter((h) => h.status === "missing").length;
+
   return (
     <div style={{ marginTop: 14 }}>
       <div className="fs-12" style={{ color: "var(--ink-3)", marginBottom: 12 }}>
