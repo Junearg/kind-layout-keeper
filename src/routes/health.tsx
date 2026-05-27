@@ -79,6 +79,10 @@ function Health() {
         ]}
       />
     }>
+      {!healthMes ? (
+        <EmptyPeriod section="Health Score" mes={mesLargo(mesActivo)} />
+      ) : (
+      <>
       {/* Row 1 — Tier KPIs */}
       <div className="bento cols-4">
         {(() => {
