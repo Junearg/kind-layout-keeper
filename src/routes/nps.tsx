@@ -188,23 +188,25 @@ function Nps() {
         <div className="bento equal-2" style={{ marginTop: 18 }}>
           <InsightCard
             icon="🔍"
-            text="Las cuentas que churnean NO contactan CS antes."
-            sub="Solo 11% de bajas abrieron ticket en los 30 días previos."
+            text="Las cuentas que churnean dejan poca señal previa."
+            sub={`${nfmt(d.csatTotalConv)} conversaciones CSAT vs ${nfmt(d.ytdClosed)} bajas en el período: el soporte no captura la mayoría.`}
           />
           <InsightCard
             icon="📉"
             text="CSAT alto NO protege del churn."
-            sub="4.79★ promedio mientras las bajas crecen +43.6% Feb→Abr."
+            sub={`${d.csatAvg.toFixed(2)}★ promedio${d.accelLabel ? ` mientras las bajas crecen ${d.accelLabel}` : ""}.`}
           />
           <InsightCard
             icon="🤐"
-            text="52.1% se van sin dejar motivo."
+            text={`${d.pctSinMotivo.toFixed(1)}% se van sin dejar motivo.`}
             sub="No es indiferencia: es ausencia de fricción visible."
           />
           <InsightCard
             icon="⚠️"
-            text="El soporte mide reactivo, no salud."
-            sub="Necesitamos señales proactivas de uso, no encuestas post-mortem."
+            text={d.npsGap > 10 ? `Brecha regional de ${d.npsGap.toFixed(1)} pts NPS.` : "El soporte mide reactivo, no salud."}
+            sub={d.npsWorst && d.npsBest
+              ? `${d.npsBest.pais} ${d.npsBest.nps.toFixed(1)} vs ${d.npsWorst.pais} ${d.npsWorst.nps.toFixed(1)} · prioridad regional.`
+              : "Necesitamos señales proactivas de uso, no encuestas post-mortem."}
           />
         </div>
       </div>
