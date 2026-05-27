@@ -1,9 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
+import { EmptyPeriod } from "@/components/EmptyPeriod";
 import { ORANGE } from "@/data/mockData";
 import { useDashboardData } from "@/data/liveData";
 import { useDerived } from "@/data/derived";
+import { useDatasetState, useResumenMes } from "@/data/dataset-store";
+import { computeAlertas } from "@/lib/alert-rules";
+import { mesLargo } from "@/data/schema";
 import {
   ResponsiveContainer, ComposedChart, Bar, Line, Area,
   XAxis, YAxis, Tooltip, CartesianGrid, Cell,
@@ -23,6 +27,9 @@ const pctFmt = (n: number | null | undefined, digits = 1) =>
 function Resumen() {
   const { churnTrend, tierDist } = useDashboardData();
   const d = useDerived();
+  const { dataset, mesActivo } = useDatasetState();
+  const resumen = useResumenMes();
+  const alertas = computeAlertas(dataset, mesActivo);
 
   return (
     <Layout actions={
@@ -41,37 +48,18 @@ function Resumen() {
         ]}
       />
     }>
-      {/* ── Fila 1: Alertas activas (dinámicas) ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
-        {d.npsWorst && d.npsBest && d.npsWorst.pais !== d.npsBest.pais && (
-          <AlertBanner
-            tone="red" icon="●"
-            text={`${d.npsWorst.pais} NPS ${d.npsWorst.nps.toFixed(2)} — gap ${(d.npsWorst.nps - d.npsBest.nps).toFixed(1)} pts vs ${d.npsBest.pais}`}
-            to="/nps"
-          />
-        )}
-        {d.sinMotivo && (
-          <AlertBanner
-            tone="red" icon="●"
-            text={`${d.pctSinMotivo.toFixed(1)}% de bajas sin motivo (${nfmt(d.sinMotivo.n)} cuentas)`}
-            to="/tendencia"
-          />
-        )}
-        {d.accelLabel && (
-          <AlertBanner
-            tone="amber" icon="●"
-            text={`Aceleración churn ${d.accelLabel}`}
-            to="/tendencia"
-          />
-        )}
-        {d.critical && d.critical.count > 0 && (
-          <AlertBanner
-            tone="amber" icon="●"
-            text={`${nfmt(d.critical.count)} cuentas en tier Critical — intervención urgente`}
-            to="/cola"
-          />
-        )}
-      </div>
+      {!resumen ? (
+        <EmptyPeriod section="Resumen ejecutivo" mes={mesLargo(mesActivo)} />
+      ) : (
+      <>
+      {/* ── Fila 1: Alertas activas (centralizadas en alert-rules) ── */}
+      {alertas.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+          {alertas.map((a, i) => (
+            <AlertBanner key={i} tone={a.tone === "blue" ? "amber" : a.tone} icon="●" text={a.titulo} to={a.link ?? "/"} />
+          ))}
+        </div>
+      )}
 
       {/* ── Fila 2: Bento cols-3 ── */}
       <div className="bento cols-3">
