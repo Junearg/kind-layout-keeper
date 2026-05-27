@@ -75,6 +75,8 @@ function QueueCard({ a, contacted, onToggle }: { a: HealthAccount; contacted: bo
 
 function Cola() {
   const { healthAccounts } = useDashboardData();
+  const colaMes = useColaMes();
+  const mesActivo = useMesActivo();
   const [filter, setFilter] = useState<FilterKey>("Todos");
   const [contactedSet, setContactedSet] = useState<Set<number>>(new Set());
 
@@ -129,6 +131,10 @@ function Cola() {
         ]}
       />
     }>
+      {!colaMes ? (
+        <EmptyPeriod section="Cola CS" mes={mesLargo(mesActivo)} />
+      ) : (
+      <>
       {/* Row 1 — KPIs */}
       <div className="bento cols-3">
         <div className="card ink lg">
