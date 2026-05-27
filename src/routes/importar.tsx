@@ -18,6 +18,11 @@ import {
   type NormalizedRow,
   type SnapshotDiff,
 } from "@/lib/import-validation";
+import { parseWorkbook, type ParsedWorkbook } from "@/lib/parse-workbook";
+import {
+  clearOverrides, listOverrideKeys, saveOverrides,
+  type DashboardKey,
+} from "@/data/liveData";
 
 export const Route = createFileRoute("/importar")({
   head: () => ({
@@ -37,6 +42,9 @@ function ImportarPage() {
   const [error, setError] = useState<string>("");
   const [reprocess, setReprocess] = useState<boolean>(false);
   const [savedSnap, setSavedSnap] = useState<MonthlySnapshot | null>(null);
+  const [parsed, setParsed] = useState<ParsedWorkbook | null>(null);
+  const [updateDashboards, setUpdateDashboards] = useState<boolean>(true);
+  const [dashboardsApplied, setDashboardsApplied] = useState<DashboardKey[]>([]);
 
   const month = useMemo(() => detectMonth(rows), [rows]);
   const existingSnap = useMemo(() => (month ? getSnapshot(month) : null), [month, stage]);
@@ -44,6 +52,8 @@ function ImportarPage() {
   const needsReprocess = !!existingSnap && !reprocess;
   const errCount = issues.filter((i) => i.severity === "error").length;
   const warnCount = issues.filter((i) => i.severity === "warning").length;
+  const hasSnapshot = rows.length > 0;
+  const hasDashboards = (parsed?.matchedDashboards.length ?? 0) > 0;
 
   async function handleFile(file: File) {
     setError("");
@@ -52,14 +62,25 @@ function ImportarPage() {
     try {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: "array" });
-      const ws = wb.Sheets[wb.SheetNames[0]!];
-      if (!ws) throw new Error("El archivo no contiene hojas legibles.");
-      const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
-      if (!raw.length) throw new Error("El archivo está vacío.");
-      const normalized = normalizeRows(raw);
+      if (!wb.SheetNames.length) throw new Error("El archivo no contiene hojas legibles.");
+      const p = parseWorkbook(wb);
+      setParsed(p);
+
+      let normalized: NormalizedRow[] = [];
+      let snapIssues: Issue[] = [];
+      if (p.snapshotRows && p.snapshotRows.length) {
+        normalized = normalizeRows(p.snapshotRows);
+        snapIssues = validate(normalized);
+      }
+
+      if (!normalized.length && !p.matchedDashboards.length) {
+        throw new Error("No encontramos hojas reconocibles (dashboards ni SNAPSHOT_mensual).");
+      }
+
       setRows(normalized);
-      setIssues(validate(normalized));
+      setIssues(snapIssues);
       setFileName(file.name);
+      setUpdateDashboards(p.matchedDashboards.length > 0);
       setStage("review");
     } catch (e) {
       setError(e instanceof Error ? e.message : "No pudimos leer el archivo.");
@@ -74,14 +95,22 @@ function ImportarPage() {
     setError("");
     setReprocess(false);
     setSavedSnap(null);
+    setParsed(null);
+    setDashboardsApplied([]);
     if (inputRef.current) inputRef.current.value = "";
   }
 
   function confirm() {
-    if (blocking || needsReprocess) return;
+    if (hasSnapshot && (blocking || needsReprocess)) return;
     try {
-      const snap = saveSnapshot(month, rows, reprocess);
-      setSavedSnap(snap);
+      if (hasSnapshot) {
+        const snap = saveSnapshot(month, rows, reprocess);
+        setSavedSnap(snap);
+      }
+      if (hasDashboards && updateDashboards && parsed) {
+        saveOverrides(parsed.dashboardOverrides);
+        setDashboardsApplied(parsed.matchedDashboards);
+      }
       setStage("confirmed");
     } catch (e) {
       setError(e instanceof Error ? e.message : "No pudimos guardar el snapshot.");
@@ -95,10 +124,10 @@ function ImportarPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, marginBottom: 20 }}>
           <div>
             <h2 className="serif" style={{ fontSize: 26, margin: 0 }}>
-              Importar <em>cuentas</em>
+              Importar <em>datos</em>
             </h2>
             <p className="fs-12" style={{ color: "var(--ink-3)", marginTop: 6 }}>
-              Subí un XLSX o CSV. Validamos automáticamente antes de confirmar.
+              Subí el workbook completo. Detectamos automáticamente las hojas de dashboards y/o el snapshot mensual de cuentas.
             </p>
           </div>
           {stage !== "idle" && (
@@ -128,22 +157,56 @@ function ImportarPage() {
             saveError={error}
             onConfirm={confirm}
             onCancel={reset}
+            parsed={parsed}
+            updateDashboards={updateDashboards}
+            onUpdateDashboardsChange={setUpdateDashboards}
           />
         )}
 
-        {stage === "confirmed" && savedSnap && (
-          <ConfirmedPanel snap={savedSnap} wasReprocess={reprocess} onAgain={reset} />
+        {stage === "confirmed" && (
+          <ConfirmedPanel
+            snap={savedSnap}
+            wasReprocess={reprocess}
+            dashboardsApplied={dashboardsApplied}
+            onAgain={reset}
+          />
         )}
       </section>
 
         {stage === "idle" && (
           <>
+            <DashboardOverridesBanner />
             <CompareSection />
             <SnapshotsList />
             <ExpectedSchema />
           </>
         )}
     </Layout>
+  );
+}
+
+function DashboardOverridesBanner() {
+  const keys = listOverrideKeys();
+  if (!keys.length) return null;
+  return (
+    <section className="card" style={{ padding: 16, marginTop: 16, borderLeft: "3px solid var(--orange)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <div className="strong" style={{ fontSize: 13 }}>
+            Dashboards actualizados desde import ({keys.length})
+          </div>
+          <div className="fs-12 mono" style={{ color: "var(--ink-3)", marginTop: 4 }}>
+            {keys.join(", ")}
+          </div>
+        </div>
+        <button
+          className="btn ghost"
+          onClick={() => { clearOverrides(); location.reload(); }}
+        >
+          Restaurar valores base
+        </button>
+      </div>
+    </section>
   );
 }
 
