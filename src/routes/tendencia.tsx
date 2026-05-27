@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
-import { churnTrend, motivosBaja, ORANGE } from "@/data/mockData";
+import { ORANGE } from "@/data/mockData";
+import { useDashboardData } from "@/data/liveData";
 import {
   ResponsiveContainer, ComposedChart, Bar, Area, LabelList,
   XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea,
@@ -25,6 +26,7 @@ function exportEmptyCsv() {
 }
 
 function Tendencia() {
+  const { churnTrend, motivosBaja } = useDashboardData();
   const sinMotivo = motivosBaja[0];
 
   return (

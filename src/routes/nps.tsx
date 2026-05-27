@@ -1,9 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
-import {
-  npsPais, motivosDetraccion, motivosPromocion, csatMensual, ORANGE,
-} from "@/data/mockData";
+import { ORANGE } from "@/data/mockData";
+import { useDashboardData } from "@/data/liveData";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip,
   CartesianGrid, ComposedChart, Line, LabelList,
@@ -15,6 +14,7 @@ export const Route = createFileRoute("/nps")({
 });
 
 function Nps() {
+  const { npsPais, motivosDetraccion, motivosPromocion, csatMensual } = useDashboardData();
   return (
     <Layout actions={
       <ExportButton

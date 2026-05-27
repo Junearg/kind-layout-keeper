@@ -18,6 +18,11 @@ import {
   type NormalizedRow,
   type SnapshotDiff,
 } from "@/lib/import-validation";
+import { parseWorkbook, type ParsedWorkbook } from "@/lib/parse-workbook";
+import {
+  clearOverrides, listOverrideKeys, saveOverrides,
+  type DashboardKey,
+} from "@/data/liveData";
 
 export const Route = createFileRoute("/importar")({
   head: () => ({
@@ -37,6 +42,9 @@ function ImportarPage() {
   const [error, setError] = useState<string>("");
   const [reprocess, setReprocess] = useState<boolean>(false);
   const [savedSnap, setSavedSnap] = useState<MonthlySnapshot | null>(null);
+  const [parsed, setParsed] = useState<ParsedWorkbook | null>(null);
+  const [updateDashboards, setUpdateDashboards] = useState<boolean>(true);
+  const [dashboardsApplied, setDashboardsApplied] = useState<DashboardKey[]>([]);
 
   const month = useMemo(() => detectMonth(rows), [rows]);
   const existingSnap = useMemo(() => (month ? getSnapshot(month) : null), [month, stage]);
@@ -44,6 +52,8 @@ function ImportarPage() {
   const needsReprocess = !!existingSnap && !reprocess;
   const errCount = issues.filter((i) => i.severity === "error").length;
   const warnCount = issues.filter((i) => i.severity === "warning").length;
+  const hasSnapshot = rows.length > 0;
+  const hasDashboards = (parsed?.matchedDashboards.length ?? 0) > 0;
 
   async function handleFile(file: File) {
     setError("");
@@ -52,14 +62,25 @@ function ImportarPage() {
     try {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: "array" });
-      const ws = wb.Sheets[wb.SheetNames[0]!];
-      if (!ws) throw new Error("El archivo no contiene hojas legibles.");
-      const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
-      if (!raw.length) throw new Error("El archivo está vacío.");
-      const normalized = normalizeRows(raw);
+      if (!wb.SheetNames.length) throw new Error("El archivo no contiene hojas legibles.");
+      const p = parseWorkbook(wb);
+      setParsed(p);
+
+      let normalized: NormalizedRow[] = [];
+      let snapIssues: Issue[] = [];
+      if (p.snapshotRows && p.snapshotRows.length) {
+        normalized = normalizeRows(p.snapshotRows);
+        snapIssues = validate(normalized);
+      }
+
+      if (!normalized.length && !p.matchedDashboards.length) {
+        throw new Error("No encontramos hojas reconocibles (dashboards ni SNAPSHOT_mensual).");
+      }
+
       setRows(normalized);
-      setIssues(validate(normalized));
+      setIssues(snapIssues);
       setFileName(file.name);
+      setUpdateDashboards(p.matchedDashboards.length > 0);
       setStage("review");
     } catch (e) {
       setError(e instanceof Error ? e.message : "No pudimos leer el archivo.");
@@ -74,14 +95,22 @@ function ImportarPage() {
     setError("");
     setReprocess(false);
     setSavedSnap(null);
+    setParsed(null);
+    setDashboardsApplied([]);
     if (inputRef.current) inputRef.current.value = "";
   }
 
   function confirm() {
-    if (blocking || needsReprocess) return;
+    if (hasSnapshot && (blocking || needsReprocess)) return;
     try {
-      const snap = saveSnapshot(month, rows, reprocess);
-      setSavedSnap(snap);
+      if (hasSnapshot) {
+        const snap = saveSnapshot(month, rows, reprocess);
+        setSavedSnap(snap);
+      }
+      if (hasDashboards && updateDashboards && parsed) {
+        saveOverrides(parsed.dashboardOverrides);
+        setDashboardsApplied(parsed.matchedDashboards);
+      }
       setStage("confirmed");
     } catch (e) {
       setError(e instanceof Error ? e.message : "No pudimos guardar el snapshot.");
@@ -95,10 +124,10 @@ function ImportarPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, marginBottom: 20 }}>
           <div>
             <h2 className="serif" style={{ fontSize: 26, margin: 0 }}>
-              Importar <em>cuentas</em>
+              Importar <em>datos</em>
             </h2>
             <p className="fs-12" style={{ color: "var(--ink-3)", marginTop: 6 }}>
-              Subí un XLSX o CSV. Validamos automáticamente antes de confirmar.
+              Subí el workbook completo. Detectamos automáticamente las hojas de dashboards y/o el snapshot mensual de cuentas.
             </p>
           </div>
           {stage !== "idle" && (
@@ -128,22 +157,56 @@ function ImportarPage() {
             saveError={error}
             onConfirm={confirm}
             onCancel={reset}
+            parsed={parsed}
+            updateDashboards={updateDashboards}
+            onUpdateDashboardsChange={setUpdateDashboards}
           />
         )}
 
-        {stage === "confirmed" && savedSnap && (
-          <ConfirmedPanel snap={savedSnap} wasReprocess={reprocess} onAgain={reset} />
+        {stage === "confirmed" && (
+          <ConfirmedPanel
+            snap={savedSnap}
+            wasReprocess={reprocess}
+            dashboardsApplied={dashboardsApplied}
+            onAgain={reset}
+          />
         )}
       </section>
 
         {stage === "idle" && (
           <>
+            <DashboardOverridesBanner />
             <CompareSection />
             <SnapshotsList />
             <ExpectedSchema />
           </>
         )}
     </Layout>
+  );
+}
+
+function DashboardOverridesBanner() {
+  const keys = listOverrideKeys();
+  if (!keys.length) return null;
+  return (
+    <section className="card" style={{ padding: 16, marginTop: 16, borderLeft: "3px solid var(--orange)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <div className="strong" style={{ fontSize: 13 }}>
+            Dashboards actualizados desde import ({keys.length})
+          </div>
+          <div className="fs-12 mono" style={{ color: "var(--ink-3)", marginTop: 4 }}>
+            {keys.join(", ")}
+          </div>
+        </div>
+        <button
+          className="btn ghost"
+          onClick={() => { clearOverrides(); location.reload(); }}
+        >
+          Restaurar valores base
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -212,6 +275,7 @@ function ReviewPanel({
   fileName, rows, issues, month, errCount, warnCount, blocking,
   existingSnap, reprocess, onReprocessChange, needsReprocess, saveError,
   onConfirm, onCancel,
+  parsed, updateDashboards, onUpdateDashboardsChange,
 }: {
   fileName: string;
   rows: NormalizedRow[];
@@ -227,28 +291,65 @@ function ReviewPanel({
   saveError: string;
   onConfirm: () => void;
   onCancel: () => void;
+  parsed: ParsedWorkbook | null;
+  updateDashboards: boolean;
+  onUpdateDashboardsChange: (v: boolean) => void;
 }) {
-  const disabled = blocking || needsReprocess;
-  const btnLabel = blocking
-    ? "Bloqueado por errores"
-    : needsReprocess
-      ? "Marcá Reprocesar para sobrescribir"
-      : reprocess
-        ? `Reprocesar ${month} (${rows.length})`
-        : `Guardar snapshot ${month} (${rows.length})`;
+  const hasSnapshot = rows.length > 0;
+  const hasDashboards = (parsed?.matchedDashboards.length ?? 0) > 0;
+  const disabled = hasSnapshot && (blocking || needsReprocess);
+  const willUpdateDashboards = hasDashboards && updateDashboards;
+
+  const btnLabel = (() => {
+    if (disabled && blocking) return "Bloqueado por errores";
+    if (disabled && needsReprocess) return "Marcá Reprocesar para sobrescribir";
+    const parts: string[] = [];
+    if (hasSnapshot) parts.push(reprocess ? `Reprocesar ${month} (${rows.length})` : `Guardar snapshot ${month} (${rows.length})`);
+    if (willUpdateDashboards) parts.push(`Actualizar ${parsed!.matchedDashboards.length} dashboards`);
+    return parts.length ? parts.join(" + ") : "Confirmar";
+  })();
 
   return (
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
         <SummaryStat label="Archivo" value={fileName} mono />
-        <SummaryStat label="Filas detectadas" value={String(rows.length)} />
-        <SummaryStat label="Mes inferido" value={month || "—"} />
         <SummaryStat
-          label="Validación"
-          value={blocking ? `${errCount} errores` : warnCount ? `${warnCount} avisos` : "Sin issues"}
-          tone={blocking ? "red" : warnCount ? "amber" : "ok"}
+          label="Snapshot mensual"
+          value={hasSnapshot ? `${rows.length} filas` : "no incluido"}
+          tone={!hasSnapshot ? undefined : blocking ? "red" : warnCount ? "amber" : "ok"}
         />
+        <SummaryStat
+          label="Dashboards"
+          value={hasDashboards ? `${parsed!.matchedDashboards.length} hojas` : "no incluidos"}
+          tone={hasDashboards ? "ok" : undefined}
+        />
+        <SummaryStat label="Mes inferido" value={month || "—"} />
       </div>
+
+      {hasDashboards && (
+        <div style={{
+          marginBottom: 16, padding: "12px 14px", borderRadius: 10,
+          background: "rgba(240,90,40,0.06)", borderLeft: "3px solid var(--orange)",
+        }}>
+          <div className="strong" style={{ color: "var(--orange)", fontSize: 13 }}>
+            ↻ Hojas de dashboard detectadas ({parsed!.matchedDashboards.length})
+          </div>
+          <div className="fs-12 mono" style={{ color: "var(--ink-2)", marginTop: 4, lineHeight: 1.6 }}>
+            {parsed!.matchedDashboards.join(", ")}
+          </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={updateDashboards}
+              onChange={(e) => onUpdateDashboardsChange(e.target.checked)}
+            />
+            <span className="fs-12 strong">
+              Actualizar dashboards con estos datos (sobrescribe valores anteriores)
+            </span>
+          </label>
+        </div>
+      )}
+
 
       {existingSnap && (
         <div style={{
@@ -386,32 +487,47 @@ function SummaryStat({
   );
 }
 
-function ConfirmedPanel({ snap, wasReprocess, onAgain }: { snap: MonthlySnapshot; wasReprocess: boolean; onAgain: () => void }) {
-  const prev = useMemo(() => getPreviousSnapshot(snap.month), [snap.month]);
-  const diff = useMemo(() => (prev ? diffSnapshots(prev, snap) : null), [prev, snap]);
+function ConfirmedPanel({
+  snap, wasReprocess, dashboardsApplied, onAgain,
+}: {
+  snap: MonthlySnapshot | null;
+  wasReprocess: boolean;
+  dashboardsApplied: DashboardKey[];
+  onAgain: () => void;
+}) {
+  const prev = useMemo(() => (snap ? getPreviousSnapshot(snap.month) : null), [snap]);
+  const diff = useMemo(() => (prev && snap ? diffSnapshots(prev, snap) : null), [prev, snap]);
   return (
     <div style={{ padding: "16px 4px" }}>
       <div style={{ textAlign: "center", padding: "12px 0 24px" }}>
         <div style={{ fontSize: 36, color: "var(--blue)" }}>✓</div>
         <h3 className="serif" style={{ fontSize: 22, marginTop: 8 }}>
-          Snapshot <em>{wasReprocess ? "reprocesado" : "guardado"}</em>
+          Import <em>aplicado</em>
         </h3>
-        <p className="fs-12" style={{ color: "var(--ink-3)", marginTop: 6 }}>
-          {snap.rowCount} filas guardadas en <span className="mono">customer_monthly_snapshot</span>
-          {snap.month ? ` · mes ${snap.month}` : ""}.
-        </p>
-        <p className="fs-12" style={{ color: "var(--ink-4)", marginTop: 2 }}>
-          {new Date(snap.savedAt).toLocaleString()}
-        </p>
+        {snap && (
+          <p className="fs-12" style={{ color: "var(--ink-3)", marginTop: 6 }}>
+            Snapshot {wasReprocess ? "reprocesado" : "guardado"} · {snap.rowCount} filas en{" "}
+            <span className="mono">customer_monthly_snapshot</span>
+            {snap.month ? ` · mes ${snap.month}` : ""}.
+          </p>
+        )}
+        {dashboardsApplied.length > 0 && (
+          <p className="fs-12" style={{ color: "var(--ink-3)", marginTop: 6 }}>
+            <span className="strong" style={{ color: "var(--orange)" }}>
+              {dashboardsApplied.length} dashboards
+            </span>{" "}
+            actualizados: <span className="mono">{dashboardsApplied.join(", ")}</span>
+          </p>
+        )}
       </div>
 
       {diff ? (
         <DiffView diff={diff} />
-      ) : (
+      ) : snap ? (
         <div className="fs-12" style={{ color: "var(--ink-3)", textAlign: "center" }}>
           No hay snapshot anterior contra el cual comparar.
         </div>
-      )}
+      ) : null}
 
       <div style={{ textAlign: "center", marginTop: 22 }}>
         <button className="btn" onClick={onAgain} style={{ background: "var(--ink)", color: "var(--paper)" }}>

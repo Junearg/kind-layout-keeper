@@ -1,9 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
-import {
-  churnTrend, tierDist, ORANGE,
-} from "@/data/mockData";
+import { ORANGE } from "@/data/mockData";
+import { useDashboardData } from "@/data/liveData";
 import {
   ResponsiveContainer, ComposedChart, Bar, Line, Area,
   XAxis, YAxis, Tooltip, CartesianGrid, Cell,
@@ -19,6 +18,7 @@ export const Route = createFileRoute("/resumen")({
 const tierClass = (t: string) => (t === "At Risk" ? "tier-AtRisk" : t);
 
 function Resumen() {
+  const { churnTrend, tierDist } = useDashboardData();
   const cuentasActivas = tierDist.reduce((s, t) => s + t.count, 0);
 
   return (
@@ -158,6 +158,7 @@ function Q1Metric({ label, value, tone }: { label: string; value: string; tone: 
 }
 
 function TierMiniBars() {
+  const { tierDist } = useDashboardData();
   const total = tierDist.reduce((s, t) => s + t.count, 0);
   return (
     <div className="mt-16">
@@ -182,6 +183,7 @@ function TierMiniBars() {
 }
 
 function TrendCard() {
+  const { churnTrend } = useDashboardData();
   // split real vs projected for stroke-dasharray rendering
   const data = churnTrend.map((d) => ({
     ...d,
@@ -261,6 +263,7 @@ function LegendDot({ color, label, dashed }: { color: string; label: string; das
 }
 
 function TierDonutCard({ total }: { total: number }) {
+  const { tierDist } = useDashboardData();
   return (
     <div className="card cream lg">
       <div className="minihead">

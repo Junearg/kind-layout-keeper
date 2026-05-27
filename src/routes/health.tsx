@@ -6,7 +6,8 @@ import {
 } from "recharts";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
-import { healthAccounts, tierDist, riskFlagDist, type HealthAccount } from "@/data/mockData";
+import { tierDist, riskFlagDist, type HealthAccount } from "@/data/mockData";
+import { useDashboardData } from "@/data/liveData";
 
 export const Route = createFileRoute("/health")({
   head: () => ({ meta: [{ title: "Health Score · Churn Hub" }] }),
@@ -35,6 +36,7 @@ function ScatterTooltip({ active, payload }: any) {
 }
 
 function Health() {
+  const { healthAccounts } = useDashboardData();
   const [tier, setTier] = useState<(typeof TIERS)[number]>("Todos");
 
   const rows = useMemo(
@@ -42,7 +44,7 @@ function Health() {
       healthAccounts
         .filter((a) => tier === "Todos" || a.tier === tier)
         .sort((a, b) => b.score - a.score),
-    [tier]
+    [tier, healthAccounts]
   );
 
   const scatterByTier = useMemo(() => {
@@ -51,7 +53,7 @@ function Health() {
       if (a.npsLtr !== null) out[a.tier]?.push(a);
     });
     return out;
-  }, []);
+  }, [healthAccounts]);
 
   const flagData = useMemo(
     () => [...riskFlagDist].filter((f) => f.flag !== "SIN_FLAGS").sort((a, b) => b.count - a.count),

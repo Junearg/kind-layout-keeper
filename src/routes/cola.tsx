@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
-import { healthAccounts, tierDist, riskFlagDist, type HealthAccount } from "@/data/mockData";
+import { tierDist, riskFlagDist, type HealthAccount } from "@/data/mockData";
+import { useDashboardData } from "@/data/liveData";
 
 export const Route = createFileRoute("/cola")({
   head: () => ({ meta: [{ title: "Cola CS · Churn Hub" }] }),
@@ -70,12 +71,13 @@ function QueueCard({ a, contacted, onToggle }: { a: HealthAccount; contacted: bo
 }
 
 function Cola() {
+  const { healthAccounts } = useDashboardData();
   const [filter, setFilter] = useState<FilterKey>("Todos");
   const [contactedSet, setContactedSet] = useState<Set<number>>(new Set());
 
   const queue = useMemo(
     () => [...healthAccounts].filter((a) => a.csPrio >= 35).sort((a, b) => b.csPrio - a.csPrio),
-    []
+    [healthAccounts]
   );
 
   const matches = (a: HealthAccount, f: FilterKey) => {
