@@ -18,6 +18,7 @@ export const Route = createFileRoute("/resumen")({
 const tierClass = (t: string) => (t === "At Risk" ? "tier-AtRisk" : t);
 
 function Resumen() {
+  const { churnTrend, tierDist } = useDashboardData();
   const cuentasActivas = tierDist.reduce((s, t) => s + t.count, 0);
 
   return (

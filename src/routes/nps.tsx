@@ -14,6 +14,7 @@ export const Route = createFileRoute("/nps")({
 });
 
 function Nps() {
+  const { npsPais, motivosDetraccion, motivosPromocion, csatMensual } = useDashboardData();
   return (
     <Layout actions={
       <ExportButton

@@ -26,6 +26,7 @@ function exportEmptyCsv() {
 }
 
 function Tendencia() {
+  const { churnTrend, motivosBaja } = useDashboardData();
   const sinMotivo = motivosBaja[0];
 
   return (

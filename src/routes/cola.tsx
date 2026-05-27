@@ -71,12 +71,13 @@ function QueueCard({ a, contacted, onToggle }: { a: HealthAccount; contacted: bo
 }
 
 function Cola() {
+  const { healthAccounts } = useDashboardData();
   const [filter, setFilter] = useState<FilterKey>("Todos");
   const [contactedSet, setContactedSet] = useState<Set<number>>(new Set());
 
   const queue = useMemo(
     () => [...healthAccounts].filter((a) => a.csPrio >= 35).sort((a, b) => b.csPrio - a.csPrio),
-    []
+    [healthAccounts]
   );
 
   const matches = (a: HealthAccount, f: FilterKey) => {

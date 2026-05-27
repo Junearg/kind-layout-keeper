@@ -74,7 +74,9 @@ function ProgressTrack({ baseline, t3, t6, current, color }: {
   );
 }
 
-function KpiCell({ k }: { k: typeof kpiTargets[number] }) {
+type KpiTarget = { kpi: string; baseline: string; target3m: string; target6m: string; current: string; status: string };
+
+function KpiCell({ k }: { k: KpiTarget }) {
   const s = statusColor(k.status);
   const baseline = parseNum(k.baseline);
   const t3 = parseNum(k.target3m);
@@ -117,6 +119,7 @@ const prioTag = (p: string) => {
 };
 
 function Kpis() {
+  const { kpiTargets, iniciativas } = useDashboardData();
   return (
     <Layout actions={
       <ExportButton
