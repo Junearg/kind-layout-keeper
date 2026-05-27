@@ -3,6 +3,7 @@ import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
 import { ORANGE } from "@/data/mockData";
 import { useDashboardData } from "@/data/liveData";
+import { useDerived } from "@/data/derived";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip,
   CartesianGrid, ComposedChart, Line, LabelList,
@@ -13,8 +14,23 @@ export const Route = createFileRoute("/nps")({
   component: Nps,
 });
 
+const nfmt = (n: number) => Math.round(n).toLocaleString("es-AR");
+const pctFmt = (n: number) => `${n.toFixed(1)}%`;
+
 function Nps() {
   const { npsPais, motivosDetraccion, motivosPromocion, csatMensual } = useDashboardData();
+  const d = useDerived();
+  const npsTone =
+    d.npsGlobal >= 50 ? { color: "var(--orange)", label: "zona saludable" } :
+    d.npsGlobal >= 30 ? { color: "var(--amber)",  label: "zona vigilar"  } :
+                        { color: "var(--red)",    label: "zona crítica"  };
+
+  const paradoxText = d.costoEnAmbos
+    ? `"${d.costoEnAmbos.motivo}" es motivo #${d.costoEnAmbos.detRank} de detracción Y motivo #${d.costoEnAmbos.promRank} de promoción.`
+    : d.detraccionTop && d.promocionTop
+      ? `"${d.detraccionTop.motivo}" lidera la detracción mientras "${d.promocionTop.motivo}" lidera la promoción.`
+      : "Sin paradoja detectada en motivos.";
+
   return (
     <Layout actions={
       <ExportButton
@@ -29,14 +45,14 @@ function Nps() {
     }>
       {/* Fila 1 — KPIs */}
       <div className="bento cols-4">
-        <div className="card lg" style={{ borderLeft: "4px solid var(--amber)" }}>
+        <div className="card lg" style={{ borderLeft: `4px solid ${npsTone.color}` }}>
           <div className="card-eyebrow">NPS Global</div>
-          <div className="bignum mt-12" style={{ fontSize: 56 }}>47.71</div>
-          <div className="mt-12 fs-12 muted">7,044 respuestas · zona vigilar</div>
+          <div className="bignum mt-12" style={{ fontSize: 56 }}>{d.npsGlobal.toFixed(2)}</div>
+          <div className="mt-12 fs-12 muted">{nfmt(d.npsResponses)} respuestas · {npsTone.label}</div>
         </div>
-        <KpiCard label="Promotores" value="4,551" pct="64.6%" tone="orange" />
-        <KpiCard label="Pasivos" value="1,303" pct="18.5%" tone="cream" />
-        <KpiCard label="Detractores" value="1,190" pct="16.9%" tone="ink" />
+        <KpiCard label="Promotores"  value={nfmt(d.npsPromotoresCount)}  pct={pctFmt(d.npsPromotoresPct)}  tone="orange" />
+        <KpiCard label="Pasivos"     value={nfmt(d.npsPasivosCount)}     pct={pctFmt(d.npsPasivosPct)}     tone="cream"  />
+        <KpiCard label="Detractores" value={nfmt(d.npsDetractoresCount)} pct={pctFmt(d.npsDetractoresPct)} tone="ink"    />
       </div>
 
       <div className="divider">
@@ -110,7 +126,7 @@ function Nps() {
             color: "var(--paper)", borderRadius: "var(--radius-md)",
             fontFamily: "'Instrument Serif', Georgia, serif", fontStyle: "italic", fontSize: 17, lineHeight: 1.35,
           }}>
-            "Costo" es motivo #1 de detracción <span style={{ color: "var(--orange)" }}>Y</span> motivo #3 de promoción.
+            {paradoxText}
           </div>
         </div>
       </div>
@@ -172,23 +188,25 @@ function Nps() {
         <div className="bento equal-2" style={{ marginTop: 18 }}>
           <InsightCard
             icon="🔍"
-            text="Las cuentas que churnean NO contactan CS antes."
-            sub="Solo 11% de bajas abrieron ticket en los 30 días previos."
+            text="Las cuentas que churnean dejan poca señal previa."
+            sub={`${nfmt(d.csatTotalConv)} conversaciones CSAT vs ${nfmt(d.ytdClosed)} bajas en el período: el soporte no captura la mayoría.`}
           />
           <InsightCard
             icon="📉"
             text="CSAT alto NO protege del churn."
-            sub="4.79★ promedio mientras las bajas crecen +43.6% Feb→Abr."
+            sub={`${d.csatAvg.toFixed(2)}★ promedio${d.accelLabel ? ` mientras las bajas crecen ${d.accelLabel}` : ""}.`}
           />
           <InsightCard
             icon="🤐"
-            text="52.1% se van sin dejar motivo."
+            text={`${d.pctSinMotivo.toFixed(1)}% se van sin dejar motivo.`}
             sub="No es indiferencia: es ausencia de fricción visible."
           />
           <InsightCard
             icon="⚠️"
-            text="El soporte mide reactivo, no salud."
-            sub="Necesitamos señales proactivas de uso, no encuestas post-mortem."
+            text={d.npsGap > 10 ? `Brecha regional de ${d.npsGap.toFixed(1)} pts NPS.` : "El soporte mide reactivo, no salud."}
+            sub={d.npsWorst && d.npsBest
+              ? `${d.npsBest.pais} ${d.npsBest.nps.toFixed(1)} vs ${d.npsWorst.pais} ${d.npsWorst.nps.toFixed(1)} · prioridad regional.`
+              : "Necesitamos señales proactivas de uso, no encuestas post-mortem."}
           />
         </div>
       </div>

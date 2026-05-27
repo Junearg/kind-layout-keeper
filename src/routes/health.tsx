@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
-import { tierDist, riskFlagDist, type HealthAccount } from "@/data/mockData";
+import { type HealthAccount } from "@/data/mockData";
 import { useDashboardData } from "@/data/liveData";
 
 export const Route = createFileRoute("/health")({
@@ -16,7 +16,9 @@ export const Route = createFileRoute("/health")({
 
 const TIERS = ["Todos", "Champion", "Healthy", "At Risk", "Critical"] as const;
 const tierClass = (t: string) => (t === "At Risk" ? "tier-AtRisk" : t);
-const tierColor = (t: string) => tierDist.find((x) => x.tier === t)?.color ?? "#6E6D66";
+const TIER_COLORS: Record<string, string> = {
+  Champion: "#F05A28", Healthy: "#1E5DBF", "At Risk": "#B5740F", Critical: "#B3261E",
+};
 
 function trendIcon(d: HealthAccount["trendDir"]) {
   return d === "up" ? "↗" : d === "down" ? "↘" : d === "crit" ? "↯" : "→";
@@ -30,13 +32,14 @@ function ScatterTooltip({ active, payload }: any) {
       <div className="strong" style={{ fontWeight: 600 }}>{a.nombre}</div>
       <div className="mono" style={{ opacity: .7 }}>{a.pais} · {a.plan}</div>
       <div className="mt-12" style={{ marginTop: 6 }}>Score <b className="mono">{a.score.toFixed(1)}</b> · NPS LTR <b className="mono">{a.npsLtr}</b></div>
-      <div style={{ marginTop: 4 }}>Tier: <span style={{ color: tierColor(a.tier) }}>{a.tier}</span></div>
+      <div style={{ marginTop: 4 }}>Tier: <span style={{ color: TIER_COLORS[a.tier] ?? "#6E6D66" }}>{a.tier}</span></div>
     </div>
   );
 }
 
 function Health() {
-  const { healthAccounts } = useDashboardData();
+  const { healthAccounts, tierDist, riskFlagDist } = useDashboardData();
+  const tierColor = (t: string) => tierDist.find((x) => x.tier === t)?.color ?? TIER_COLORS[t] ?? "#6E6D66";
   const [tier, setTier] = useState<(typeof TIERS)[number]>("Todos");
 
   const rows = useMemo(
@@ -73,23 +76,41 @@ function Health() {
     }>
       {/* Row 1 — Tier KPIs */}
       <div className="bento cols-4">
-        <div className="card lg orange">
-          <div className="card-eyebrow">Champion</div>
-          <div className="card-title">Cuentas top</div>
-          <div className="bignum mt-12" style={{ fontSize: 56, color: "white" }}>312</div>
-          <div className="fs-12 mt-12" style={{ color: "rgba(255,255,255,0.85)" }}>38.1% de la base · prio CS baja</div>
-          <div className="bubble-wrap"><div className="bubble" /></div>
-        </div>
-        {tierDist.slice(1).map((t) => (
-          <div key={t.tier} className="card lg">
-            <div className="row-flex" style={{ gap: 8 }}>
-              <span className="tier-dot" style={{ background: t.color }} />
-              <span className={`tag tier-${tierClass(t.tier)}`}>{t.tier}</span>
+        {(() => {
+          const champ = healthAccounts.length
+            ? { tier: "Champion", count: healthAccounts.filter((a) => a.tier === "Champion").length }
+            : { tier: "Champion", count: tierDist.find((t) => t.tier === "Champion")?.count ?? 0 };
+          const totalBase = healthAccounts.length || tierDist.reduce((s, t) => s + t.count, 0);
+          const champPct = totalBase ? (champ.count / totalBase) * 100 : 0;
+          return (
+            <div className="card lg orange">
+              <div className="card-eyebrow">Champion</div>
+              <div className="card-title">Cuentas top</div>
+              <div className="bignum mt-12" style={{ fontSize: 56, color: "white" }}>{champ.count}</div>
+              <div className="fs-12 mt-12" style={{ color: "rgba(255,255,255,0.85)" }}>
+                {champPct.toFixed(1)}% de la base · prio CS baja
+              </div>
+              <div className="bubble-wrap"><div className="bubble" /></div>
             </div>
-            <div className="bignum mt-12" style={{ fontSize: 48 }}>{t.count}</div>
-            <div className="muted fs-12 mt-12">{t.pct.toFixed(1)}% de la base</div>
-          </div>
-        ))}
+          );
+        })()}
+        {tierDist.slice(1).map((t) => {
+          const count = healthAccounts.length
+            ? healthAccounts.filter((a) => a.tier === t.tier).length
+            : t.count;
+          const totalBase = healthAccounts.length || tierDist.reduce((s, x) => s + x.count, 0);
+          const pct = totalBase ? (count / totalBase) * 100 : t.pct;
+          return (
+            <div key={t.tier} className="card lg">
+              <div className="row-flex" style={{ gap: 8 }}>
+                <span className="tier-dot" style={{ background: t.color }} />
+                <span className={`tag tier-${tierClass(t.tier)}`}>{t.tier}</span>
+              </div>
+              <div className="bignum mt-12" style={{ fontSize: 48 }}>{count}</div>
+              <div className="muted fs-12 mt-12">{pct.toFixed(1)}% de la base</div>
+            </div>
+          );
+        })}
       </div>
 
       <div className="divider">
