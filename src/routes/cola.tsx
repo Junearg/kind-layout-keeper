@@ -2,8 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
+import { EmptyPeriod } from "@/components/EmptyPeriod";
 import { tierDist, riskFlagDist, type HealthAccount } from "@/data/mockData";
 import { useDashboardData } from "@/data/liveData";
+import { useColaMes, useMesActivo } from "@/data/dataset-store";
+import { mesLargo } from "@/data/schema";
 
 export const Route = createFileRoute("/cola")({
   head: () => ({ meta: [{ title: "Cola CS · Churn Hub" }] }),

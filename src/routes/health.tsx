@@ -272,6 +272,8 @@ function Health() {
           </tbody>
         </table>
       </div>
+      </>
+      )}
     </Layout>
   );
 }
