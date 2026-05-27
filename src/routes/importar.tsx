@@ -21,6 +21,7 @@ function ImportarPage() {
   const [fileName, setFileName] = useState("");
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<{ dataset: DashboardDataset; report: ParseReport } | null>(null);
+  const [mesElegido, setMesElegido] = useState<string>("");
 
   const dsActual = useDataset();
   const mesesActuales = useMesesDisponibles();
@@ -32,6 +33,8 @@ function ImportarPage() {
       const wb = XLSX.read(buf, { type: "array" });
       const out = parseTemplateWorkbook(wb, file.name);
       if (out.report.total_filas === 0) throw new Error("No encontramos filas en ninguna de las hojas esperadas.");
+      const meses = out.dataset.meta.meses_disponibles;
+      setMesElegido(meses[meses.length - 1] ?? "");
       setPreview(out);
       setFileName(file.name);
       setStage("preview");
@@ -42,13 +45,14 @@ function ImportarPage() {
 
   function confirmar() {
     if (!preview) return;
-    setDataset(preview.dataset);
+    setDataset(preview.dataset, mesElegido || undefined);
     reset();
   }
   function reset() {
-    setStage("idle"); setPreview(null); setFileName(""); setError("");
+    setStage("idle"); setPreview(null); setFileName(""); setError(""); setMesElegido("");
     if (inputRef.current) inputRef.current.value = "";
   }
+
 
   return (
     <Layout>
