@@ -213,13 +213,39 @@ function PreviewPanel({ fileName, report, mesesDetectados, mesElegido, onMesChan
         })}
       </div>
 
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 22 }}>
-        <button className="btn ghost" onClick={onCancel}>Cancelar</button>
-        <button className="btn" onClick={onConfirm} disabled={errores > 0}
-          style={{ background: errores ? "var(--ink-5)" : "var(--ink)", color: "var(--paper)" }}>
-          Importar y reemplazar dataset
-        </button>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, marginTop: 22, flexWrap: "wrap" }}>
+        {mesesDetectados.length > 1 ? (
+          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span className="fs-11" style={{ color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+              Activar mes
+            </span>
+            <select
+              value={mesElegido}
+              onChange={(e) => onMesChange(e.target.value)}
+              style={{
+                padding: "6px 10px", borderRadius: 8, border: "1px solid var(--rule-2)",
+                background: "var(--paper)", fontSize: 12.5, color: "var(--ink)",
+                fontFamily: "inherit", cursor: "pointer",
+              }}
+            >
+              {mesesDetectados.map((m) => (
+                <option key={m} value={m}>{mesLargo(m)}</option>
+              ))}
+            </select>
+            <span className="fs-11" style={{ color: "var(--ink-3)" }}>
+              · {mesesDetectados.length} meses detectados
+            </span>
+          </label>
+        ) : <span />}
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="btn ghost" onClick={onCancel}>Cancelar</button>
+          <button className="btn" onClick={onConfirm} disabled={errores > 0}
+            style={{ background: errores ? "var(--ink-5)" : "var(--ink)", color: "var(--paper)" }}>
+            Importar y reemplazar dataset
+          </button>
+        </div>
       </div>
+
     </div>
   );
 }
