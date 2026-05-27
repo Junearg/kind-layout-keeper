@@ -150,6 +150,8 @@ function Resumen() {
         <TrendCard />
         <TierDonutCard total={d.activeAccounts} />
       </div>
+      </>
+      )}
     </Layout>
   );
 }
