@@ -51,6 +51,10 @@ function Nps() {
         ]}
       />
     }>
+      {!npsMes ? (
+        <EmptyPeriod section="NPS & CSAT" mes={mesLargo(mesActivo)} />
+      ) : (
+      <>
       {/* Fila 1 — KPIs */}
       <div className="bento cols-4">
         <div className="card lg" style={{ borderLeft: `4px solid ${npsTone.color}` }}>
