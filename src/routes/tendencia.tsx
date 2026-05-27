@@ -3,6 +3,7 @@ import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
 import { ORANGE } from "@/data/mockData";
 import { useDashboardData } from "@/data/liveData";
+import { useDerived } from "@/data/derived";
 import {
   ResponsiveContainer, ComposedChart, Bar, Area, LabelList,
   XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea,
@@ -13,6 +14,8 @@ export const Route = createFileRoute("/tendencia")({
   head: () => ({ meta: [{ title: "Tendencia · Churn Hub" }] }),
   component: Tendencia,
 });
+
+const nfmt = (n: number) => n.toLocaleString("es-AR");
 
 function exportEmptyCsv() {
   const headers = ["dash_id", "pais", "plan", "fecha_baja", "responsable_asignacion"];
