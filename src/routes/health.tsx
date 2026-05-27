@@ -6,8 +6,11 @@ import {
 } from "recharts";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
+import { EmptyPeriod } from "@/components/EmptyPeriod";
 import { type HealthAccount } from "@/data/mockData";
 import { useDashboardData } from "@/data/liveData";
+import { useHealthMes, useMesActivo } from "@/data/dataset-store";
+import { mesLargo } from "@/data/schema";
 
 export const Route = createFileRoute("/health")({
   head: () => ({ meta: [{ title: "Health Score · Churn Hub" }] }),
@@ -39,6 +42,8 @@ function ScatterTooltip({ active, payload }: any) {
 
 function Health() {
   const { healthAccounts, tierDist, riskFlagDist } = useDashboardData();
+  const healthMes = useHealthMes();
+  const mesActivo = useMesActivo();
   const tierColor = (t: string) => tierDist.find((x) => x.tier === t)?.color ?? TIER_COLORS[t] ?? "#6E6D66";
   const [tier, setTier] = useState<(typeof TIERS)[number]>("Todos");
 
@@ -74,6 +79,10 @@ function Health() {
         ]}
       />
     }>
+      {!healthMes ? (
+        <EmptyPeriod section="Health Score" mes={mesLargo(mesActivo)} />
+      ) : (
+      <>
       {/* Row 1 — Tier KPIs */}
       <div className="bento cols-4">
         {(() => {
@@ -263,6 +272,8 @@ function Health() {
           </tbody>
         </table>
       </div>
+      </>
+      )}
     </Layout>
   );
 }

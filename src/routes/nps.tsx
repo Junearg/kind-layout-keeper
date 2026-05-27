@@ -1,9 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
+import { EmptyPeriod } from "@/components/EmptyPeriod";
 import { ORANGE } from "@/data/mockData";
 import { useDashboardData } from "@/data/liveData";
 import { useDerived } from "@/data/derived";
+import { useNpsMes, useMesActivo } from "@/data/dataset-store";
+import { mesLargo } from "@/data/schema";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip,
   CartesianGrid, ComposedChart, Line, LabelList,
@@ -20,7 +23,12 @@ const pctFmt = (n: number) => `${n.toFixed(1)}%`;
 function Nps() {
   const { npsPais, motivosDetraccion, motivosPromocion, csatMensual } = useDashboardData();
   const d = useDerived();
+  const npsMes = useNpsMes();
+  const mesActivo = useMesActivo();
   const npsTone =
+    d.npsGlobal >= 50 ? { color: "var(--orange)", label: "zona saludable" } :
+    d.npsGlobal >= 30 ? { color: "var(--amber)",  label: "zona vigilar"  } :
+                        { color: "var(--red)",    label: "zona crítica"  };
     d.npsGlobal >= 50 ? { color: "var(--orange)", label: "zona saludable" } :
     d.npsGlobal >= 30 ? { color: "var(--amber)",  label: "zona vigilar"  } :
                         { color: "var(--red)",    label: "zona crítica"  };
@@ -43,6 +51,10 @@ function Nps() {
         ]}
       />
     }>
+      {!npsMes ? (
+        <EmptyPeriod section="NPS & CSAT" mes={mesLargo(mesActivo)} />
+      ) : (
+      <>
       {/* Fila 1 — KPIs */}
       <div className="bento cols-4">
         <div className="card lg" style={{ borderLeft: `4px solid ${npsTone.color}` }}>
@@ -210,6 +222,8 @@ function Nps() {
           />
         </div>
       </div>
+      </>
+      )}
     </Layout>
   );
 }

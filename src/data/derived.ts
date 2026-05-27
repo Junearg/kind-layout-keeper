@@ -3,7 +3,7 @@
 
 import { useMemo } from "react";
 import { useDashboardData } from "./liveData";
-import { useDatasetState } from "./dataset-store";
+import { useDatasetState, useForecastAutoNext } from "./dataset-store";
 import { mesLargo } from "./schema";
 
 const MES_FULL: Record<string, string> = {
@@ -32,7 +32,7 @@ function weightedAvg(items: { value: number; weight: number }[]): number {
 export function useDerived() {
   const data = useDashboardData();
   const { dataset, mesActivo } = useDatasetState();
-
+  const forecastAuto = useForecastAutoNext();
 
   return useMemo(() => {
     const {
@@ -42,7 +42,10 @@ export function useDerived() {
 
     // ─── Tendencia mensual ───
     const closed = churnTrend.filter((m) => !m.proyectado);
-    const projected = churnTrend.filter((m) => m.proyectado);
+    // Si forecast_auto está activo, reemplazamos el valor del primer mes proyectado.
+    const projected = churnTrend
+      .filter((m) => m.proyectado)
+      .map((m, i) => (i === 0 && forecastAuto !== null ? { ...m, bajas: forecastAuto } : m));
     const latestClosed = closed[closed.length - 1] ?? null;
     const prevClosed = closed[closed.length - 2] ?? null;
     const firstClosed = closed[0] ?? null;
@@ -199,7 +202,7 @@ export function useDerived() {
       // misc
       lastUpdate,
     };
-  }, [data, dataset, mesActivo]);
+  }, [data, dataset, mesActivo, forecastAuto]);
 }
 
 export type Derived = ReturnType<typeof useDerived>;
