@@ -136,18 +136,22 @@ export function useDerived() {
     const atRisk = tierDist.find((t) => t.tier === "At Risk") ?? null;
     const critical = tierDist.find((t) => t.tier === "Critical") ?? null;
 
-    // ─── Snapshots (variación de cuentas mes vs mes) ───
-    const latestSnap = snapshots[snapshots.length - 1] ?? null;
-    const prevSnap = snapshots[snapshots.length - 2] ?? null;
-    const snapDelta = latestSnap && prevSnap
-      ? latestSnap.rowCount - prevSnap.rowCount
-      : null;
-    const snapLatestLabel = latestSnap ? fmtMonthKey(latestSnap.month) : null;
-    const snapPrevLabel = prevSnap ? fmtMonthKey(prevSnap.month) : null;
+    // ─── Última actualización (desde meta del dataset) ───
+    const uploadedAt = dataset.meta.uploaded_at;
+    const lastUpdate = uploadedAt
+      ? new Date(uploadedAt).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })
+      : "—";
 
-    // ─── Última actualización ───
-    const lastUpdate = snapshotDate(latestSnap ?? undefined)
-      ?? new Date().toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
+    // ─── Variación de cuentas mes vs mes desde resumen_mensual ───
+    const resumenSorted = [...dataset.resumen_mensual].sort((a, b) => a.mes.localeCompare(b.mes));
+    const idxAct = resumenSorted.findIndex((r) => r.mes === mesActivo);
+    const resAct = idxAct >= 0 ? resumenSorted[idxAct]! : null;
+    const resPrev = idxAct > 0 ? resumenSorted[idxAct - 1]! : null;
+    const snapDelta = resAct && resPrev
+      ? resAct.cuentas_activas_total - resPrev.cuentas_activas_total
+      : null;
+    const snapLatestLabel = resAct ? mesLargo(resAct.mes) : null;
+    const snapPrevLabel = resPrev ? mesLargo(resPrev.mes) : null;
 
     // ─── Etiquetas de período ───
     const closedMonthsLabel = firstClosed && latestClosed
@@ -189,13 +193,13 @@ export function useDerived() {
       // tiers
       activeAccounts, champion, healthy, atRisk, critical,
 
-      // snapshots
-      latestSnap, prevSnap, snapDelta, snapLatestLabel, snapPrevLabel,
+      // variación mes vs mes
+      latestSnap: resAct, prevSnap: resPrev, snapDelta, snapLatestLabel, snapPrevLabel,
 
       // misc
       lastUpdate,
     };
-  }, [data, snapshots]);
+  }, [data, dataset, mesActivo]);
 }
 
 export type Derived = ReturnType<typeof useDerived>;
