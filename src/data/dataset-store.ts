@@ -39,9 +39,11 @@ function getSnapshot(): State {
   cached = { dataset, mesActivo };
   return cached;
 }
+const SERVER_SNAPSHOT: State = { dataset: SEED_DATASET, mesActivo: SEED_DATASET.resumen_mensual[0]?.mes ?? "" };
 function getServerSnapshot(): State {
-  return { dataset: SEED_DATASET, mesActivo: SEED_DATASET.resumen_mensual[0]?.mes ?? "" };
+  return SERVER_SNAPSHOT;
 }
+
 
 function emit() {
   cached = null;
