@@ -59,7 +59,24 @@ function subscribe(cb: () => void) {
 }
 
 const EMPTY: DashboardOverrides = {};
-function getSnapshot(): DashboardOverrides { return read(); }
+let cachedRaw: string | null | undefined;
+let cachedSnapshot: DashboardOverrides = EMPTY;
+
+function readCached(): DashboardOverrides {
+  if (typeof window === "undefined") return EMPTY;
+  const raw = localStorage.getItem(STORAGE_KEY) ?? "{}";
+  if (raw === cachedRaw) return cachedSnapshot;
+  cachedRaw = raw;
+  try {
+    const parsed = JSON.parse(raw);
+    cachedSnapshot = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : EMPTY;
+  } catch {
+    cachedSnapshot = EMPTY;
+  }
+  return cachedSnapshot;
+}
+
+function getSnapshot(): DashboardOverrides { return readCached(); }
 function getServerSnapshot(): DashboardOverrides { return EMPTY; }
 
 function merge(o: DashboardOverrides) {
