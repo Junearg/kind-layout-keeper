@@ -1,5 +1,6 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { useDerived } from "@/data/derived";
 
 const TABS = [
   { to: "/resumen",   label: "Resumen" },
@@ -11,19 +12,53 @@ const TABS = [
   { to: "/importar",  label: "Importar" },
 ] as const;
 
-const HELLO: Record<string, { crumbs: string; h1: ReactNode; sub: string }> = {
-  "/resumen":   { crumbs: "Fudo Churn Center · Mayo 2026", h1: <>Fudo <span style={{ color: "var(--orange)" }}>Churn</span> Center</>, sub: "Análisis consolidado · Dic 2025 – May 2026 · 5,852 cuentas" },
-  "/tendencia": { crumbs: "Fudo Churn Center · Tendencia", h1: <>Tendencia <span className="alt">mensual</span></>, sub: "Bajas, motivos y proyección · 5 meses cerrados + 2 proyectados" },
-  "/nps":       { crumbs: "Fudo Churn Center · Voz del cliente", h1: <>Net Promoter <span className="alt">Score</span></>, sub: "6,915 respuestas · LATAM · Q1+Q2 2026" },
-  "/health":    { crumbs: "Fudo Churn Center · Health Score", h1: <>Salud de la <span className="alt">base</span></>, sub: "818 cuentas activas · scoring 0-100 · tiers + flags" },
-  "/cola":      { crumbs: "Fudo Churn Center · Workflow", h1: <>Cola de <span className="alt">trabajo</span></>, sub: "Priorización CS · cuentas en riesgo ordenadas por urgencia" },
-  "/kpis":      { crumbs: "Fudo Churn Center · Iniciativas", h1: <>KPIs e <span className="alt">iniciativas</span></>, sub: "Targets a 3 y 6 meses · roadmap de retención" },
-  "/importar":  { crumbs: "Fudo Churn Center · Datos", h1: <>Importar <span className="alt">cuentas</span></>, sub: "Validación automática antes de cargar el snapshot mensual" },
-};
-
 export function Layout({ children, actions }: { children: ReactNode; actions?: ReactNode }) {
   const { pathname } = useLocation();
   const active = TABS.find((t) => pathname.startsWith(t.to))?.to ?? "/resumen";
+  const d = useDerived();
+
+  const periodLabel = d.periodLabel || "—";
+  const nfmt = (n: number) => n.toLocaleString("es-AR");
+
+  const HELLO: Record<string, { crumbs: string; h1: ReactNode; sub: string }> = {
+    "/resumen": {
+      crumbs: `Fudo Churn Center · ${d.latestClosedFull || periodLabel}`,
+      h1: <>Fudo <span style={{ color: "var(--orange)" }}>Churn</span> Center</>,
+      sub: `Análisis consolidado · ${periodLabel} · ${nfmt(d.activeAccounts)} cuentas activas`,
+    },
+    "/tendencia": {
+      crumbs: "Fudo Churn Center · Tendencia",
+      h1: <>Tendencia <span className="alt">mensual</span></>,
+      sub: d.closedMonthsLabel
+        ? `Bajas, motivos y proyección · ${d.closedMonthsLabel.split(" · ")[1] ?? ""} cerrados + ${d.totalProjected > 0 ? "proyección" : "sin proyección"}`
+        : "Bajas, motivos y proyección",
+    },
+    "/nps": {
+      crumbs: "Fudo Churn Center · Voz del cliente",
+      h1: <>Net Promoter <span className="alt">Score</span></>,
+      sub: `${nfmt(d.npsResponses)} respuestas · LATAM · ${periodLabel}`,
+    },
+    "/health": {
+      crumbs: "Fudo Churn Center · Health Score",
+      h1: <>Salud de la <span className="alt">base</span></>,
+      sub: `${nfmt(d.activeAccounts)} cuentas activas · scoring 0-100 · tiers + flags`,
+    },
+    "/cola": {
+      crumbs: "Fudo Churn Center · Workflow",
+      h1: <>Cola de <span className="alt">trabajo</span></>,
+      sub: "Priorización CS · cuentas en riesgo ordenadas por urgencia",
+    },
+    "/kpis": {
+      crumbs: "Fudo Churn Center · Iniciativas",
+      h1: <>KPIs e <span className="alt">iniciativas</span></>,
+      sub: "Targets a 3 y 6 meses · roadmap de retención",
+    },
+    "/importar": {
+      crumbs: "Fudo Churn Center · Datos",
+      h1: <>Importar <span className="alt">cuentas</span></>,
+      sub: "Validación automática antes de cargar el snapshot mensual",
+    },
+  };
   const hello = HELLO[active] ?? HELLO["/resumen"]!;
 
   return (
@@ -60,7 +95,7 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
             {actions}
             <div className="stamp">
               última actualización<br />
-              <span className="v">23 May 2026</span>
+              <span className="v">{d.lastUpdate}</span>
             </div>
           </div>
         </div>
