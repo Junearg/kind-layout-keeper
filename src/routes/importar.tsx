@@ -313,14 +313,43 @@ function ReviewPanel({
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
         <SummaryStat label="Archivo" value={fileName} mono />
-        <SummaryStat label="Filas detectadas" value={String(rows.length)} />
-        <SummaryStat label="Mes inferido" value={month || "—"} />
         <SummaryStat
-          label="Validación"
-          value={blocking ? `${errCount} errores` : warnCount ? `${warnCount} avisos` : "Sin issues"}
-          tone={blocking ? "red" : warnCount ? "amber" : "ok"}
+          label="Snapshot mensual"
+          value={hasSnapshot ? `${rows.length} filas` : "no incluido"}
+          tone={!hasSnapshot ? undefined : blocking ? "red" : warnCount ? "amber" : "ok"}
         />
+        <SummaryStat
+          label="Dashboards"
+          value={hasDashboards ? `${parsed!.matchedDashboards.length} hojas` : "no incluidos"}
+          tone={hasDashboards ? "ok" : undefined}
+        />
+        <SummaryStat label="Mes inferido" value={month || "—"} />
       </div>
+
+      {hasDashboards && (
+        <div style={{
+          marginBottom: 16, padding: "12px 14px", borderRadius: 10,
+          background: "rgba(240,90,40,0.06)", borderLeft: "3px solid var(--orange)",
+        }}>
+          <div className="strong" style={{ color: "var(--orange)", fontSize: 13 }}>
+            ↻ Hojas de dashboard detectadas ({parsed!.matchedDashboards.length})
+          </div>
+          <div className="fs-12 mono" style={{ color: "var(--ink-2)", marginTop: 4, lineHeight: 1.6 }}>
+            {parsed!.matchedDashboards.join(", ")}
+          </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={updateDashboards}
+              onChange={(e) => onUpdateDashboardsChange(e.target.checked)}
+            />
+            <span className="fs-12 strong">
+              Actualizar dashboards con estos datos (sobrescribe valores anteriores)
+            </span>
+          </label>
+        </div>
+      )}
+
 
       {existingSnap && (
         <div style={{
