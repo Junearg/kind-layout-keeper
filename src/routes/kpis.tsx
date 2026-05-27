@@ -177,6 +177,8 @@ function Kpis() {
           </div>
         ))}
       </div>
+      </>
+      )}
     </Layout>
   );
 }
