@@ -1,9 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
+import { EmptyPeriod } from "@/components/EmptyPeriod";
 import { ORANGE } from "@/data/mockData";
 import { useDashboardData } from "@/data/liveData";
 import { useDerived } from "@/data/derived";
+import { useMotivosMes, useResumenMes, useMesActivo } from "@/data/dataset-store";
+import { mesLargo } from "@/data/schema";
 import {
   ResponsiveContainer, ComposedChart, Bar, Area, LabelList,
   XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea,
@@ -31,8 +34,12 @@ function exportEmptyCsv() {
 function Tendencia() {
   const { churnTrend, motivosBaja } = useDashboardData();
   const d = useDerived();
+  const motivos = useMotivosMes();
+  const resumen = useResumenMes();
+  const mesActivo = useMesActivo();
   const sinMotivo = d.sinMotivo ?? motivosBaja[0];
   const forecastX = churnTrend.filter((x) => x.proyectado).map((x) => x.mes);
+  const hasData = !!resumen || (motivos !== null);
 
   return (
     <Layout actions={
@@ -44,8 +51,13 @@ function Tendencia() {
         ]}
       />
     }>
+      {!hasData ? (
+        <EmptyPeriod section="Tendencia mensual" mes={mesLargo(mesActivo)} />
+      ) : (
+      <>
       {/* Fila 1 — KPIs */}
       <div className="bento cols-3" style={{ marginBottom: 20 }}>
+
         <div className="card lg">
           <div className="card-eyebrow">YTD acumulado</div>
           <div className="bignum" style={{ marginTop: 10 }}>{nfmt(d.ytdClosed)}</div>
@@ -246,6 +258,8 @@ function Tendencia() {
           </div>
         </div>
       </div>
+      </>
+      )}
     </Layout>
   );
 }
