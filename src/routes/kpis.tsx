@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
 import { SectionDivider } from "@/components/SectionDivider";
-import { kpiTargets, iniciativas } from "@/data/mockData";
+import { useDashboardData } from "@/data/liveData";
 
 export const Route = createFileRoute("/kpis")({
   head: () => ({ meta: [{ title: "KPIs · Churn Hub" }] }),

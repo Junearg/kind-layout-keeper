@@ -6,7 +6,8 @@ import {
 } from "recharts";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
-import { healthAccounts, tierDist, riskFlagDist, type HealthAccount } from "@/data/mockData";
+import { tierDist, riskFlagDist, type HealthAccount } from "@/data/mockData";
+import { useDashboardData } from "@/data/liveData";
 
 export const Route = createFileRoute("/health")({
   head: () => ({ meta: [{ title: "Health Score · Churn Hub" }] }),

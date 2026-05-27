@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
-import { healthAccounts, tierDist, riskFlagDist, type HealthAccount } from "@/data/mockData";
+import { tierDist, riskFlagDist, type HealthAccount } from "@/data/mockData";
+import { useDashboardData } from "@/data/liveData";
 
 export const Route = createFileRoute("/cola")({
   head: () => ({ meta: [{ title: "Cola CS · Churn Hub" }] }),
