@@ -487,32 +487,47 @@ function SummaryStat({
   );
 }
 
-function ConfirmedPanel({ snap, wasReprocess, onAgain }: { snap: MonthlySnapshot; wasReprocess: boolean; onAgain: () => void }) {
-  const prev = useMemo(() => getPreviousSnapshot(snap.month), [snap.month]);
-  const diff = useMemo(() => (prev ? diffSnapshots(prev, snap) : null), [prev, snap]);
+function ConfirmedPanel({
+  snap, wasReprocess, dashboardsApplied, onAgain,
+}: {
+  snap: MonthlySnapshot | null;
+  wasReprocess: boolean;
+  dashboardsApplied: DashboardKey[];
+  onAgain: () => void;
+}) {
+  const prev = useMemo(() => (snap ? getPreviousSnapshot(snap.month) : null), [snap]);
+  const diff = useMemo(() => (prev && snap ? diffSnapshots(prev, snap) : null), [prev, snap]);
   return (
     <div style={{ padding: "16px 4px" }}>
       <div style={{ textAlign: "center", padding: "12px 0 24px" }}>
         <div style={{ fontSize: 36, color: "var(--blue)" }}>✓</div>
         <h3 className="serif" style={{ fontSize: 22, marginTop: 8 }}>
-          Snapshot <em>{wasReprocess ? "reprocesado" : "guardado"}</em>
+          Import <em>aplicado</em>
         </h3>
-        <p className="fs-12" style={{ color: "var(--ink-3)", marginTop: 6 }}>
-          {snap.rowCount} filas guardadas en <span className="mono">customer_monthly_snapshot</span>
-          {snap.month ? ` · mes ${snap.month}` : ""}.
-        </p>
-        <p className="fs-12" style={{ color: "var(--ink-4)", marginTop: 2 }}>
-          {new Date(snap.savedAt).toLocaleString()}
-        </p>
+        {snap && (
+          <p className="fs-12" style={{ color: "var(--ink-3)", marginTop: 6 }}>
+            Snapshot {wasReprocess ? "reprocesado" : "guardado"} · {snap.rowCount} filas en{" "}
+            <span className="mono">customer_monthly_snapshot</span>
+            {snap.month ? ` · mes ${snap.month}` : ""}.
+          </p>
+        )}
+        {dashboardsApplied.length > 0 && (
+          <p className="fs-12" style={{ color: "var(--ink-3)", marginTop: 6 }}>
+            <span className="strong" style={{ color: "var(--orange)" }}>
+              {dashboardsApplied.length} dashboards
+            </span>{" "}
+            actualizados: <span className="mono">{dashboardsApplied.join(", ")}</span>
+          </p>
+        )}
       </div>
 
       {diff ? (
         <DiffView diff={diff} />
-      ) : (
+      ) : snap ? (
         <div className="fs-12" style={{ color: "var(--ink-3)", textAlign: "center" }}>
           No hay snapshot anterior contra el cual comparar.
         </div>
-      )}
+      ) : null}
 
       <div style={{ textAlign: "center", marginTop: 22 }}>
         <button className="btn" onClick={onAgain} style={{ background: "var(--ink)", color: "var(--paper)" }}>
