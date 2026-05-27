@@ -32,7 +32,7 @@ function ScatterTooltip({ active, payload }: any) {
       <div className="strong" style={{ fontWeight: 600 }}>{a.nombre}</div>
       <div className="mono" style={{ opacity: .7 }}>{a.pais} · {a.plan}</div>
       <div className="mt-12" style={{ marginTop: 6 }}>Score <b className="mono">{a.score.toFixed(1)}</b> · NPS LTR <b className="mono">{a.npsLtr}</b></div>
-      <div style={{ marginTop: 4 }}>Tier: <span style={{ color: tierColor(a.tier) }}>{a.tier}</span></div>
+      <div style={{ marginTop: 4 }}>Tier: <span style={{ color: TIER_COLORS[a.tier] ?? "#6E6D66" }}>{a.tier}</span></div>
     </div>
   );
 }
