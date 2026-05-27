@@ -1,6 +1,7 @@
-import { Link, useLocation } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useDerived } from "@/data/derived";
+import { useDashboardData } from "@/data/liveData";
 
 const TABS = [
   { to: "/resumen",   label: "Resumen" },
@@ -14,8 +15,54 @@ const TABS = [
 
 export function Layout({ children, actions }: { children: ReactNode; actions?: ReactNode }) {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const active = TABS.find((t) => pathname.startsWith(t.to))?.to ?? "/resumen";
   const d = useDerived();
+  const { healthAccounts } = useDashboardData();
+
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const results = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    if (!s) return [];
+    return healthAccounts
+      .filter((a) =>
+        a.nombre.toLowerCase().includes(s) ||
+        String(a.id).includes(s) ||
+        a.pais.toLowerCase().includes(s) ||
+        a.tier.toLowerCase().includes(s),
+      )
+      .slice(0, 8);
+  }, [q, healthAccounts]);
+
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (!searchRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        inputRef.current?.focus();
+        setOpen(true);
+      }
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, []);
+
+  const goToAccount = (id: number) => {
+    setOpen(false);
+    setQ("");
+    navigate({ to: "/health", hash: `acc-${id}` });
+  };
 
   const periodLabel = d.periodLabel || "—";
   const nfmt = (n: number) => n.toLocaleString("es-AR");
