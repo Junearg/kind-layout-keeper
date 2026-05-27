@@ -205,6 +205,8 @@ function Cola() {
           </div>
         </>
       )}
+      </>
+      )}
     </Layout>
   );
 }

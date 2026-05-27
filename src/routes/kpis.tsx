@@ -2,7 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
 import { SectionDivider } from "@/components/SectionDivider";
+import { EmptyPeriod } from "@/components/EmptyPeriod";
 import { useDashboardData } from "@/data/liveData";
+import { useKpisMes, useMesActivo } from "@/data/dataset-store";
+import { mesLargo } from "@/data/schema";
 
 export const Route = createFileRoute("/kpis")({
   head: () => ({ meta: [{ title: "KPIs · Churn Hub" }] }),
@@ -120,6 +123,8 @@ const prioTag = (p: string) => {
 
 function Kpis() {
   const { kpiTargets, iniciativas } = useDashboardData();
+  const kpisMes = useKpisMes();
+  const mesActivo = useMesActivo();
   return (
     <Layout actions={
       <ExportButton
@@ -130,6 +135,10 @@ function Kpis() {
         ]}
       />
     }>
+      {!kpisMes ? (
+        <EmptyPeriod section="KPIs & Iniciativas" mes={mesLargo(mesActivo)} />
+      ) : (
+      <>
       <div className="bento cols-4">
         {kpiTargets.slice(0, 4).map((k) => <KpiCell key={k.kpi} k={k} />)}
       </div>
