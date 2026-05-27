@@ -1,9 +1,10 @@
-// Métricas derivadas a partir de los datos vivos (live + import).
+// Métricas derivadas a partir del dataset canónico (filtrado por mes activo).
 // Todo lo que se muestra en el dashboard pasa por acá — nada hardcodeado.
 
 import { useMemo } from "react";
 import { useDashboardData } from "./liveData";
-import { listSnapshots, type MonthlySnapshot } from "@/lib/import-validation";
+import { useDatasetState } from "./dataset-store";
+import { mesLargo } from "./schema";
 
 const MES_FULL: Record<string, string> = {
   Ene: "Enero", Feb: "Febrero", Mar: "Marzo", Abr: "Abril",
@@ -28,32 +29,10 @@ function weightedAvg(items: { value: number; weight: number }[]): number {
   return items.reduce((s, i) => s + i.value * i.weight, 0) / totalW;
 }
 
-function fmtMonthKey(key: string): string {
-  // accepts "2026-05" → "May 2026"; "May 2026" passthrough; else as-is
-  const iso = key.match(/^(\d{4})-(\d{2})$/);
-  if (!iso) return key;
-  const year = iso[1]!;
-  const monthIdx = Number(iso[2]!) - 1;
-  const arr = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-  return `${arr[monthIdx] ?? iso[2]} ${year}`;
-}
-
-function snapshotDate(s: MonthlySnapshot | undefined): string | null {
-  if (!s) return null;
-  try {
-    return new Date(s.savedAt).toLocaleDateString("es-AR", {
-      day: "2-digit", month: "short", year: "numeric",
-    });
-  } catch { return null; }
-}
-
 export function useDerived() {
   const data = useDashboardData();
-  const snapshots = useMemo<MonthlySnapshot[]>(
-    () => (typeof window === "undefined" ? [] : listSnapshots()),
-    // listSnapshots reads localStorage; data already triggers re-render after import
-    [data]
-  );
+  const { dataset, mesActivo } = useDatasetState();
+
 
   return useMemo(() => {
     const {
