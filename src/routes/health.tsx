@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
-import { tierDist, riskFlagDist, type HealthAccount } from "@/data/mockData";
+import { type HealthAccount } from "@/data/mockData";
 import { useDashboardData } from "@/data/liveData";
 
 export const Route = createFileRoute("/health")({
@@ -16,7 +16,9 @@ export const Route = createFileRoute("/health")({
 
 const TIERS = ["Todos", "Champion", "Healthy", "At Risk", "Critical"] as const;
 const tierClass = (t: string) => (t === "At Risk" ? "tier-AtRisk" : t);
-const tierColor = (t: string) => tierDist.find((x) => x.tier === t)?.color ?? "#6E6D66";
+const TIER_COLORS: Record<string, string> = {
+  Champion: "#F05A28", Healthy: "#1E5DBF", "At Risk": "#B5740F", Critical: "#B3261E",
+};
 
 function trendIcon(d: HealthAccount["trendDir"]) {
   return d === "up" ? "↗" : d === "down" ? "↘" : d === "crit" ? "↯" : "→";
@@ -36,7 +38,8 @@ function ScatterTooltip({ active, payload }: any) {
 }
 
 function Health() {
-  const { healthAccounts } = useDashboardData();
+  const { healthAccounts, tierDist, riskFlagDist } = useDashboardData();
+  const tierColor = (t: string) => tierDist.find((x) => x.tier === t)?.color ?? TIER_COLORS[t] ?? "#6E6D66";
   const [tier, setTier] = useState<(typeof TIERS)[number]>("Todos");
 
   const rows = useMemo(
