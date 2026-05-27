@@ -120,7 +120,7 @@ body {
 /* Hello row */
 .hello { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 28px; gap: 24px; }
 .hello h1 { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-weight: 400; font-size: 56px; line-height: 1; letter-spacing: -0.025em; color: var(--ink); margin: 0; }
-.hello h1 .alt { color: var(--ink-3); }
+.hello h1 .alt { color: var(--orange); }
 .hello .sub { font-size: 13.5px; color: var(--ink-3); margin-top: 10px; max-width: 56ch; line-height: 1.5; }
 .hello .crumbs { font-size: 12px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
 .hello .stamp { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 14px; color: var(--ink-3); text-align: right; }
