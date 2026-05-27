@@ -87,8 +87,17 @@ function ImportarPage() {
         {stage === "idle" && <Dropzone onFile={handleFile} inputRef={inputRef} error={error} />}
 
         {stage === "preview" && preview && (
-          <PreviewPanel fileName={fileName} report={preview.report} onConfirm={confirmar} onCancel={reset} />
+          <PreviewPanel
+            fileName={fileName}
+            report={preview.report}
+            mesesDetectados={preview.dataset.meta.meses_disponibles}
+            mesElegido={mesElegido}
+            onMesChange={setMesElegido}
+            onConfirm={confirmar}
+            onCancel={reset}
+          />
         )}
+
       </section>
 
       {/* Estado actual */}
