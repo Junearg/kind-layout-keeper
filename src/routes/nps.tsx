@@ -222,6 +222,8 @@ function Nps() {
           />
         </div>
       </div>
+      </>
+      )}
     </Layout>
   );
 }
