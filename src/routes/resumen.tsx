@@ -3,12 +3,12 @@ import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
 import { ORANGE } from "@/data/mockData";
 import { useDashboardData } from "@/data/liveData";
+import { useDerived } from "@/data/derived";
 import {
   ResponsiveContainer, ComposedChart, Bar, Line, Area,
   XAxis, YAxis, Tooltip, CartesianGrid, Cell,
   PieChart, Pie, ReferenceArea, ReferenceLine,
 } from "recharts";
-import type { ReactNode } from "react";
 
 export const Route = createFileRoute("/resumen")({
   head: () => ({ meta: [{ title: "Fudo Churn Center" }] }),
@@ -16,10 +16,13 @@ export const Route = createFileRoute("/resumen")({
 });
 
 const tierClass = (t: string) => (t === "At Risk" ? "tier-AtRisk" : t);
+const nfmt = (n: number) => n.toLocaleString("es-AR");
+const pctFmt = (n: number | null | undefined, digits = 1) =>
+  n === null || n === undefined ? "—" : `${n >= 0 ? "+" : ""}${n.toFixed(digits)}%`;
 
 function Resumen() {
   const { churnTrend, tierDist } = useDashboardData();
-  const cuentasActivas = tierDist.reduce((s, t) => s + t.count, 0);
+  const d = useDerived();
 
   return (
     <Layout actions={
@@ -28,22 +31,46 @@ function Resumen() {
         sheets={[
           { name: "Tendencia churn", rows: churnTrend },
           { name: "Distribución tiers", rows: tierDist },
-          { name: "KPIs Q1", rows: [
-            { kpi: "NPS Global", valor: 47.71 },
-            { kpi: "CSAT", valor: 4.78 },
-            { kpi: "CVR Neto", valor: "19.9%" },
-            { kpi: "Cuentas activas", valor: cuentasActivas },
-            { kpi: "Bajas del mes", valor: 1446 },
+          { name: "KPIs período", rows: [
+            { kpi: "NPS Global", valor: d.npsGlobal.toFixed(2) },
+            { kpi: "CSAT", valor: d.csatLatest?.avg.toFixed(2) ?? "—" },
+            { kpi: "CVR Neto", valor: d.cvrLatest ? `${d.cvrLatest.cvr.toFixed(1)}%` : "—" },
+            { kpi: "Cuentas activas", valor: d.activeAccounts },
+            { kpi: "Bajas último mes", valor: d.latestClosed?.bajas ?? "—" },
           ] },
         ]}
       />
     }>
-      {/* ── Fila 1: Alertas activas (2×2) ── */}
+      {/* ── Fila 1: Alertas activas (dinámicas) ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
-        <AlertBanner tone="red"   icon="●" text="Chile NPS 37.05 — gap -16.9 pts vs Argentina"  to="/nps" />
-        <AlertBanner tone="red"   icon="●" text="52.1% de bajas sin motivo (3,048 cuentas)"   to="/tendencia" />
-        <AlertBanner tone="amber" icon="●" text="Aceleración churn Feb→Abr +43.6% en 3 meses" to="/tendencia" />
-        <AlertBanner tone="amber" icon="●" text="63 cuentas en tier Critical — intervención urgente" to="/cola" />
+        {d.npsWorst && d.npsBest && d.npsWorst.pais !== d.npsBest.pais && (
+          <AlertBanner
+            tone="red" icon="●"
+            text={`${d.npsWorst.pais} NPS ${d.npsWorst.nps.toFixed(2)} — gap ${(d.npsWorst.nps - d.npsBest.nps).toFixed(1)} pts vs ${d.npsBest.pais}`}
+            to="/nps"
+          />
+        )}
+        {d.sinMotivo && (
+          <AlertBanner
+            tone="red" icon="●"
+            text={`${d.pctSinMotivo.toFixed(1)}% de bajas sin motivo (${nfmt(d.sinMotivo.n)} cuentas)`}
+            to="/tendencia"
+          />
+        )}
+        {d.accelLabel && (
+          <AlertBanner
+            tone="amber" icon="●"
+            text={`Aceleración churn ${d.accelLabel}`}
+            to="/tendencia"
+          />
+        )}
+        {d.critical && d.critical.count > 0 && (
+          <AlertBanner
+            tone="amber" icon="●"
+            text={`${nfmt(d.critical.count)} cuentas en tier Critical — intervención urgente`}
+            to="/cola"
+          />
+        )}
       </div>
 
       {/* ── Fila 2: Bento cols-3 ── */}
@@ -54,14 +81,26 @@ function Resumen() {
           <div className="card-head">
             <div>
               <div className="card-eyebrow">Bajas del mes</div>
-              <div className="card-title" style={{ color: "white" }}>Abril 2026</div>
+              <div className="card-title" style={{ color: "white" }}>
+                {d.latestClosedFull || "—"}
+              </div>
             </div>
             <div className="arrow-up">↗</div>
           </div>
-          <div className="bignum" style={{ fontSize: 72 }}>1,446</div>
+          <div className="bignum" style={{ fontSize: 72 }}>
+            {d.latestClosed ? nfmt(d.latestClosed.bajas) : "—"}
+          </div>
           <div className="mt-12" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <span className="callout">↑ +13.6% vs Mar</span>
-            <span className="callout" style={{ background: "rgba(255,255,255,0.18)" }}>5,860 YTD</span>
+            {d.monthDeltaPct !== null && d.prevClosed && (
+              <span className="callout">
+                {d.monthDeltaPct >= 0 ? "↑" : "↓"} {pctFmt(d.monthDeltaPct)} vs {d.prevClosed.mes.replace(/\*+$/, "")}
+              </span>
+            )}
+            {d.ytdClosed > 0 && (
+              <span className="callout" style={{ background: "rgba(255,255,255,0.18)" }}>
+                {nfmt(d.ytdClosed)} YTD
+              </span>
+            )}
           </div>
           <div className="mt-16" style={{ display: "flex", gap: 8, position: "relative", zIndex: 2 }}>
             <button className="btn" style={{ background: "white", color: "var(--orange-deep)" }}>Plan retención</button>
@@ -69,22 +108,24 @@ function Resumen() {
           </div>
         </div>
 
-        {/* Métricas Q1 */}
+        {/* Métricas calidad */}
         <div className="card lg">
           <div className="card-head">
             <div>
-              <div className="card-eyebrow">Métricas calidad · Q1</div>
-              <div className="card-title">7,044 respuestas</div>
+              <div className="card-eyebrow">Métricas calidad</div>
+              <div className="card-title">{nfmt(d.npsResponses)} respuestas</div>
             </div>
             <div className="arrow-up">⌁</div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginTop: 24 }}>
-            <Q1Metric label="NPS"  value="47.71"   tone="orange" />
-            <Q1Metric label="CSAT" value="4.78/5"  tone="ink" />
-            <Q1Metric label="CVR"  value="19.9%"   tone="cream" />
+            <Q1Metric label="NPS"  value={d.npsGlobal.toFixed(2)}   tone="orange" />
+            <Q1Metric label="CSAT" value={d.csatLatest ? `${d.csatLatest.avg.toFixed(2)}/5` : "—"}  tone="ink" />
+            <Q1Metric label="CVR"  value={d.cvrLatest ? `${d.cvrLatest.cvr.toFixed(1)}%` : "—"}   tone="cream" />
           </div>
           <div className="mt-16 muted fs-12">
-            Argentina y México lideran · Chile bajo objetivo
+            {d.npsBest && d.npsWorst
+              ? `${d.npsBest.pais} lidera · ${d.npsWorst.pais} bajo objetivo`
+              : "sin datos NPS"}
           </div>
         </div>
 
@@ -93,14 +134,18 @@ function Resumen() {
           <div className="card-head">
             <div>
               <div className="card-eyebrow">Cuentas activas</div>
-              <div className="card-title">May. 2026</div>
+              <div className="card-title">{d.snapLatestLabel ?? d.latestClosedFull ?? "—"}</div>
             </div>
             <div className="arrow-up">●</div>
           </div>
-          <div className="bignum" style={{ fontSize: 64 }}>{cuentasActivas}</div>
-          <div className="mt-12">
-            <span className="delta-pill">▲ +63 vs Abr</span>
-          </div>
+          <div className="bignum" style={{ fontSize: 64 }}>{nfmt(d.activeAccounts)}</div>
+          {d.snapDelta !== null && d.snapPrevLabel && (
+            <div className="mt-12">
+              <span className="delta-pill">
+                {d.snapDelta >= 0 ? "▲" : "▼"} {d.snapDelta >= 0 ? "+" : ""}{nfmt(d.snapDelta)} vs {d.snapPrevLabel.split(" ")[0]}
+              </span>
+            </div>
+          )}
           <TierMiniBars />
         </div>
       </div>
@@ -109,13 +154,13 @@ function Resumen() {
       <div className="divider">
         <span className="kicker">Tendencia</span>
         <span className="alt">/ bajas mensuales</span>
-        <span className="sub">Dic 2025 – Jun 2026 (proyectado)</span>
+        <span className="sub">{d.periodLabel}{d.totalProjected > 0 ? " (con proyección)" : ""}</span>
         <span className="rule" />
       </div>
 
       <div className="bento cols-2">
         <TrendCard />
-        <TierDonutCard total={cuentasActivas} />
+        <TierDonutCard total={d.activeAccounts} />
       </div>
     </Layout>
   );
@@ -159,7 +204,7 @@ function Q1Metric({ label, value, tone }: { label: string; value: string; tone: 
 
 function TierMiniBars() {
   const { tierDist } = useDashboardData();
-  const total = tierDist.reduce((s, t) => s + t.count, 0);
+  const total = tierDist.reduce((s, t) => s + t.count, 0) || 1;
   return (
     <div className="mt-16">
       <div style={{ display: "flex", height: 10, borderRadius: 99, overflow: "hidden", gap: 2 }}>
@@ -184,12 +229,19 @@ function TierMiniBars() {
 
 function TrendCard() {
   const { churnTrend } = useDashboardData();
-  // split real vs projected for stroke-dasharray rendering
-  const data = churnTrend.map((d) => ({
-    ...d,
-    bajasReal: d.proyectado ? null : d.bajas,
-    bajasProj: d.proyectado ? d.bajas : null,
+  const d = useDerived();
+  const data = churnTrend.map((dd) => ({
+    ...dd,
+    bajasReal: dd.proyectado ? null : dd.bajas,
+    bajasProj: dd.proyectado ? dd.bajas : null,
   }));
+
+  // dominio R: min/max de pctMotivo con margen
+  const pctVals = churnTrend.map((x) => x.pctMotivo).filter((v): v is number => v !== null && v !== undefined);
+  const rMin = pctVals.length ? Math.max(0, Math.floor(Math.min(...pctVals) - 5)) : 0;
+  const rMax = pctVals.length ? Math.ceil(Math.max(...pctVals) + 5) : 100;
+
+  const forecastX = churnTrend.filter((x) => x.proyectado).map((x) => x.mes);
 
   return (
     <div className="card lg">
@@ -198,7 +250,9 @@ function TrendCard() {
           <div className="card-eyebrow">Bajas vs % registrado con motivo</div>
           <div className="card-title">Crece la baja, crece la brecha</div>
         </div>
-        <span className="delta-pill bad">↑ +43.6% Feb→Abr</span>
+        {d.accelLabel && (
+          <span className="delta-pill bad">↑ {d.accelLabel}</span>
+        )}
       </div>
       <div className="chart-wrap" style={{ height: 320, position: "relative" }}>
         <ResponsiveContainer>
@@ -212,11 +266,12 @@ function TrendCard() {
             <CartesianGrid stroke="#E8E6DC" vertical={false} />
             <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
             <YAxis yAxisId="L" tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
-            <YAxis yAxisId="R" orientation="right" domain={[40, 55]} tick={{ fontSize: 11, fill: "#B5740F" }} axisLine={false} tickLine={false} unit="%" />
+            <YAxis yAxisId="R" orientation="right" domain={[rMin, rMax]} tick={{ fontSize: 11, fill: "#B5740F" }} axisLine={false} tickLine={false} unit="%" />
             <Tooltip contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid #E8E6DC" }} />
 
-            <ReferenceArea yAxisId="L" x1="May*" x2="Jun*" fill="#0B0B0A" fillOpacity={0.04} label={{ value: "Forecast", position: "insideTop", fill: "#6E6D66", fontSize: 11 }} />
-            <ReferenceLine yAxisId="L" y={1100} stroke="#0B0B0A" strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: "Target 3M (<1,100)", position: "insideTopRight", fill: "#0B0B0A", fontSize: 11 }} />
+            {forecastX.length > 0 && (
+              <ReferenceArea yAxisId="L" x1={forecastX[0]} x2={forecastX[forecastX.length - 1]} fill="#0B0B0A" fillOpacity={0.04} label={{ value: "Forecast", position: "insideTop", fill: "#6E6D66", fontSize: 11 }} />
+            )}
 
             <Area yAxisId="L" type="monotone" dataKey="bajas" stroke="none" fill="url(#trendG)" />
             <Bar yAxisId="L" dataKey="bajasReal" fill={ORANGE} radius={[6, 6, 0, 0]} barSize={28} />
@@ -226,18 +281,9 @@ function TrendCard() {
               ))}
             </Bar>
             <Line yAxisId="R" type="monotone" dataKey="pctMotivo" stroke="#B5740F" strokeWidth={2} dot={{ r: 3, fill: "#B5740F" }} connectNulls={false} />
+            <ReferenceLine yAxisId="L" y={d.firstClosed?.bajas ?? 0} stroke="#0B0B0A" strokeDasharray="4 4" strokeOpacity={0.4} label={{ value: `inicio ${d.firstClosed?.mes ?? ""} (${nfmt(d.firstClosed?.bajas ?? 0)})`, position: "insideBottomLeft", fill: "#6E6D66", fontSize: 10 }} />
           </ComposedChart>
         </ResponsiveContainer>
-
-        {/* callout flotante en Abr */}
-        <div style={{
-          position: "absolute", top: 36, left: "58%",
-          background: "var(--ink)", color: "white",
-          padding: "6px 10px", borderRadius: 99, fontSize: 11, fontWeight: 500,
-          boxShadow: "0 4px 14px rgba(0,0,0,0.18)",
-        }}>
-          ↑ +43.6% · Feb→Abr
-        </div>
       </div>
 
       <div className="row-flex mt-16" style={{ gap: 14, fontSize: 11.5 }}>
@@ -286,7 +332,7 @@ function TierDonutCard({ total }: { total: number }) {
           pointerEvents: "none", textAlign: "center",
         }}>
           <div>
-            <div className="bignum" style={{ fontSize: 40, justifyContent: "center" }}>{total}</div>
+            <div className="bignum" style={{ fontSize: 40, justifyContent: "center" }}>{nfmt(total)}</div>
             <div className="muted fs-11" style={{ marginTop: 4 }}>cuentas activas</div>
           </div>
         </div>
@@ -298,13 +344,10 @@ function TierDonutCard({ total }: { total: number }) {
               <span className="tier-dot" style={{ background: t.color }} />
               <span className={`tag tier-${tierClass(t.tier)}`}>{t.tier}</span>
             </span>
-            <span className="mono">{t.count} · {t.pct.toFixed(1)}%</span>
+            <span className="mono">{nfmt(t.count)} · {t.pct.toFixed(1)}%</span>
           </div>
         ))}
       </div>
     </div>
   );
 }
-
-// suppress unused import
-void (null as ReactNode);
