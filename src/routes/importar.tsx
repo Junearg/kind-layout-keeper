@@ -275,6 +275,7 @@ function ReviewPanel({
   fileName, rows, issues, month, errCount, warnCount, blocking,
   existingSnap, reprocess, onReprocessChange, needsReprocess, saveError,
   onConfirm, onCancel,
+  parsed, updateDashboards, onUpdateDashboardsChange,
 }: {
   fileName: string;
   rows: NormalizedRow[];
@@ -290,15 +291,23 @@ function ReviewPanel({
   saveError: string;
   onConfirm: () => void;
   onCancel: () => void;
+  parsed: ParsedWorkbook | null;
+  updateDashboards: boolean;
+  onUpdateDashboardsChange: (v: boolean) => void;
 }) {
-  const disabled = blocking || needsReprocess;
-  const btnLabel = blocking
-    ? "Bloqueado por errores"
-    : needsReprocess
-      ? "Marcá Reprocesar para sobrescribir"
-      : reprocess
-        ? `Reprocesar ${month} (${rows.length})`
-        : `Guardar snapshot ${month} (${rows.length})`;
+  const hasSnapshot = rows.length > 0;
+  const hasDashboards = (parsed?.matchedDashboards.length ?? 0) > 0;
+  const disabled = hasSnapshot && (blocking || needsReprocess);
+  const willUpdateDashboards = hasDashboards && updateDashboards;
+
+  const btnLabel = (() => {
+    if (disabled && blocking) return "Bloqueado por errores";
+    if (disabled && needsReprocess) return "Marcá Reprocesar para sobrescribir";
+    const parts: string[] = [];
+    if (hasSnapshot) parts.push(reprocess ? `Reprocesar ${month} (${rows.length})` : `Guardar snapshot ${month} (${rows.length})`);
+    if (willUpdateDashboards) parts.push(`Actualizar ${parsed!.matchedDashboards.length} dashboards`);
+    return parts.length ? parts.join(" + ") : "Confirmar";
+  })();
 
   return (
     <div>
