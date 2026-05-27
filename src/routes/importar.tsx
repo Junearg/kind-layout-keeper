@@ -21,6 +21,7 @@ function ImportarPage() {
   const [fileName, setFileName] = useState("");
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<{ dataset: DashboardDataset; report: ParseReport } | null>(null);
+  const [mesElegido, setMesElegido] = useState<string>("");
 
   const dsActual = useDataset();
   const mesesActuales = useMesesDisponibles();
@@ -32,6 +33,8 @@ function ImportarPage() {
       const wb = XLSX.read(buf, { type: "array" });
       const out = parseTemplateWorkbook(wb, file.name);
       if (out.report.total_filas === 0) throw new Error("No encontramos filas en ninguna de las hojas esperadas.");
+      const meses = out.dataset.meta.meses_disponibles;
+      setMesElegido(meses[meses.length - 1] ?? "");
       setPreview(out);
       setFileName(file.name);
       setStage("preview");
@@ -42,13 +45,14 @@ function ImportarPage() {
 
   function confirmar() {
     if (!preview) return;
-    setDataset(preview.dataset);
+    setDataset(preview.dataset, mesElegido || undefined);
     reset();
   }
   function reset() {
-    setStage("idle"); setPreview(null); setFileName(""); setError("");
+    setStage("idle"); setPreview(null); setFileName(""); setError(""); setMesElegido("");
     if (inputRef.current) inputRef.current.value = "";
   }
+
 
   return (
     <Layout>
@@ -83,8 +87,17 @@ function ImportarPage() {
         {stage === "idle" && <Dropzone onFile={handleFile} inputRef={inputRef} error={error} />}
 
         {stage === "preview" && preview && (
-          <PreviewPanel fileName={fileName} report={preview.report} onConfirm={confirmar} onCancel={reset} />
+          <PreviewPanel
+            fileName={fileName}
+            report={preview.report}
+            mesesDetectados={preview.dataset.meta.meses_disponibles}
+            mesElegido={mesElegido}
+            onMesChange={setMesElegido}
+            onConfirm={confirmar}
+            onCancel={reset}
+          />
         )}
+
       </section>
 
       {/* Estado actual */}
@@ -148,12 +161,19 @@ function Dropzone({ onFile, inputRef, error }: { onFile: (f: File) => void; inpu
   );
 }
 
-function PreviewPanel({ fileName, report, onConfirm, onCancel }: {
-  fileName: string; report: ParseReport; onConfirm: () => void; onCancel: () => void;
+function PreviewPanel({ fileName, report, mesesDetectados, mesElegido, onMesChange, onConfirm, onCancel }: {
+  fileName: string;
+  report: ParseReport;
+  mesesDetectados: string[];
+  mesElegido: string;
+  onMesChange: (m: string) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
 }) {
   const errores = report.hojas.filter((h) => h.status === "error").length;
   const warns = report.hojas.filter((h) => h.status === "warn").length;
   const missing = report.hojas.filter((h) => h.status === "missing").length;
+
   return (
     <div style={{ marginTop: 14 }}>
       <div className="fs-12" style={{ color: "var(--ink-3)", marginBottom: 12 }}>
@@ -193,13 +213,39 @@ function PreviewPanel({ fileName, report, onConfirm, onCancel }: {
         })}
       </div>
 
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 22 }}>
-        <button className="btn ghost" onClick={onCancel}>Cancelar</button>
-        <button className="btn" onClick={onConfirm} disabled={errores > 0}
-          style={{ background: errores ? "var(--ink-5)" : "var(--ink)", color: "var(--paper)" }}>
-          Importar y reemplazar dataset
-        </button>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, marginTop: 22, flexWrap: "wrap" }}>
+        {mesesDetectados.length > 1 ? (
+          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span className="fs-11" style={{ color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+              Activar mes
+            </span>
+            <select
+              value={mesElegido}
+              onChange={(e) => onMesChange(e.target.value)}
+              style={{
+                padding: "6px 10px", borderRadius: 8, border: "1px solid var(--rule-2)",
+                background: "var(--paper)", fontSize: 12.5, color: "var(--ink)",
+                fontFamily: "inherit", cursor: "pointer",
+              }}
+            >
+              {mesesDetectados.map((m) => (
+                <option key={m} value={m}>{mesLargo(m)}</option>
+              ))}
+            </select>
+            <span className="fs-11" style={{ color: "var(--ink-3)" }}>
+              · {mesesDetectados.length} meses detectados
+            </span>
+          </label>
+        ) : <span />}
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="btn ghost" onClick={onCancel}>Cancelar</button>
+          <button className="btn" onClick={onConfirm} disabled={errores > 0}
+            style={{ background: errores ? "var(--ink-5)" : "var(--ink)", color: "var(--paper)" }}>
+            Importar y reemplazar dataset
+          </button>
+        </div>
       </div>
+
     </div>
   );
 }

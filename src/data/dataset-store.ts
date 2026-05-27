@@ -62,14 +62,18 @@ function subscribe(cb: () => void) {
   };
 }
 
-export function setDataset(d: DashboardDataset) {
+export function setDataset(d: DashboardDataset, mesActivo?: string) {
   if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_DATASET, JSON.stringify(d));
   const meses = d.resumen_mensual.map((r) => r.mes).sort();
   const last = meses[meses.length - 1] ?? d.meta.meses_disponibles[0] ?? "";
-  if (last) localStorage.setItem(STORAGE_MES, last);
+  const chosen = mesActivo && (d.meta.meses_disponibles.includes(mesActivo) || meses.includes(mesActivo))
+    ? mesActivo
+    : last;
+  if (chosen) localStorage.setItem(STORAGE_MES, chosen);
   emit();
 }
+
 export function setMesActivo(mes: string) {
   if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_MES, mes);
