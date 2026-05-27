@@ -158,6 +158,7 @@ function Q1Metric({ label, value, tone }: { label: string; value: string; tone: 
 }
 
 function TierMiniBars() {
+  const { tierDist } = useDashboardData();
   const total = tierDist.reduce((s, t) => s + t.count, 0);
   return (
     <div className="mt-16">
@@ -182,6 +183,7 @@ function TierMiniBars() {
 }
 
 function TrendCard() {
+  const { churnTrend } = useDashboardData();
   // split real vs projected for stroke-dasharray rendering
   const data = churnTrend.map((d) => ({
     ...d,
@@ -261,6 +263,7 @@ function LegendDot({ color, label, dashed }: { color: string; label: string; das
 }
 
 function TierDonutCard({ total }: { total: number }) {
+  const { tierDist } = useDashboardData();
   return (
     <div className="card cream lg">
       <div className="minihead">
