@@ -125,10 +125,56 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
               </Link>
             ))}
           </nav>
-          <div className="search-pill">
-            <span>⌕</span> Buscar… <span className="mono" style={{ marginLeft: 4, opacity: 0.7 }}>⌘K</span>
+          <div className="search-pill" ref={searchRef} style={{ position: "relative", padding: 0, background: "var(--paper-2)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 14px" }}>
+              <span>⌕</span>
+              <input
+                ref={inputRef}
+                value={q}
+                onChange={(e) => { setQ(e.target.value); setOpen(true); }}
+                onFocus={() => setOpen(true)}
+                placeholder="Buscar cuenta, ID, país…"
+                style={{
+                  border: 0, outline: 0, background: "transparent",
+                  fontSize: 12.5, color: "var(--ink)", width: 180,
+                  fontFamily: "inherit",
+                }}
+              />
+              <span className="mono" style={{ opacity: 0.7, fontSize: 11 }}>⌘K</span>
+            </div>
+            {open && q.trim() && (
+              <div style={{
+                position: "absolute", top: "calc(100% + 6px)", right: 0, left: 0,
+                background: "var(--card)", border: "1px solid var(--rule)",
+                borderRadius: 12, boxShadow: "0 12px 32px rgba(0,0,0,0.12)",
+                zIndex: 30, maxHeight: 360, overflow: "auto", minWidth: 320,
+              }}>
+                {results.length === 0 ? (
+                  <div className="muted fs-12" style={{ padding: "12px 14px" }}>Sin resultados</div>
+                ) : results.map((a) => (
+                  <button
+                    key={a.id}
+                    onClick={() => goToAccount(a.id)}
+                    style={{
+                      display: "flex", width: "100%", textAlign: "left",
+                      gap: 10, padding: "10px 14px", background: "transparent",
+                      border: 0, borderBottom: "1px solid var(--rule)",
+                      cursor: "pointer", alignItems: "center",
+                      fontFamily: "inherit",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--paper-2)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <div className="strong" style={{ fontSize: 13, color: "var(--ink)" }}>{a.nombre}</div>
+                      <div className="muted fs-11">#{a.id} · {a.pais} · {a.plan}</div>
+                    </div>
+                    <div className="fs-11" style={{ color: "var(--ink-2)" }}>{a.tier}</div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-          <button className="icon-btn" aria-label="notificaciones">🔔</button>
           <div className="avatar">CS</div>
         </div>
 
