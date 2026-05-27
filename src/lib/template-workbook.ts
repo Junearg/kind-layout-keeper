@@ -267,26 +267,34 @@ const SHEETS: SheetSpec[] = [
 function buildInstructionsSheet(): XLSX.WorkSheet {
   const rows: Array<Record<string, unknown>> = [];
   SHEETS.forEach((s) => {
-    rows.push({ hoja: s.name, campo: "— DESCRIPCIÓN —", tipo: "", obligatorio: "", ejemplo: "", descripcion: s.description });
+    rows.push({
+      HOJA: s.name,
+      CAMPO: "— DESCRIPCIÓN DE LA HOJA —",
+      TIPO: "",
+      "OBLIGATORIO (S/N)": "",
+      EJEMPLO: "",
+      DESCRIPCIÓN: s.description,
+    });
     s.fields.forEach((f) => {
       rows.push({
-        hoja: s.name,
-        campo: f.campo,
-        tipo: f.tipo,
-        obligatorio: f.obligatorio ? "SÍ" : "no",
-        ejemplo: f.ejemplo,
-        descripcion: f.descripcion,
+        HOJA: s.name,
+        CAMPO: f.campo,
+        TIPO: f.tipo,
+        "OBLIGATORIO (S/N)": f.obligatorio ? "S" : "N",
+        EJEMPLO: f.ejemplo,
+        DESCRIPCIÓN: f.descripcion,
       });
     });
-    rows.push({ hoja: "", campo: "", tipo: "", obligatorio: "", ejemplo: "", descripcion: "" });
+    rows.push({ HOJA: "", CAMPO: "", TIPO: "", "OBLIGATORIO (S/N)": "", EJEMPLO: "", DESCRIPCIÓN: "" });
   });
   const ws = XLSX.utils.json_to_sheet(rows, {
-    header: ["hoja", "campo", "tipo", "obligatorio", "ejemplo", "descripcion"],
+    header: ["HOJA", "CAMPO", "TIPO", "OBLIGATORIO (S/N)", "EJEMPLO", "DESCRIPCIÓN"],
   });
-  ws["!cols"] = [{ wch: 22 }, { wch: 30 }, { wch: 10 }, { wch: 12 }, { wch: 28 }, { wch: 70 }];
+  ws["!cols"] = [{ wch: 22 }, { wch: 30 }, { wch: 10 }, { wch: 18 }, { wch: 28 }, { wch: 70 }];
   ws["!freeze"] = { xSplit: 0, ySplit: 1 } as XLSX.WorkSheet["!freeze"];
   return ws;
 }
+
 
 function buildDataSheet(s: SheetSpec): XLSX.WorkSheet {
   const headers = s.fields.map((f) => f.campo);
