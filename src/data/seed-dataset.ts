@@ -96,6 +96,7 @@ const resumenAbr = {
   proyeccion_pct_vs_actual: mayPoint?.bajas_proyectadas && abrPoint?.bajas_reales
     ? +(((mayPoint.bajas_proyectadas - abrPoint.bajas_reales) / abrPoint.bajas_reales) * 100).toFixed(1) : 0,
   proyeccion_total_periodo_estimado: churnTrendMap.reduce((s, p) => s + (p.bajas_reales ?? p.bajas_proyectadas ?? 0), 0),
+  forecast_auto: false,
 };
 
 const npsGlobal = [{
@@ -200,6 +201,8 @@ const iniciativas = (base.iniciativas as Array<{ id: number; titulo: string; pri
     estado: estMap[i.estado] ?? "planificado",
     timeline_semanas: i.timeline,
     impacto_esperado: i.impacto,
+    mes_creacion: MES,
+    mes_actualizacion: MES,
   };
 });
 
