@@ -35,6 +35,9 @@ export type ResumenMes = {
   proyeccion_mes_siguiente: number;
   proyeccion_pct_vs_actual: number;
   proyeccion_total_periodo_estimado: number;
+  /** Si es true, la app calcula `proyeccion_mes_siguiente` con regresión
+   *  lineal sobre los últimos 3 meses reales y sobreescribe el valor manual. */
+  forecast_auto?: boolean;
 };
 
 /** ───── Hoja 2: tendencia_mensual ───── */
@@ -151,6 +154,10 @@ export type Iniciativa = {
   estado: IniciativaEstado;
   timeline_semanas: string;
   impacto_esperado: string;
+  /** YYYY-MM en que se levantó la iniciativa. */
+  mes_creacion: string;
+  /** YYYY-MM de la última actualización de estado. */
+  mes_actualizacion: string;
 };
 
 export type DatasetMeta = {

@@ -2,6 +2,8 @@ import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useDerived } from "@/data/derived";
 import { useDashboardData } from "@/data/liveData";
+import { useMesActivo, useMesesDisponibles, setMesActivo } from "@/data/dataset-store";
+import { mesLargo } from "@/data/schema";
 
 const TABS = [
   { to: "/resumen",   label: "Resumen" },
@@ -186,6 +188,7 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 12 }}>
             {actions}
+            <MesSelector />
             <div className="stamp">
               última actualización<br />
               <span className="v">{d.lastUpdate}</span>
@@ -196,5 +199,37 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
         {children}
       </div>
     </div>
+  );
+}
+
+function MesSelector() {
+  const meses = useMesesDisponibles();
+  const activo = useMesActivo();
+  if (meses.length === 0) {
+    return (
+      <Link to="/importar" className="btn ghost" style={{ fontSize: 12 }}>
+        Importar datos
+      </Link>
+    );
+  }
+  return (
+    <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <span className="fs-11" style={{ color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+        Período
+      </span>
+      <select
+        value={activo}
+        onChange={(e) => setMesActivo(e.target.value)}
+        style={{
+          padding: "6px 10px", borderRadius: 8, border: "1px solid var(--rule-2)",
+          background: "var(--paper)", fontSize: 12.5, color: "var(--ink)",
+          fontFamily: "inherit", cursor: "pointer",
+        }}
+      >
+        {meses.map((m) => (
+          <option key={m} value={m}>{mesLargo(m)}</option>
+        ))}
+      </select>
+    </label>
   );
 }
