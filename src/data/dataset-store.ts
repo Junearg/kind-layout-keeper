@@ -126,12 +126,65 @@ export function useHealthMes() {
 export function useColaMes() {
   const { dataset, mesActivo } = useDatasetState();
   const rows = dataset.cola_cs.filter((c) => c.mes === mesActivo);
-  return rows.length ? rows : null;
+  if (rows.length) return rows;
+  // Fallback: derivar la cola desde health_score con prio_cs ≥ 35
+  const cuentas = dataset.health_score.cuentas_activas.filter((c) => c.mes === mesActivo);
+  const derived = cuentas
+    .filter((c) => c.prio_cs >= 35)
+    .sort((a, b) => b.prio_cs - a.prio_cs)
+    .map((c) => ({
+      mes: mesActivo,
+      id_cuenta: c.id_cuenta,
+      nombre: c.nombre,
+      pais: c.pais,
+      plan: c.plan,
+      tier: c.tier,
+      tendencia: c.tendencia,
+      risk_flags: c.risk_flags,
+      prio_cs: c.prio_cs,
+      contactada_hoy: false,
+      es_critica: c.tier === "Critical" || c.prio_cs >= 50,
+    }));
+  return derived.length ? derived : null;
 }
 export function useKpisMes() {
   const { dataset, mesActivo } = useDatasetState();
   const kpis = dataset.kpis_iniciativas.kpis.filter((k) => k.mes === mesActivo);
-  const iniciativas = dataset.kpis_iniciativas.iniciativas;
+  // Iniciativas: vigentes son las cuyo mes_creacion <= mesActivo
+  const iniciativas = dataset.kpis_iniciativas.iniciativas
+    .filter((i) => !i.mes_creacion || i.mes_creacion <= mesActivo)
+    .sort((a, b) => (b.mes_actualizacion ?? "").localeCompare(a.mes_actualizacion ?? ""));
   if (kpis.length === 0 && iniciativas.length === 0) return null;
   return { kpis, iniciativas };
+}
+
+/** Regresión lineal simple sobre los últimos N puntos reales.
+ *  Devuelve el valor predicho para el próximo paso. */
+export function linearForecastNext(values: number[]): number {
+  const n = values.length;
+  if (n < 2) return values[n - 1] ?? 0;
+  const xs = values.map((_, i) => i);
+  const meanX = xs.reduce((s, x) => s + x, 0) / n;
+  const meanY = values.reduce((s, y) => s + y, 0) / n;
+  const num = xs.reduce((s, x, i) => s + (x - meanX) * (values[i]! - meanY), 0);
+  const den = xs.reduce((s, x) => s + (x - meanX) ** 2, 0);
+  const slope = den === 0 ? 0 : num / den;
+  const intercept = meanY - slope * meanX;
+  return Math.max(0, Math.round(slope * n + intercept));
+}
+
+/** Si el resumen del mes activo tiene `forecast_auto: true`, devuelve la
+ *  proyección calculada por regresión sobre los últimos 3 meses reales.
+ *  Si no, devuelve null para que se use el valor manual. */
+export function useForecastAutoNext(): number | null {
+  const { dataset, mesActivo } = useDatasetState();
+  const resumen = dataset.resumen_mensual.find((r) => r.mes === mesActivo);
+  if (!resumen?.forecast_auto) return null;
+  const reales = dataset.tendencia_mensual
+    .filter((p) => !p.es_forecast && p.bajas_reales != null && p.mes <= mesActivo)
+    .sort((a, b) => a.mes.localeCompare(b.mes))
+    .slice(-3)
+    .map((p) => p.bajas_reales as number);
+  if (reales.length < 2) return null;
+  return linearForecastNext(reales);
 }
