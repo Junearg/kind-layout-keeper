@@ -12,7 +12,7 @@ const TABS = [
 ] as const;
 
 const HELLO: Record<string, { crumbs: string; h1: ReactNode; sub: string }> = {
-  "/resumen":   { crumbs: "Fudo Churn Center · Mayo 2026", h1: <>Fudo <span className="alt">Churn Center</span></>, sub: "Análisis consolidado · Dic 2025 – May 2026 · 5,852 cuentas" },
+  "/resumen":   { crumbs: "Fudo Churn Center · Mayo 2026", h1: <>Fudo <span style={{ color: "var(--orange)" }}>Churn</span> Center</>, sub: "Análisis consolidado · Dic 2025 – May 2026 · 5,852 cuentas" },
   "/tendencia": { crumbs: "Fudo Churn Center · Tendencia", h1: <>Tendencia <span className="alt">mensual</span></>, sub: "Bajas, motivos y proyección · 5 meses cerrados + 2 proyectados" },
   "/nps":       { crumbs: "Fudo Churn Center · Voz del cliente", h1: <>Net Promoter <span className="alt">Score</span></>, sub: "6,915 respuestas · LATAM · Q1+Q2 2026" },
   "/health":    { crumbs: "Fudo Churn Center · Health Score", h1: <>Salud de la <span className="alt">base</span></>, sub: "818 cuentas activas · scoring 0-100 · tiers + flags" },
