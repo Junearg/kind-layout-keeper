@@ -1,9 +1,10 @@
-// Métricas derivadas a partir de los datos vivos (live + import).
+// Métricas derivadas a partir del dataset canónico (filtrado por mes activo).
 // Todo lo que se muestra en el dashboard pasa por acá — nada hardcodeado.
 
 import { useMemo } from "react";
 import { useDashboardData } from "./liveData";
-import { listSnapshots, type MonthlySnapshot } from "@/lib/import-validation";
+import { useDatasetState } from "./dataset-store";
+import { mesLargo } from "./schema";
 
 const MES_FULL: Record<string, string> = {
   Ene: "Enero", Feb: "Febrero", Mar: "Marzo", Abr: "Abril",
@@ -28,32 +29,10 @@ function weightedAvg(items: { value: number; weight: number }[]): number {
   return items.reduce((s, i) => s + i.value * i.weight, 0) / totalW;
 }
 
-function fmtMonthKey(key: string): string {
-  // accepts "2026-05" → "May 2026"; "May 2026" passthrough; else as-is
-  const iso = key.match(/^(\d{4})-(\d{2})$/);
-  if (!iso) return key;
-  const year = iso[1]!;
-  const monthIdx = Number(iso[2]!) - 1;
-  const arr = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-  return `${arr[monthIdx] ?? iso[2]} ${year}`;
-}
-
-function snapshotDate(s: MonthlySnapshot | undefined): string | null {
-  if (!s) return null;
-  try {
-    return new Date(s.savedAt).toLocaleDateString("es-AR", {
-      day: "2-digit", month: "short", year: "numeric",
-    });
-  } catch { return null; }
-}
-
 export function useDerived() {
   const data = useDashboardData();
-  const snapshots = useMemo<MonthlySnapshot[]>(
-    () => (typeof window === "undefined" ? [] : listSnapshots()),
-    // listSnapshots reads localStorage; data already triggers re-render after import
-    [data]
-  );
+  const { dataset, mesActivo } = useDatasetState();
+
 
   return useMemo(() => {
     const {
@@ -157,18 +136,22 @@ export function useDerived() {
     const atRisk = tierDist.find((t) => t.tier === "At Risk") ?? null;
     const critical = tierDist.find((t) => t.tier === "Critical") ?? null;
 
-    // ─── Snapshots (variación de cuentas mes vs mes) ───
-    const latestSnap = snapshots[snapshots.length - 1] ?? null;
-    const prevSnap = snapshots[snapshots.length - 2] ?? null;
-    const snapDelta = latestSnap && prevSnap
-      ? latestSnap.rowCount - prevSnap.rowCount
-      : null;
-    const snapLatestLabel = latestSnap ? fmtMonthKey(latestSnap.month) : null;
-    const snapPrevLabel = prevSnap ? fmtMonthKey(prevSnap.month) : null;
+    // ─── Última actualización (desde meta del dataset) ───
+    const uploadedAt = dataset.meta.uploaded_at;
+    const lastUpdate = uploadedAt
+      ? new Date(uploadedAt).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })
+      : "—";
 
-    // ─── Última actualización ───
-    const lastUpdate = snapshotDate(latestSnap ?? undefined)
-      ?? new Date().toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
+    // ─── Variación de cuentas mes vs mes desde resumen_mensual ───
+    const resumenSorted = [...dataset.resumen_mensual].sort((a, b) => a.mes.localeCompare(b.mes));
+    const idxAct = resumenSorted.findIndex((r) => r.mes === mesActivo);
+    const resAct = idxAct >= 0 ? resumenSorted[idxAct]! : null;
+    const resPrev = idxAct > 0 ? resumenSorted[idxAct - 1]! : null;
+    const snapDelta = resAct && resPrev
+      ? resAct.cuentas_activas_total - resPrev.cuentas_activas_total
+      : null;
+    const snapLatestLabel = resAct ? mesLargo(resAct.mes) : null;
+    const snapPrevLabel = resPrev ? mesLargo(resPrev.mes) : null;
 
     // ─── Etiquetas de período ───
     const closedMonthsLabel = firstClosed && latestClosed
@@ -210,13 +193,13 @@ export function useDerived() {
       // tiers
       activeAccounts, champion, healthy, atRisk, critical,
 
-      // snapshots
-      latestSnap, prevSnap, snapDelta, snapLatestLabel, snapPrevLabel,
+      // variación mes vs mes
+      latestSnap: resAct, prevSnap: resPrev, snapDelta, snapLatestLabel, snapPrevLabel,
 
       // misc
       lastUpdate,
     };
-  }, [data, snapshots]);
+  }, [data, dataset, mesActivo]);
 }
 
 export type Derived = ReturnType<typeof useDerived>;
