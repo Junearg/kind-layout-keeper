@@ -10,6 +10,8 @@ import {
 
 import appCss from "../styles.css?url";
 import { ChatWidget } from "@/components/ChatWidget";
+import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { LoginScreen } from "@/components/LoginScreen";
 
 function NotFoundComponent() {
   return (
@@ -113,8 +115,26 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
-      <ChatWidget />
+      <AuthProvider>
+        <AuthGate>
+          <Outlet />
+          <ChatWidget />
+        </AuthGate>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "var(--paper)" }}>
+        <div className="muted fs-12">Cargando…</div>
+      </div>
+    );
+  }
+  if (!user) return <LoginScreen />;
+  return <>{children}</>;
+}
+
