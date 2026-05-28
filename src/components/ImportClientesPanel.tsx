@@ -232,7 +232,7 @@ export function ImportClientesPanel() {
               ? "Subiendo…"
               : phase === "reading"
                 ? "Leyendo…"
-                : "Nueva carga: borrar mes e importar"}
+                : "Nueva carga"}
           </button>
           {!file && (
             <span className="fs-12" style={{ color: "var(--ink-3)" }}>
