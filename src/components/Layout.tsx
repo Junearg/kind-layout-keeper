@@ -5,6 +5,7 @@ import { useDashboardData } from "@/data/liveData";
 import { useMesActivo, useMesesDisponibles, setMesActivo } from "@/data/dataset-store";
 import { mesLargo } from "@/data/schema";
 import { useAuth } from "@/lib/auth-context";
+import { usePeriod, periodLabel } from "@/contexts/PeriodContext";
 
 const TABS = [
   { to: "/resumen",   label: "Resumen" },
@@ -116,7 +117,10 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
       <div className="bg-decor">Churn · Churn · Churn ·</div>
       <div className="shell">
         <div className="topbar">
-          <div className="brand-mark">f</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div className="brand-mark">f</div>
+            {active !== "/importar" && <PeriodBadge />}
+          </div>
           <nav className="tabs">
             {TABS.map((t) => (
               <Link
