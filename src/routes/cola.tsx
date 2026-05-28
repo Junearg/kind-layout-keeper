@@ -204,7 +204,7 @@ function Cola() {
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {criticos.map((a) => (
-              <QueueCard key={a.id} a={a} contacted={contactedSet.has(a.id)} onToggle={() => toggle(a.id)} />
+              <QueueCard key={a.id} a={a} contacted={contactedSet.has(a.id)} onToggle={() => toggle(a.id)} tierColor={tierColor} flagColor={flagColor} />
             ))}
           </div>
         </>
@@ -220,7 +220,7 @@ function Cola() {
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {resto.map((a) => (
-              <QueueCard key={a.id} a={a} contacted={contactedSet.has(a.id)} onToggle={() => toggle(a.id)} />
+              <QueueCard key={a.id} a={a} contacted={contactedSet.has(a.id)} onToggle={() => toggle(a.id)} tierColor={tierColor} flagColor={flagColor} />
             ))}
           </div>
         </>
