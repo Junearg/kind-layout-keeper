@@ -228,11 +228,15 @@ export async function upsertClientesInBatches(
   // Deduplicate by (id_cuenta_dash, mes_exportacion) — keep the LAST occurrence.
   // Postgres rejects ON CONFLICT when the same conflict key appears twice en un statement.
   const dedupMap = new Map<string, Record<string, unknown>>();
+  const seenCount = new Map<string, number>();
   for (const row of rows) {
     const key = `${row.id_cuenta_dash}__${row.mes_exportacion}`;
     dedupMap.set(key, row);
+    seenCount.set(key, (seenCount.get(key) || 0) + 1);
   }
   const deduped = Array.from(dedupMap.values());
+  const duplicateKeys = Array.from(seenCount.entries()).filter(([, n]) => n > 1);
+  const duplicateRowsRemoved = duplicateKeys.reduce((sum, [, n]) => sum + (n - 1), 0);
 
   const total = deduped.length;
   const summary: ImportSummary = {
@@ -243,6 +247,17 @@ export async function upsertClientesInBatches(
     batches: [],
   };
 
+  onLog?.(
+    `IDs duplicados en el Excel: ${duplicateKeys.length} claves repetidas ` +
+    `(${duplicateRowsRemoved} filas extra descartadas en dedupe).`,
+  );
+  if (duplicateKeys.length > 0) {
+    const sample = duplicateKeys
+      .slice(0, 10)
+      .map(([k, n]) => `${k.split("__")[0]}×${n}`)
+      .join(", ");
+    onLog?.(`Ejemplos de IDs repetidos: ${sample}${duplicateKeys.length > 10 ? "…" : ""}`);
+  }
   onLog?.(`Inicio: ${rows.length} leídas, ${total} únicas tras dedupe. Batch=${batchSize}.`);
 
   for (let i = 0; i < total; i += batchSize) {
