@@ -7,6 +7,7 @@ import { parseTemplateWorkbook, type ParseReport } from "@/lib/parse-workbook-v2
 import { clearDataset, setDataset, useDataset, useMesesDisponibles } from "@/data/dataset-store";
 import type { DashboardDataset } from "@/data/schema";
 import { mesLargo } from "@/data/schema";
+import { ImportClientesPanel } from "@/components/ImportClientesPanel";
 
 export const Route = createFileRoute("/importar")({
   head: () => ({ meta: [{ title: "Importar · Fudo Churn Center" }] }),
@@ -56,8 +57,11 @@ function ImportarPage() {
 
   return (
     <Layout>
+      {/* Importar a Supabase */}
+      <ImportClientesPanel />
+
       {/* Plantilla */}
-      <section className="card" style={{ padding: 24 }}>
+      <section className="card" style={{ padding: 24, marginTop: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
           <div>
             <h2 className="serif" style={{ fontSize: 22, margin: 0 }}>
