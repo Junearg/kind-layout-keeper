@@ -135,8 +135,19 @@ async function fetchResumen(period: string): Promise<ResumenData> {
     byMonth.set(k, slot);
   }
   const sortedKeys = Array.from(byMonth.keys()).sort();
-  // Tomar últimos 7 meses
-  const last7 = sortedKeys.slice(-7);
+  // Mes cerrado = el período seleccionado (snapshot)
+  const latest = period;
+  // Mes anterior al período
+  const prev = (() => {
+    const [y, m] = period.split("-").map(Number);
+    if (!y || !m) return sortedKeys[sortedKeys.length - 2];
+    const py = m === 1 ? y - 1 : y;
+    const pm = m === 1 ? 12 : m - 1;
+    return `${py}-${String(pm).padStart(2, "0")}`;
+  })();
+  // Trend: últimos 7 meses hasta el período (inclusive), descartando posteriores
+  const validKeys = sortedKeys.filter((k) => k <= period);
+  const last7 = validKeys.slice(-7);
   const churnTrend = last7.map((k) => {
     const s = byMonth.get(k)!;
     return {
@@ -145,11 +156,10 @@ async function fetchResumen(period: string): Promise<ResumenData> {
       proyectado: false,
     };
   });
-  const latest = last7[last7.length - 1];
-  const prev = last7[last7.length - 2];
-  const bajasMesActual = latest ? byMonth.get(latest)!.bajas : 0;
-  const bajasMesPrev = prev ? byMonth.get(prev)!.bajas : 0;
+  const bajasMesActual = byMonth.get(latest)?.bajas ?? 0;
+  const bajasMesPrev = prev ? (byMonth.get(prev)?.bajas ?? 0) : 0;
   const monthDeltaPct = bajasMesPrev ? ((bajasMesActual - bajasMesPrev) / bajasMesPrev) * 100 : null;
+
 
   // YTD (año del latest)
   const latestYear = latest ? Number(latest.split("-")[0]) : new Date().getUTCFullYear();
