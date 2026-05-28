@@ -14,7 +14,6 @@ import {
   tierDistFromScored,
   riskFlagDistFromScored,
 } from "@/data/supabase-health";
-import { mesLargo } from "@/data/schema";
 
 export const Route = createFileRoute("/cola")({
   head: () => ({ meta: [{ title: "Cola CS · Churn Hub" }] }),
@@ -22,8 +21,6 @@ export const Route = createFileRoute("/cola")({
 });
 
 const tierClass = (t: string) => (t === "At Risk" ? "tier-AtRisk" : t);
-const tierColor = (t: string) => tierDist.find((x) => x.tier === t)?.color ?? "#6E6D66";
-const flagColor = (f: string) => riskFlagDist.find((r) => r.flag === f)?.color ?? "#6E6D66";
 
 type FilterKey = "Todos" | "Critical" | "At Risk" | "CaidaCritica" | "NpsDetractor";
 
