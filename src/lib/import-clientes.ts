@@ -5,13 +5,13 @@ import { supabase } from "@/integrations/supabase/client";
 const COLUMN_MAP: Record<string, string> = {
   "ID Cuenta (dash)": "id_cuenta_dash",
   "ID HubSpot": "id_hubspot",
-  "Nombre": "nombre",
-  "País": "pais",
-  "Ejecutivo": "ejecutivo",
+  Nombre: "nombre",
+  País: "pais",
+  Ejecutivo: "ejecutivo",
   "Propietario HubSpot": "propietario_hubspot",
-  "Etapa": "etapa",
-  "GMV": "gmv",
-  "Plan": "plan",
+  Etapa: "etapa",
+  GMV: "gmv",
+  Plan: "plan",
   "Fecha de Baja": "fecha_baja",
   "Motivo de Baja": "motivo_baja",
   "Sub-motivo de Baja": "submotivo_baja",
@@ -34,19 +34,19 @@ const COLUMN_MAP: Record<string, string> = {
   "CSAT CS+Soporte (promedio gral)": "csat_cs_promedio",
   "CSAT CS+Soporte (N respuestas)": "csat_cs_n",
   "CSAT Período Cubierto": "csat_periodo",
-  "Mesas": "mesas",
-  "Salas": "salas",
-  "Productos": "productos",
+  Mesas: "mesas",
+  Salas: "salas",
+  Productos: "productos",
   "Cat. Productos": "cat_productos",
   "Pr. con stock": "pr_con_stock",
   "Pr. con costo": "pr_con_costo",
-  "Ingredientes": "ingredientes",
+  Ingredientes: "ingredientes",
   "Cat. Ingredientes": "cat_ingredientes",
   "Ing. con stock": "ing_con_stock",
   "Ing. con costo": "ing_con_costo",
   "Ing. en recetas": "ing_en_recetas",
   "Sub-ing. en recetas": "sub_ing_en_recetas",
-  "Usuarios": "usuarios",
+  Usuarios: "usuarios",
   "V Salon": "v_salon",
   "V Delivery": "v_delivery",
   "V Mostrador": "v_mostrador",
@@ -61,15 +61,15 @@ const COLUMN_MAP: Record<string, string> = {
   "Ad. Tablet": "ad_tablet",
   "Ad. Lista Precio": "ad_lista_precio",
   "Ad. Combo": "ad_combo",
-  "Arqueos": "arqueos",
-  "Propinas": "propinas",
+  Arqueos: "arqueos",
+  Propinas: "propinas",
   "Movimientos Caja": "movimientos_caja",
-  "Gastos": "gastos",
-  "Fiscal": "fiscal",
+  Gastos: "gastos",
+  Fiscal: "fiscal",
   "Menu Online Habilitado": "menu_online_habilitado",
   "Carta QR Habilitado": "carta_qr_habilitado",
   "Zonas Delivery": "zonas_delivery",
-  "Descuentos": "descuentos",
+  Descuentos: "descuentos",
   "Ventas con clientes": "ventas_con_clientes",
   "Ventas pagadas MP": "ventas_pagadas_mp",
   "Cantidad Proveedores": "cantidad_proveedores",
@@ -83,22 +83,68 @@ const COLUMN_MAP: Record<string, string> = {
 };
 
 const NUMERIC_COLS = new Set([
-  "id_cuenta_dash", "gmv", "nps_score", "cant_contactos",
-  "csat_onb_promedio", "csat_onb_n", "csat_cs_promedio", "csat_cs_n",
-  "mesas", "salas", "productos", "cat_productos", "pr_con_stock", "pr_con_costo",
-  "ingredientes", "cat_ingredientes", "ing_con_stock", "ing_con_costo",
-  "ing_en_recetas", "sub_ing_en_recetas", "usuarios",
-  "v_salon", "v_delivery", "v_mostrador", "v_menu_online", "v_pedidosya",
-  "v_ubereats", "v_rappi", "v_justo", "v_ifood", "v_didi",
-  "ad_pc", "ad_tablet", "ad_lista_precio", "ad_combo",
-  "arqueos", "propinas", "movimientos_caja", "gastos", "fiscal",
-  "menu_online_habilitado", "carta_qr_habilitado", "zonas_delivery",
-  "descuentos", "ventas_con_clientes", "ventas_pagadas_mp",
-  "cantidad_proveedores", "cantidad_clientes", "cantidad_cajas", "cantidad_turnos",
-  "ventas_deli_con_repartidor", "cat_gastos_financiera", "cat_gastos", "sub_cat_gastos",
+  "id_cuenta_dash",
+  "gmv",
+  "nps_score",
+  "cant_contactos",
+  "csat_onb_promedio",
+  "csat_onb_n",
+  "csat_cs_promedio",
+  "csat_cs_n",
+  "mesas",
+  "salas",
+  "productos",
+  "cat_productos",
+  "pr_con_stock",
+  "pr_con_costo",
+  "ingredientes",
+  "cat_ingredientes",
+  "ing_con_stock",
+  "ing_con_costo",
+  "ing_en_recetas",
+  "sub_ing_en_recetas",
+  "usuarios",
+  "v_salon",
+  "v_delivery",
+  "v_mostrador",
+  "v_menu_online",
+  "v_pedidosya",
+  "v_ubereats",
+  "v_rappi",
+  "v_justo",
+  "v_ifood",
+  "v_didi",
+  "ad_pc",
+  "ad_tablet",
+  "ad_lista_precio",
+  "ad_combo",
+  "arqueos",
+  "propinas",
+  "movimientos_caja",
+  "gastos",
+  "fiscal",
+  "menu_online_habilitado",
+  "carta_qr_habilitado",
+  "zonas_delivery",
+  "descuentos",
+  "ventas_con_clientes",
+  "ventas_pagadas_mp",
+  "cantidad_proveedores",
+  "cantidad_clientes",
+  "cantidad_cajas",
+  "cantidad_turnos",
+  "ventas_deli_con_repartidor",
+  "cat_gastos_financiera",
+  "cat_gastos",
+  "sub_cat_gastos",
 ]);
 
 const DATE_COLS = new Set(["fecha_baja", "primera_fecha_contacto", "ultima_fecha_contacto"]);
+const OPERATIONAL_MOTIVOS = new Set(["CHANGE_METHOD", "CHANGE_FREQUENCY"]);
+
+function isOperationalChurnMotivo(v: unknown): boolean {
+  return typeof v === "string" && OPERATIONAL_MOTIVOS.has(v.trim().toUpperCase());
+}
 
 function excelDateToISO(v: unknown): string | null {
   if (v == null || v === "") return null;
@@ -113,7 +159,7 @@ function excelDateToISO(v: unknown): string | null {
   const d = new Date(s);
   if (!isNaN(d.getTime())) return d.toISOString();
   // DD/MM/YYYY
-  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+  const m = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
   if (m) {
     const [, dd, mm, yyyy] = m;
     const year = yyyy.length === 2 ? 2000 + Number(yyyy) : Number(yyyy);
@@ -205,10 +251,13 @@ async function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
   }
 }
 
-export async function parseClientesSheet(file: File | ArrayBuffer): Promise<Record<string, unknown>[]> {
+export async function parseClientesSheet(
+  file: File | ArrayBuffer,
+): Promise<Record<string, unknown>[]> {
   const buf = file instanceof ArrayBuffer ? file : await readFileAsArrayBuffer(file);
   const wb = XLSX.read(buf, { type: "array", cellDates: true });
-  const sheetName = wb.SheetNames.find((n) => n.toLowerCase().includes("base general")) || wb.SheetNames[0];
+  const sheetName =
+    wb.SheetNames.find((n) => n.toLowerCase().includes("base general")) || wb.SheetNames[0];
   const ws = wb.Sheets[sheetName];
   if (!ws) throw new Error(`No se encontró la hoja "Base general" en el archivo.`);
 
@@ -219,15 +268,12 @@ export async function parseClientesSheet(file: File | ArrayBuffer): Promise<Reco
     raw: true,
   });
 
-
   return rows;
 }
 
-
-
 export function mapRowsToClientes(
   rows: Record<string, unknown>[],
-  mesExportacion: string
+  mesExportacion: string,
 ): Record<string, unknown>[] {
   // Build header -> dbCol resolver tolerant to whitespace/accents and force column A as ID Cuenta (dash).
   const normalizedMap = new Map<string, string>();
@@ -262,6 +308,10 @@ export function mapRowsToClientes(
     // Skip totally empty rows o filas sin ID Cuenta (dash): es la clave lógica del import.
     if (!hasAny) continue;
     if (out.id_cuenta_dash == null) continue;
+    if (isOperationalChurnMotivo(out.motivo_baja)) {
+      out.motivo_baja = null;
+      out.fecha_baja = null;
+    }
     mapped.push(out);
   }
   return mapped;
@@ -283,7 +333,7 @@ export type ImportSummary = {
   batches: BatchLog[];
 };
 
-export async function upsertClientesInBatches(
+export async function replaceClientesInBatches(
   rows: Record<string, unknown>[],
   onProgress: (uploaded: number, total: number) => void,
   batchSize = 500,
@@ -292,11 +342,9 @@ export async function upsertClientesInBatches(
   // Clave de dedupe: SOLO ID Cuenta (dash). El archivo no tiene columna `mes`;
   // mes_exportacion lo elige el usuario al importar y es el mismo para todas las filas.
   const dedupeKeyOf = (row: Record<string, unknown>): string => {
-
     const dash = row.id_cuenta_dash;
     return `D:${String(dash ?? "").trim()}`;
   };
-
 
   // ===== Análisis del Excel CRUDO (antes de cualquier dedupe / upsert) =====
   let nActivo = 0;
@@ -321,7 +369,7 @@ export async function upsertClientesInBatches(
     statesByKey.set(key, set);
   }
   const idsUnicos = statesByKey.size;
-  let dupMismoEstado = 0;
+  const dupMismoEstado = 0;
   let dupCambianEstado = 0;
   for (const [, set] of statesByKey) {
     // (solo cuentan los duplicados; las cuentas únicas se miden aparte abajo)
@@ -388,11 +436,11 @@ export async function upsertClientesInBatches(
   }
   const deduped = Array.from(dedupMap.values());
   const activeKeysAfterDedupe = new Set(
-    deduped
-      .filter((row) => estadoPriority(row.estado_dash) === 2)
-      .map((row) => dedupeKeyOf(row)),
+    deduped.filter((row) => estadoPriority(row.estado_dash) === 2).map((row) => dedupeKeyOf(row)),
   );
-  const lostActiveKeys = Array.from(activeKeysInRaw).filter((key) => !activeKeysAfterDedupe.has(key));
+  const lostActiveKeys = Array.from(activeKeysInRaw).filter(
+    (key) => !activeKeysAfterDedupe.has(key),
+  );
   if (lostActiveKeys.length > 0) {
     throw new Error(
       `Dedupe inválido: se perdieron ${lostActiveKeys.length} cuentas con estado_dash=Activo. ` +
@@ -412,9 +460,9 @@ export async function upsertClientesInBatches(
   };
 
   onLog?.(
-    `Dedupe por ID Cuenta (dash) + mes. ` +
-    `Claves duplicadas: ${duplicateKeys.length} ` +
-    `(${duplicateRowsRemoved} filas extra descartadas).`,
+    `Dedupe por ID Cuenta (dash). ` +
+      `Claves duplicadas: ${duplicateKeys.length} ` +
+      `(${duplicateRowsRemoved} filas extra descartadas).`,
   );
   if (duplicateKeys.length > 0) {
     const sample = duplicateKeys
@@ -430,14 +478,30 @@ export async function upsertClientesInBatches(
   );
   onLog?.(`Inicio: ${rows.length} leídas, ${total} únicas tras dedupe. Batch=${batchSize}.`);
 
-  // Borrar filas previas del/los mes(es) presentes en este import antes de insertar.
+  // Borrado completo del mes antes de insertar: no hacemos upsert para evitar
+  // que queden pegados motivos/fechas viejas de cargas anteriores.
   const mesesAfectados = Array.from(new Set(deduped.map((r) => String(r.mes_exportacion))));
   for (const mes of mesesAfectados) {
-    const { error: delErr } = await supabase.from("clientes").delete().eq("mes_exportacion", mes);
+    onLog?.(`Borrando carga previa completa de ${mes}…`);
+    const { count, error: delErr } = await supabase
+      .from("clientes")
+      .delete({ count: "exact" })
+      .eq("mes_exportacion", mes);
     if (delErr) {
       onLog?.(`No se pudieron borrar filas previas de ${mes}: ${delErr.message}`);
+      throw new Error(`No se pudo borrar la carga previa de ${mes}: ${delErr.message}`);
+    }
+    const { count: remaining, error: verifyDelErr } = await supabase
+      .from("clientes")
+      .select("*", { count: "exact", head: true })
+      .eq("mes_exportacion", mes);
+    if (verifyDelErr) {
+      throw new Error(`No se pudo verificar el borrado de ${mes}: ${verifyDelErr.message}`);
+    }
+    if ((remaining ?? 0) > 0) {
+      throw new Error(`El borrado de ${mes} no quedó limpio: todavía quedan ${remaining} filas.`);
     } else {
-      onLog?.(`Borradas filas previas de ${mes}.`);
+      onLog?.(`Carga previa de ${mes} borrada: ${count ?? 0} filas eliminadas.`);
     }
   }
 
@@ -450,9 +514,7 @@ export async function upsertClientesInBatches(
 
     while (attempts < 3 && !ok) {
       attempts++;
-      const { error } = await supabase
-        .from("clientes")
-        .insert(batch as never);
+      const { error } = await supabase.from("clientes").insert(batch as never);
       if (!error) {
         ok = true;
         break;
@@ -465,21 +527,51 @@ export async function upsertClientesInBatches(
     if (ok) {
       summary.totalInserted += batch.length;
       summary.batches.push({ batch: batchNum, uploaded: batch.length, failed: 0, attempts });
-      onLog?.(`Batch ${batchNum} completado: ${batch.length} filas subidas, error: 0 (intentos: ${attempts})`);
+      onLog?.(
+        `Batch ${batchNum} completado: ${batch.length} filas subidas, error: 0 (intentos: ${attempts})`,
+      );
     } else {
       summary.totalFailed += batch.length;
-      summary.batches.push({ batch: batchNum, uploaded: 0, failed: batch.length, attempts, error: lastError });
-      onLog?.(`Batch ${batchNum} completado: 0 filas subidas, error: ${batch.length} (tras ${attempts} intentos) — ${lastError}`);
+      summary.batches.push({
+        batch: batchNum,
+        uploaded: 0,
+        failed: batch.length,
+        attempts,
+        error: lastError,
+      });
+      onLog?.(
+        `Batch ${batchNum} completado: 0 filas subidas, error: ${batch.length} (tras ${attempts} intentos) — ${lastError}`,
+      );
+      throw new Error(`La carga se detuvo en el batch ${batchNum}: ${lastError}`);
     }
     onProgress(Math.min(i + batch.length, total), total);
   }
 
-
   onLog?.(
     `Final: leídas=${summary.totalRead}, únicas=${summary.totalDeduped}, ` +
-    `insertadas=${summary.totalInserted}, fallidas=${summary.totalFailed}.`,
+      `insertadas=${summary.totalInserted}, fallidas=${summary.totalFailed}.`,
   );
+
+  for (const mes of mesesAfectados) {
+    const { count: operationalCount, error: operationalErr } = await supabase
+      .from("clientes")
+      .select("*", { count: "exact", head: true })
+      .eq("mes_exportacion", mes)
+      .in("motivo_baja", Array.from(OPERATIONAL_MOTIVOS));
+    if (operationalErr) {
+      throw new Error(
+        `No se pudo validar motivos operacionales de ${mes}: ${operationalErr.message}`,
+      );
+    }
+    if ((operationalCount ?? 0) > 0) {
+      throw new Error(
+        `Validación fallida: quedaron ${operationalCount} filas de ${mes} con ` +
+          `motivo_baja CHANGE_METHOD/CHANGE_FREQUENCY.`,
+      );
+    }
+    onLog?.(`Validación ${mes}: 0 filas con CHANGE_METHOD / CHANGE_FREQUENCY.`);
+  }
   return summary;
 }
 
-
+export const upsertClientesInBatches = replaceClientesInBatches;
