@@ -38,21 +38,38 @@ function normalizar(value: number | null | undefined, min: number, max: number):
 }
 
 /** Health score 0-100 ponderado. */
-export function calculateHealthScore(cliente: ClienteScoreInput): number {
-  const ventas = num(cliente.v_salon) + num(cliente.v_mostrador) + num(cliente.v_delivery);
-  const contactos = num(cliente.cant_contactos);
+export function calculateHealthScore(cliente: Record<string, any>): number {
+  const norm = (val: any, max: number): number => {
+    const n = Number(val);
+    if (!val || isNaN(n)) return 0;
+    return Math.min(n / max, 1) * 100;
+  };
 
-  const componentes = [
-    { value: normalizar(cliente.productos, 0, 500), weight: 0.20 },           // adopción
-    { value: normalizar(cliente.usuarios, 0, 20), weight: 0.15 },              // team
-    { value: normalizar(ventas, 0, 50000), weight: 0.25 },                     // volumen ventas
-    { value: contactos === 0 ? 80 : Math.max(0, 100 - contactos * 5), weight: 0.15 }, // bajo contacto = bueno
-    { value: cliente.nps_score != null ? (Number(cliente.nps_score) / 10) * 100 : 50, weight: 0.25 }, // NPS
+  const ventas = (Number(cliente.v_salon) || 0)
+               + (Number(cliente.v_delivery) || 0)
+               + (Number(cliente.v_mostrador) || 0);
+
+  const hasNPS = cliente.nps_score !== null && cliente.nps_score !== undefined;
+  const npsScore = hasNPS ? norm(Number(cliente.nps_score), 10) : 50;
+
+  // Contactos: 0 contactos = 100 pts (cliente autosuficiente), más contactos = peor señal
+  const contactScore = Math.max(0, 100 - (Number(cliente.cant_contactos) || 0) * 6);
+
+  const components = [
+    { score: norm(cliente.productos, 120),  weight: 0.20 }, // max real para restaurante: ~120 productos
+    { score: norm(cliente.usuarios, 8),     weight: 0.15 }, // max real: ~8 usuarios
+    { score: norm(ventas, 600),             weight: 0.25 }, // max real: ~600 tx/mes
+    { score: contactScore,                  weight: 0.15 },
+    { score: npsScore,                      weight: 0.25 },
   ];
 
-  const total = componentes.reduce((acc, c) => acc + c.value * c.weight, 0);
-  return Math.round(clamp(total) * 10) / 10;
+  // Si no tiene NPS, redistribuimos ese peso entre productos y ventas
+  const totalWeight = hasNPS ? 1.0 : 0.75;
+  const raw = components.reduce((sum, c) => sum + c.score * c.weight, 0);
+
+  return Math.round(Math.min(100, Math.max(0, raw / totalWeight)));
 }
+
 
 export function getTier(score: number): Tier {
   if (score >= 80) return "Champion";
