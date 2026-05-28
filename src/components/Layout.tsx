@@ -14,8 +14,10 @@ const TABS = [
   { to: "/health",    label: "Health Score" },
   { to: "/cola",      label: "Cola CS" },
   { to: "/contactos", label: "Contactos" },
+  { to: "/csat",      label: "CSAT" },
   { to: "/kpis",      label: "KPIs" },
   { to: "/importar",  label: "Importar" },
+
 
 ] as const;
 
