@@ -34,7 +34,8 @@ function exportEmptyCsv() {
 }
 
 function Tendencia() {
-  const { churnTrend, motivosBaja } = useDashboardData();
+  const { motivosBaja } = useDashboardData();
+
   const d = useDerived();
   const motivos = useMotivosMes();
   const resumen = useResumenMes();
