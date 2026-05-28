@@ -165,9 +165,10 @@ async function fetchResumen(period: string): Promise<ResumenData> {
     const pm = m === 1 ? 12 : m - 1;
     return `${py}-${String(pm).padStart(2, "0")}`;
   })();
-  // Trend: últimos 7 meses hasta el período (inclusive), descartando posteriores
+  // Trend: últimos 12 meses hasta el período (inclusive), descartando posteriores
   const validKeys = sortedKeys.filter((k) => k <= period);
-  const last7 = validKeys.slice(-7);
+  const last7 = validKeys.slice(-12);
+
   const churnTrend = last7.map((k) => {
     const s = byMonth.get(k)!;
     return {
