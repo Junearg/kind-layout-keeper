@@ -15,6 +15,7 @@ function defaultMonth(): string {
 }
 export function ImportClientesPanel() {
   const inputRef = useRef<HTMLInputElement>(null);
+  const logRef = useRef<HTMLDivElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [mes, setMes] = useState<string>(defaultMonth());
   const [phase, setPhase] = useState<Phase>("idle");
@@ -22,39 +23,64 @@ export function ImportClientesPanel() {
   const [uploaded, setUploaded] = useState<number>(0);
   const [total, setTotal] = useState<number>(0);
   const [error, setError] = useState<string>("");
+  const [logs, setLogs] = useState<string[]>([]);
+  const [summary, setSummary] = useState<{ inserted: number; failed: number; read: number } | null>(null);
   const { refresh, setSelectedPeriod } = usePeriod();
 
   const pct = useMemo(() => (total ? Math.round((uploaded / total) * 100) : 0), [uploaded, total]);
 
+  function appendLog(line: string) {
+    const ts = new Date().toLocaleTimeString();
+    setLogs((prev) => [...prev, `[${ts}] ${line}`]);
+    queueMicrotask(() => {
+      if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+    });
+  }
+
   function reset() {
-    setFile(null); setPhase("idle"); setDetected(0); setUploaded(0); setTotal(0); setError("");
+    setFile(null); setPhase("idle"); setDetected(0); setUploaded(0); setTotal(0);
+    setError(""); setLogs([]); setSummary(null);
     if (inputRef.current) inputRef.current.value = "";
   }
 
   async function handleConfirm() {
     if (!file || !mes) return;
     setError("");
+    setLogs([]);
+    setSummary(null);
     setPhase("reading");
     try {
       const raw = await parseClientesSheet(file);
       setDetected(raw.length);
+      appendLog(`Filas detectadas en el Excel: ${raw.length}`);
       const mapped = mapRowsToClientes(raw, mes);
       setTotal(mapped.length);
       setUploaded(0);
+      appendLog(`Filas válidas (con ID Cuenta) tras mapeo: ${mapped.length}`);
       if (mapped.length === 0) throw new Error("No se detectaron filas válidas (con ID Cuenta).");
       setPhase("uploading");
-      await upsertClientesInBatches(mapped, (u, t) => {
-        setUploaded(u); setTotal(t);
-      });
+      const result = await upsertClientesInBatches(
+        mapped,
+        (u, t) => { setUploaded(u); setTotal(t); },
+        500,
+        appendLog,
+      );
+      setSummary({ inserted: result.totalInserted, failed: result.totalFailed, read: raw.length });
+      appendLog(
+        `RESUMEN — leídas: ${raw.length} · mapeadas: ${mapped.length} · ` +
+        `insertadas: ${result.totalInserted} · fallidas: ${result.totalFailed}`,
+      );
       setPhase("done");
-      // Refrescar el contexto de períodos y seleccionar el mes recién importado
       await refresh();
       setSelectedPeriod(mes);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error inesperado.");
+      const msg = e instanceof Error ? e.message : "Error inesperado.";
+      appendLog(`ERROR FATAL: ${msg}`);
+      setError(msg);
       setPhase("error");
     }
   }
+
 
   return (
     <section className="card" style={{ padding: 24 }}>
@@ -163,11 +189,15 @@ export function ImportClientesPanel() {
                   Subiendo a Supabase: <span className="mono strong">{uploaded}/{total}</span> ({pct}%)
                 </>
               )}
-              {phase === "done" && (
-                <span style={{ color: "var(--green, #2e7d32)" }}>
-                  ✓ Carga completa: <span className="mono strong">{uploaded}</span> filas guardadas para <span className="mono">{mes}</span>.
+              {phase === "done" && summary && (
+                <span style={{ color: summary.failed === 0 ? "var(--green, #2e7d32)" : "var(--orange)" }}>
+                  ✓ Finalizado para <span className="mono">{mes}</span> · leídas:{" "}
+                  <span className="mono strong">{summary.read}</span> · insertadas:{" "}
+                  <span className="mono strong">{summary.inserted}</span>
+                  {summary.failed > 0 && <> · <span className="mono strong">fallidas: {summary.failed}</span></>}
                 </span>
               )}
+
             </div>
             <div style={{ height: 8, background: "var(--paper-2)", borderRadius: 999, overflow: "hidden" }}>
               <div
@@ -190,6 +220,30 @@ export function ImportClientesPanel() {
             {error}
           </div>
         )}
+
+        {logs.length > 0 && (
+          <div
+            ref={logRef}
+            className="mono fs-11"
+            style={{
+              marginTop: 8,
+              maxHeight: 220,
+              overflowY: "auto",
+              padding: "10px 12px",
+              background: "var(--paper-2)",
+              border: "1px solid var(--rule-2)",
+              borderRadius: 8,
+              whiteSpace: "pre-wrap",
+              color: "var(--ink-2)",
+              lineHeight: 1.5,
+            }}
+          >
+            {logs.map((l, i) => (
+              <div key={i}>{l}</div>
+            ))}
+          </div>
+        )}
+
       </div>
     </section>
   );
