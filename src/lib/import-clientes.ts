@@ -126,7 +126,23 @@ function excelDateToISO(v: unknown): string | null {
 function toNumber(v: unknown): number | null {
   if (v == null || v === "") return null;
   if (typeof v === "number") return Number.isFinite(v) ? v : null;
-  const s = String(v).trim().replace(/\./g, "").replace(/,/g, ".");
+  let s = String(v).trim();
+  if (!s) return null;
+  // Detect format: "1.234,56" (es) vs "1,234.56" (en) vs "4.78" (en) vs "4,78" (es)
+  const hasDot = s.includes(".");
+  const hasComma = s.includes(",");
+  if (hasDot && hasComma) {
+    // last separator is decimal
+    if (s.lastIndexOf(",") > s.lastIndexOf(".")) {
+      s = s.replace(/\./g, "").replace(",", ".");
+    } else {
+      s = s.replace(/,/g, "");
+    }
+  } else if (hasComma) {
+    // comma alone → decimal
+    s = s.replace(",", ".");
+  }
+  // dot alone → leave as decimal separator (do NOT strip)
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
 }
