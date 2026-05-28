@@ -198,7 +198,7 @@ export function ImportClientesPanel() {
               opacity: !fileBuffer || !mes ? 0.6 : 1,
             }}
           >
-            {phase === "uploading" ? "Subiendo…" : phase === "reading" ? "Leyendo…" : "Borrar mes e importar"}
+            {phase === "uploading" ? "Subiendo…" : phase === "reading" ? "Leyendo…" : "Nueva carga: borrar mes e importar"}
           </button>
           {!file && (
             <span className="fs-12" style={{ color: "var(--ink-3)" }}>
@@ -211,7 +211,7 @@ export function ImportClientesPanel() {
             onClick={reset}
             disabled={phase === "reading" || phase === "uploading"}
           >
-            Nueva carga
+            Limpiar selección
           </button>
         </div>
 
