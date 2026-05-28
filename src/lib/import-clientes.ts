@@ -221,9 +221,9 @@ export function mapRowsToClientes(
       if (value !== null && value !== undefined && value !== "") hasAny = true;
       out[dbCol] = value;
     }
-    // Skip totally empty rows or rows without id_cuenta_dash (upsert key requires it)
+    // Skip totally empty rows o filas sin ningún identificador (hubspot o dash)
     if (!hasAny) continue;
-    if (out.id_cuenta_dash == null) continue;
+    if (out.id_hubspot == null && out.id_cuenta_dash == null) continue;
     mapped.push(out);
   }
   return mapped;
