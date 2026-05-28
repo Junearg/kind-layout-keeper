@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   parseClientesSheet,
   mapRowsToClientes,
@@ -29,6 +30,7 @@ export function ImportClientesPanel() {
   const [logs, setLogs] = useState<string[]>([]);
   const [summary, setSummary] = useState<{ inserted: number; failed: number; read: number } | null>(null);
   const { refresh, setSelectedPeriod } = usePeriod();
+  const queryClient = useQueryClient();
 
   const pct = useMemo(() => (total ? Math.round((uploaded / total) * 100) : 0), [uploaded, total]);
 
@@ -105,6 +107,7 @@ export function ImportClientesPanel() {
       setPhase("done");
       await refresh();
       setSelectedPeriod(mes);
+      await queryClient.invalidateQueries();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Error inesperado.";
       appendLog(`ERROR FATAL: ${msg}`);
