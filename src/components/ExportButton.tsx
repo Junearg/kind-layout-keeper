@@ -33,9 +33,10 @@ export function ExportButton({
       className="btn ghost"
       onClick={handleClick}
       disabled={busy}
-      style={{ gap: 8, opacity: busy ? 0.6 : 1 }}
+      style={{ gap: 8, opacity: busy ? 0.6 : 1, display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 180 }}
     >
       <span style={{ fontSize: 13 }}>↓</span> {busy ? "Generando…" : label}
     </button>
+
   );
 }
