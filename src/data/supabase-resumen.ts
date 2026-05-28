@@ -212,8 +212,6 @@ async function fetchResumen(period: string): Promise<ResumenData> {
   const bajasMesActual = byMonth.get(latest)?.bajas ?? 0;
   const bajasMesPrev = prev ? (byMonthTrend.get(prev)?.bajas ?? 0) : 0;
 
-  const bajasMesActual = byMonth.get(latest)?.bajas ?? 0;
-  const bajasMesPrev = prev ? (byMonth.get(prev)?.bajas ?? 0) : 0;
   const monthDeltaPct = bajasMesPrev ? ((bajasMesActual - bajasMesPrev) / bajasMesPrev) * 100 : null;
 
 
