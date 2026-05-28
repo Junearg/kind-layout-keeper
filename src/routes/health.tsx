@@ -79,8 +79,10 @@ function Health() {
 
   const flagData = useMemo(
     () => [...riskFlagDist].filter((f) => f.flag !== "SIN_FLAGS").sort((a, b) => b.count - a.count),
-    []
+    [riskFlagDist]
   );
+
+  const hasData = scored.length > 0 || !!healthMes;
 
   return (
     <Layout actions={
@@ -94,7 +96,7 @@ function Health() {
       />
     }>
       <SupabaseMetricsPanel />
-      {!healthMes ? (
+      {!hasData ? (
         <EmptyPeriod section="Health Score" mes={mesLargo(mesActivo)} />
       ) : (
       <>
