@@ -112,71 +112,123 @@ function Tendencia() {
         <EmptyPeriod section="Tendencia mensual" mes={mesLargo(mesActivo)} />
       ) : (
       <>
-      {/* Fila 1 — KPIs */}
-      <div className="bento cols-3" style={{ marginBottom: 20 }}>
+      {/* Sección Churn Rate */}
+      <div className="divider">
+        <span className="kicker">Churn Rate</span>
+        <span className="alt">· análisis y proyección</span>
+        {d.wmaRate !== null && (
+          <span className="sub">WMA {pctfmt(d.wmaRate)} · σ₆ ±{sixStdDev.toFixed(2)} pts</span>
+        )}
+        <span className="rule" />
+      </div>
 
+      {/* Fila 1 — Grid 2×2 Churn Rate */}
+      <div className="bento equal-2" style={{ marginBottom: 20 }}>
+
+        {/* Card 1 — Monthly Churn Rate */}
         <div className="card lg">
-          <div className="card-eyebrow">YTD acumulado</div>
-          <div className="bignum" style={{ marginTop: 10 }}>{nfmt(d.ytdClosed)}</div>
-          <div className="fs-12 muted" style={{ marginTop: 8 }}>
-            bajas {d.closedMonthsLabel ?? ""}
+          <div className="card-eyebrow" style={{ display: "flex", alignItems: "center" }}>
+            Monthly Churn Rate
+            <Info tip="Bajas del mes en curso / cuentas activas al inicio del mes. El badge muestra la variación vs el mes anterior en puntos porcentuales." />
           </div>
-          {latestRateP && (
-            <div className="fs-12 muted" style={{ marginTop: 4 }}>
-              tasa último mes: <strong>{pctfmt(latestRateP.rate)}</strong>
-              {d.monthDeltaRatePts !== null && (
-                <> · {d.monthDeltaRatePts >= 0 ? "+" : ""}{d.monthDeltaRatePts.toFixed(2)} pts vs anterior</>
-              )}
-            </div>
-          )}
-          {d.firstClosed && d.latestClosed && (
-            <div style={{ marginTop: 14, display: "flex", gap: 6 }}>
-              <span className="tag outline">{d.firstClosed.mes.replace(/\*+$/, "")} {nfmt(d.firstClosed.bajas)}</span>
-              <span className="tag outline">→</span>
-              <span className="tag orange">{d.latestClosed.mes.replace(/\*+$/, "")} {nfmt(d.latestClosed.bajas)}</span>
+          <div className="bignum" style={{ marginTop: 10 }}>
+            {latestRateP ? pctfmt(latestRateP.rate) : "—"}
+          </div>
+          <div className="fs-12 muted" style={{ marginTop: 8 }}>
+            {latestRateP
+              ? <>{nfmt(latestRateP.bajas)} bajas / base {nfmt(latestRateP.activeBase)} · {latestRateP.mes}</>
+              : "sin datos"}
+          </div>
+          {d.monthDeltaRatePts !== null && (
+            <div style={{ marginTop: 14 }}>
+              <span className={`tag ${d.monthDeltaRatePts > 0 ? "red" : "blue"}`}>
+                {d.monthDeltaRatePts >= 0 ? "+" : ""}{d.monthDeltaRatePts.toFixed(2)} pts vs {prevRateP?.mes ?? "anterior"}
+              </span>
             </div>
           )}
         </div>
 
+        {/* Card 2 — WMA Projected Rate */}
         {firstProj ? (
           <div className="card orange lg">
-            <div className="card-eyebrow">Proyección {firstProj.mes}</div>
-            <div className="bignum" style={{ marginTop: 10 }}>{nfmt(firstProj.bajas)}</div>
+            <div className="card-eyebrow" style={{ display: "flex", alignItems: "center", color: "rgba(255,255,255,0.85)" }}>
+              WMA Projected Rate
+              <Info tip="Promedio ponderado móvil de las últimas 3 tasas mensuales (pesos 50% / 30% / 20%). Suaviza picos atípicos para estimar el próximo mes." />
+            </div>
+            <div className="bignum" style={{ marginTop: 10 }}>{pctfmt(firstProj.rate)}</div>
             <div className="fs-12" style={{ color: "rgba(255,255,255,0.85)", marginTop: 8 }}>
-              tasa WMA <strong>{pctfmt(firstProj.rate)}</strong>
-              {d.rateStdDev > 0 && <> · ±{d.rateStdDev.toFixed(2)} pts</>}
+              proyección {firstProj.mes} · ≈ {nfmt(firstProj.bajas)} bajas
             </div>
             <div className="fs-12" style={{ color: "rgba(255,255,255,0.75)", marginTop: 4 }}>
-              banda {nfmt(firstProj.bajasMin ?? firstProj.bajas)}–{nfmt(firstProj.bajasMax ?? firstProj.bajas)}
-              {d.projectionDeltaPct !== null && (
-                <> · {d.projectionDeltaPct >= 0 ? "+" : ""}{d.projectionDeltaPct.toFixed(1)}% vs {d.latestClosed?.mes.replace(/\*+$/, "")}</>
-              )}
+              suaviza picos atípicos (pesos 50/30/20)
             </div>
             <div style={{ marginTop: 14 }}>
               <span className="callout" style={{ background: "rgba(255,255,255,0.2)", color: "white" }}>
-                WMA 50/30/20 · base actual {nfmt(firstProj.activeBase)}
+                base inicial {nfmt(firstProj.activeBase)}
               </span>
             </div>
             <div className="bubble-wrap"><div className="bubble" /></div>
           </div>
         ) : <div className="card lg" />}
 
+        {/* Card 3 — Projected Churns (3 meses, compuesto) */}
+        <div className="card lg">
+          <div className="card-eyebrow" style={{ display: "flex", alignItems: "center" }}>
+            Projected Churns · 3 meses (compuesto)
+            <Info tip="Aplica la tasa WMA mes a mes sobre la base activa remanente del mes anterior (no sobre la base actual fija). Total = suma de los 3 meses proyectados." />
+          </div>
+          <div className="bignum" style={{ marginTop: 10 }}>{nfmt(proj3Total)}</div>
+          <div className="fs-12 muted" style={{ marginTop: 8 }}>
+            bajas proyectadas próximos 3 meses · tasa {pctfmt(wma)}
+          </div>
+          {proj3.length > 0 && (
+            <table className="tbl" style={{ marginTop: 14 }}>
+              <thead>
+                <tr>
+                  <th>Mes</th>
+                  <th style={{ textAlign: "right" }}>Activos inicio</th>
+                  <th style={{ textAlign: "right" }}>Bajas proy.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {proj3.map((p) => (
+                  <tr key={p.key}>
+                    <td className="strong">{p.mes}</td>
+                    <td className="mono" style={{ textAlign: "right" }}>{nfmt(p.activeBase)}</td>
+                    <td className="mono strong" style={{ textAlign: "right" }}>{nfmt(p.bajas)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Card 4 — Confidence Interval */}
         <div className="card ink lg">
-          <div className="card-eyebrow">Período estimado (anualizado)</div>
-          <div className="bignum" style={{ marginTop: 10 }}>{nfmt(d.periodoEstimado)}</div>
-          <div className="fs-12" style={{ color: "rgba(255,255,255,0.55)", marginTop: 8 }}>
-            YTD real <strong>{nfmt(d.ytdClosed)}</strong> + proyección compuesta <strong>{nfmt(d.totalProjected)}</strong>
+          <div className="card-eyebrow" style={{ display: "flex", alignItems: "center", color: "rgba(255,255,255,0.7)" }}>
+            Confidence Interval
+            <Info tip="Desvío estándar de las últimas 6 tasas mensuales. Rango = tasa WMA ± 1.5 × σ, expresado en bajas absolutas sobre la base del próximo mes." />
+          </div>
+          <div className="bignum" style={{ marginTop: 10 }}>
+            {nfmt(ciMin)}–{nfmt(ciMax)}
+          </div>
+          <div className="fs-12" style={{ color: "rgba(255,255,255,0.7)", marginTop: 8 }}>
+            centro {nfmt(ciCenter)} · σ₆ ±{sixStdDev.toFixed(2)} pts
           </div>
           <div className="fs-12" style={{ color: "rgba(255,255,255,0.55)", marginTop: 4 }}>
-            base recalculada cada mes (active − churn proyectado)
+            rango tasa {pctfmt(ciLowRate)} – {pctfmt(ciHighRate)}
           </div>
           <div style={{ marginTop: 14 }}>
-            <span className="callout" style={{ background: "rgba(255,255,255,0.12)", color: "white" }}>
-              riesgo proyectado
+            <span className="callout" style={{
+              background: sixStdDev > 0.8 ? "rgba(220,38,38,0.25)" : sixStdDev < 0.4 ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.12)",
+              color: "white",
+            }}>
+              {variabilityLabel}
             </span>
           </div>
         </div>
       </div>
+
 
       {/* Fila 2 — Chart grande */}
       <div className="card lg">
