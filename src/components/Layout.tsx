@@ -4,6 +4,7 @@ import { useDerived } from "@/data/derived";
 import { useDashboardData } from "@/data/liveData";
 import { useMesActivo, useMesesDisponibles, setMesActivo } from "@/data/dataset-store";
 import { mesLargo } from "@/data/schema";
+import { useAuth } from "@/lib/auth-context";
 
 const TABS = [
   { to: "/resumen",   label: "Resumen" },
