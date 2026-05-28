@@ -288,9 +288,11 @@ export async function upsertClientesInBatches(
   onProgress: (uploaded: number, total: number) => void,
   batchSize = 500,
   onLog?: (line: string) => void,
+): Promise<ImportSummary> {
   // Clave de dedupe: SOLO ID Cuenta (dash). El archivo no tiene columna `mes`;
   // mes_exportacion lo elige el usuario al importar y es el mismo para todas las filas.
   const dedupeKeyOf = (row: Record<string, unknown>): string => {
+
     const dash = row.id_cuenta_dash;
     return `D:${String(dash ?? "").trim()}`;
   };
