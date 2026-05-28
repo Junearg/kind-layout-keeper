@@ -1,0 +1,1 @@
+ALTER TABLE public.clientes ADD CONSTRAINT clientes_id_cuenta_dash_mes_exportacion_key UNIQUE (id_cuenta_dash, mes_exportacion);
