@@ -52,12 +52,11 @@ export function useDerived() {
       tierDist, motivosDetraccion, motivosPromocion,
     } = data;
 
-    // ─── Tendencia rate-based (con WMA + compounding + banda de confianza) ───
-    const trendRate = buildTrendRate(dataset, mesActivo);
-    const closed = trendRate.closed.map((p) => ({
+    // ─── Tendencia rate-based (Supabase, filtrada) ───
+    const closed = trendRate.closed.map((p: TrendRatePoint) => ({
       mes: p.mes, bajas: p.bajas, pctMotivo: null as number | null, proyectado: false,
     }));
-    const projected = trendRate.projected.map((p) => ({
+    const projected = trendRate.projected.map((p: TrendRatePoint) => ({
       mes: `${p.mes}*`, bajas: p.bajas, pctMotivo: null as number | null, proyectado: true,
     }));
     const latestClosed = closed[closed.length - 1] ?? null;
