@@ -212,12 +212,13 @@ export async function parseClientesSheet(file: File | ArrayBuffer): Promise<Reco
   const ws = wb.Sheets[sheetName];
   if (!ws) throw new Error(`No se encontró la hoja "Base general" en el archivo.`);
 
-  // range from row 3 (index 2): row 3 has headers, row 4+ data
+  // range from row 2 (index 1): row 1 = "DATOS CHURN BASE", row 2 = headers, row 3+ = data
   const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
-    range: 2,
+    range: 1,
     defval: null,
     raw: true,
   });
+
 
   return rows;
 }
