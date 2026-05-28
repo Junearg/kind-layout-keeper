@@ -81,8 +81,8 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
       sub: `Análisis consolidado · ${periodLabel} · ${nfmt(d.activeAccounts)} cuentas activas`,
     },
     "/tendencia": {
-      crumbs: "Fudo Churn Center · Tendencia",
-      h1: <>Tendencia <span className="alt">mensual</span></>,
+      crumbs: "Fudo Churn Center · Churn Rate",
+      h1: <>Churn <span className="alt">Rate</span></>,
       sub: d.closedMonthsLabel
         ? `Bajas, motivos y proyección · ${d.closedMonthsLabel.split(" · ")[1] ?? ""} cerrados + ${d.totalProjected > 0 ? "proyección" : "sin proyección"}`
         : "Bajas, motivos y proyección",
