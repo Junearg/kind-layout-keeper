@@ -179,8 +179,23 @@ export type ImportProgress = {
   message?: string;
 };
 
-export async function parseClientesSheet(file: File): Promise<Record<string, unknown>[]> {
-  const buf = await file.arrayBuffer();
+async function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
+  // arrayBuffer() falla con NotReadableError en archivos grandes si el handle expiró.
+  // FileReader suele funcionar como fallback.
+  try {
+    return await file.arrayBuffer();
+  } catch (e) {
+    return await new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = () => reject(reader.error ?? e);
+      reader.readAsArrayBuffer(file);
+    });
+  }
+}
+
+export async function parseClientesSheet(file: File | ArrayBuffer): Promise<Record<string, unknown>[]> {
+  const buf = file instanceof ArrayBuffer ? file : await readFileAsArrayBuffer(file);
   const wb = XLSX.read(buf, { type: "array", cellDates: true });
   const sheetName = wb.SheetNames.find((n) => n.toLowerCase().includes("base general")) || wb.SheetNames[0];
   const ws = wb.Sheets[sheetName];
@@ -195,6 +210,8 @@ export async function parseClientesSheet(file: File): Promise<Record<string, unk
 
   return rows;
 }
+
+
 
 export function mapRowsToClientes(
   rows: Record<string, unknown>[],
