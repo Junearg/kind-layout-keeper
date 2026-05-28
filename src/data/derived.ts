@@ -1,10 +1,16 @@
 // Métricas derivadas a partir del dataset canónico (filtrado por mes activo).
-// Todo lo que se muestra en el dashboard pasa por acá — nada hardcodeado.
+// IMPORTANTE: los conteos de churn (trend, WMA, YTD, proyección) provienen
+// EXCLUSIVAMENTE de Supabase vía useSupabaseTrendRate — esa fuente excluye
+// CHANGE_METHOD y CHANGE_FREQUENCY a nivel de fila. Las tablas pre-agregadas
+// del workbook (tendencia_mensual, resumen_mensual) ya NO se usan para
+// ningún conteo de bajas.
 
 import { useMemo } from "react";
 import { useDashboardData } from "./liveData";
 import { useDatasetState, useForecastAutoNext } from "./dataset-store";
-import { mesLargo, mesCorto, type DashboardDataset } from "./schema";
+import { useSupabaseTrendRate, emptyTrend, type TrendRate, type TrendRatePoint } from "./supabase-trend";
+import { mesLargo } from "./schema";
+
 
 const MES_FULL: Record<string, string> = {
   Ene: "Enero", Feb: "Febrero", Mar: "Marzo", Abr: "Abril",
