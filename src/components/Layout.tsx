@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import { usePeriod, periodLabel } from "@/contexts/PeriodContext";
 
 const TABS = [
-const TABS = [
+
   { to: "/resumen",   label: "Dashboard" },
   { to: "/tendencia", label: "Proyección" },
   { to: "/health",    label: "Health Score" },
