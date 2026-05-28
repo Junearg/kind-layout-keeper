@@ -107,22 +107,31 @@ export function ImportClientesPanel() {
         </label>
 
         {/* Step 3: confirm */}
-        <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <button
             className="btn"
+            type="button"
             onClick={handleConfirm}
             disabled={!file || !mes || phase === "reading" || phase === "uploading"}
             style={{
               background: !file || !mes ? "var(--ink-5)" : "var(--orange)",
               color: "white",
+              cursor: !file || !mes ? "not-allowed" : "pointer",
+              opacity: !file || !mes ? 0.6 : 1,
             }}
           >
             {phase === "uploading" ? "Subiendo…" : phase === "reading" ? "Leyendo…" : "Importar a Supabase"}
           </button>
+          {!file && (
+            <span className="fs-12" style={{ color: "var(--ink-3)" }}>
+              ← Primero seleccioná un archivo .xlsx arriba
+            </span>
+          )}
           {(phase === "done" || phase === "error") && (
-            <button className="btn ghost" onClick={reset}>Nueva carga</button>
+            <button className="btn ghost" type="button" onClick={reset}>Nueva carga</button>
           )}
         </div>
+
 
         {/* Progress / status */}
         {(phase === "reading" || phase === "uploading" || phase === "done") && (
