@@ -8,23 +8,21 @@ import { useAuth } from "@/lib/auth-context";
 import { usePeriod, periodLabel } from "@/contexts/PeriodContext";
 
 const TABS = [
-  { to: "/resumen",   label: "Resumen" },
-  { to: "/tendencia", label: "Tendencia" },
-  { to: "/nps",       label: "NPS" },
+
+  { to: "/resumen",   label: "Dashboard" },
+  { to: "/tendencia", label: "Proyección" },
   { to: "/health",    label: "Health Score" },
-  { to: "/cola",      label: "Cola CS" },
-  { to: "/contactos", label: "Contactos" },
+  { to: "/contactos", label: "Contact Rate" },
+  { to: "/nps",       label: "NPS" },
   { to: "/csat",      label: "CSAT" },
-  { to: "/kpis",      label: "KPIs" },
-  { to: "/importar",  label: "Importar" },
-
-
+  { to: "/kpis",      label: "KPI´s" },
 ] as const;
+
 
 export function Layout({ children, actions }: { children: ReactNode; actions?: ReactNode }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const active = TABS.find((t) => pathname.startsWith(t.to))?.to ?? "/resumen";
+  const active: string = TABS.find((t) => pathname.startsWith(t.to))?.to ?? (pathname.startsWith("/importar") ? "/importar" : "/resumen");
   const d = useDerived();
   const { healthAccounts } = useDashboardData();
 
@@ -208,8 +206,14 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
             <p className="sub">{hello.sub}</p>
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 12 }}>
+            {active !== "/importar" && (
+              <Link to="/importar" className="btn ghost" style={{ fontSize: 12 }}>
+                Importar
+              </Link>
+            )}
             {actions}
             {active !== "/importar" && <PeriodSelector />}
+
 
             <div className="stamp">
               última actualización<br />
