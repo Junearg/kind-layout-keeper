@@ -225,6 +225,71 @@ export async function upsertClientesInBatches(
   batchSize = 500,
   onLog?: (line: string) => void,
 ): Promise<ImportSummary> {
+  // ===== Análisis del Excel CRUDO (antes de cualquier dedupe / upsert) =====
+  let nActivo = 0;
+  let nBloqueado = 0;
+  let nVacio = 0;
+  let nOtro = 0;
+  const otrosEstados = new Map<string, number>();
+  const statesById = new Map<string | number, Set<string>>();
+  for (const row of rows) {
+    const raw = row.estado_dash;
+    const est = raw == null || raw === "" ? "" : String(raw).trim();
+    if (est === "Activo") nActivo++;
+    else if (est === "Bloqueado") nBloqueado++;
+    else if (est === "") nVacio++;
+    else {
+      nOtro++;
+      otrosEstados.set(est, (otrosEstados.get(est) || 0) + 1);
+    }
+    const id = row.id_cuenta_dash as string | number | undefined;
+    if (id != null) {
+      const set = statesById.get(id) ?? new Set<string>();
+      set.add(est || "(vacío)");
+      statesById.set(id, set);
+    }
+  }
+  const idsUnicos = statesById.size;
+  let dupMismoEstado = 0;
+  let dupCambianEstado = 0;
+  for (const [, set] of statesById) {
+    // (solo cuentan los duplicados; las cuentas únicas se miden aparte abajo)
+    if (set.size === 1) continue;
+    // este id aparece >1 vez con estados distintos
+    dupCambianEstado++;
+  }
+  // duplicados con mismo estado = (apariciones por id > 1) - (cambian estado)
+  const apariciones = new Map<string | number, number>();
+  for (const row of rows) {
+    const id = row.id_cuenta_dash as string | number | undefined;
+    if (id == null) continue;
+    apariciones.set(id, (apariciones.get(id) || 0) + 1);
+  }
+  let idsDuplicados = 0;
+  for (const [, n] of apariciones) if (n > 1) idsDuplicados++;
+  dupMismoEstado = idsDuplicados - dupCambianEstado;
+
+  onLog?.(`──── Análisis del Excel crudo ────`);
+  onLog?.(`1) Total filas leídas: ${rows.length}`);
+  onLog?.(
+    `2) Por estado_dash → Activo: ${nActivo} · Bloqueado: ${nBloqueado} · ` +
+      `vacío/null: ${nVacio}${nOtro > 0 ? ` · otros: ${nOtro}` : ""}`,
+  );
+  if (nOtro > 0) {
+    const muestra = Array.from(otrosEstados.entries())
+      .map(([k, v]) => `"${k}"×${v}`)
+      .join(", ");
+    onLog?.(`   Otros estados encontrados: ${muestra}`);
+  }
+  onLog?.(`3) id_cuenta_dash únicos: ${idsUnicos} (sobre ${rows.length} filas)`);
+  onLog?.(
+    `4) IDs duplicados: ${idsDuplicados} → ` +
+      `mismo estado en todas sus apariciones: ${dupMismoEstado} · ` +
+      `cambian de estado entre apariciones: ${dupCambianEstado}`,
+  );
+  onLog?.(`──────────────────────────────────`);
+
+
   // Deduplicate by (id_cuenta_dash, mes_exportacion) — keep the LAST occurrence.
   // Postgres rejects ON CONFLICT when the same conflict key appears twice en un statement.
   const dedupMap = new Map<string, Record<string, unknown>>();
