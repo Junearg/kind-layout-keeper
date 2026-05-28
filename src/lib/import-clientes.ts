@@ -251,13 +251,23 @@ export async function upsertClientesInBatches(
   batchSize = 500,
   onLog?: (line: string) => void,
 ): Promise<ImportSummary> {
+  // Clave de dedupe: ID HubSpot (preferido) o ID Cuenta dash como fallback, + mes_exportacion.
+  const dedupeKeyOf = (row: Record<string, unknown>): string => {
+    const hub = row.id_hubspot;
+    const dash = row.id_cuenta_dash;
+    const idPart = hub != null && hub !== ""
+      ? `H:${String(hub).trim()}`
+      : `D:${String(dash ?? "").trim()}`;
+    return `${idPart}__${row.mes_exportacion}`;
+  };
+
   // ===== Análisis del Excel CRUDO (antes de cualquier dedupe / upsert) =====
   let nActivo = 0;
   let nBloqueado = 0;
   let nVacio = 0;
   let nOtro = 0;
   const otrosEstados = new Map<string, number>();
-  const statesById = new Map<string | number, Set<string>>();
+  const statesByKey = new Map<string, Set<string>>();
   for (const row of rows) {
     const raw = row.estado_dash;
     const est = raw == null || raw === "" ? "" : String(raw).trim();
@@ -268,28 +278,25 @@ export async function upsertClientesInBatches(
       nOtro++;
       otrosEstados.set(est, (otrosEstados.get(est) || 0) + 1);
     }
-    const id = row.id_cuenta_dash as string | number | undefined;
-    if (id != null) {
-      const set = statesById.get(id) ?? new Set<string>();
-      set.add(est || "(vacío)");
-      statesById.set(id, set);
-    }
+    const key = dedupeKeyOf(row).split("__")[0]!;
+    const set = statesByKey.get(key) ?? new Set<string>();
+    set.add(est || "(vacío)");
+    statesByKey.set(key, set);
   }
-  const idsUnicos = statesById.size;
+  const idsUnicos = statesByKey.size;
   let dupMismoEstado = 0;
   let dupCambianEstado = 0;
-  for (const [, set] of statesById) {
+  for (const [, set] of statesByKey) {
     // (solo cuentan los duplicados; las cuentas únicas se miden aparte abajo)
     if (set.size === 1) continue;
     // este id aparece >1 vez con estados distintos
     dupCambianEstado++;
   }
   // duplicados con mismo estado = (apariciones por id > 1) - (cambian estado)
-  const apariciones = new Map<string | number, number>();
+  const apariciones = new Map<string, number>();
   for (const row of rows) {
-    const id = row.id_cuenta_dash as string | number | undefined;
-    if (id == null) continue;
-    apariciones.set(id, (apariciones.get(id) || 0) + 1);
+    const key = dedupeKeyOf(row).split("__")[0]!;
+    apariciones.set(key, (apariciones.get(key) || 0) + 1);
   }
   let idsDuplicados = 0;
   for (const [, n] of apariciones) if (n > 1) idsDuplicados++;
@@ -307,25 +314,13 @@ export async function upsertClientesInBatches(
       .join(", ");
     onLog?.(`   Otros estados encontrados: ${muestra}`);
   }
-  onLog?.(`3) id_cuenta_dash únicos: ${idsUnicos} (sobre ${rows.length} filas)`);
+  onLog?.(`3) ID HubSpot únicos (fallback ID Cuenta dash): ${idsUnicos} (sobre ${rows.length} filas)`);
   onLog?.(
     `4) IDs duplicados: ${idsDuplicados} → ` +
       `mismo estado en todas sus apariciones: ${dupMismoEstado} · ` +
       `cambian de estado entre apariciones: ${dupCambianEstado}`,
   );
   onLog?.(`──────────────────────────────────`);
-
-
-  // Clave de dedupe: ID HubSpot (preferido) o ID Cuenta dash como fallback, + mes_exportacion.
-  const dedupeKeyOf = (row: Record<string, unknown>): string => {
-    const hub = row.id_hubspot;
-    const dash = row.id_cuenta_dash;
-    const idPart = hub != null && hub !== ""
-      ? `H:${String(hub).trim()}`
-      : `D:${String(dash ?? "").trim()}`;
-    return `${idPart}__${row.mes_exportacion}`;
-  };
-
   // Prioridad: Activo (2) > Bloqueado (1) > null/empty/otro (0).
   const dedupMap = new Map<string, Record<string, unknown>>();
   const seenCount = new Map<string, number>();
