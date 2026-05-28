@@ -116,6 +116,11 @@ async function fetchResumen(period: string): Promise<ResumenData> {
       .or("csat_cs_promedio.not.is.null,csat_onb_promedio.not.is.null")),
   ]);
 
+  // Excluir churn operacional (cambios de método/frecuencia de pago) de TODO
+  // conteo, trend, motivos, YTD, CVR y proyecciones derivadas.
+  const bajas = bajasRaw.filter((b) => !isOperationalChurn(b.motivo_baja));
+
+
   // --- Tier dist (de activos)
   const tierCount: Record<Tier, number> = { Champion: 0, Healthy: 0, "At Risk": 0, Critical: 0 };
   for (const r of activos) {
