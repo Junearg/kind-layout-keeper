@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Layout } from "@/components/Layout";
-import { SupabaseMetricsPanel } from "@/components/SupabaseMetricsPanel";
+
 import { ExportButton } from "@/components/ExportButton";
 import { usePeriod, periodLabel } from "@/contexts/PeriodContext";
 import { useSupabaseResumen } from "@/data/supabase-resumen";
@@ -43,9 +43,8 @@ function Resumen() {
         ] : []}
       />
     }>
-      <SupabaseMetricsPanel />
-
       {!selectedPeriod ? null : isLoading ? (
+
         <div className="card" style={{ padding: 20 }}>Cargando datos de Supabase…</div>
       ) : error ? (
         <div className="card" style={{ padding: 20, color: "var(--red)" }}>Error: {(error as Error).message}</div>
