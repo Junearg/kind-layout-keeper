@@ -238,9 +238,9 @@ export function mapRowsToClientes(
       if (value !== null && value !== undefined && value !== "") hasAny = true;
       out[dbCol] = value;
     }
-    // Skip totally empty rows o filas sin ningún identificador (hubspot o dash)
+    // Skip totally empty rows o filas sin ID HubSpot: es la clave lógica del import.
     if (!hasAny) continue;
-    if (out.id_hubspot == null && out.id_cuenta_dash == null) continue;
+    if (out.id_hubspot == null || normalizeText(out.id_hubspot) === "") continue;
     mapped.push(out);
   }
   return mapped;
@@ -268,13 +268,10 @@ export async function upsertClientesInBatches(
   batchSize = 500,
   onLog?: (line: string) => void,
 ): Promise<ImportSummary> {
-  // Clave de dedupe: ID HubSpot (preferido) o ID Cuenta dash como fallback, + mes_exportacion.
+  // Clave de dedupe: ID HubSpot + mes_exportacion. ID Cuenta dash es solo un atributo informativo.
   const dedupeKeyOf = (row: Record<string, unknown>): string => {
     const hub = row.id_hubspot;
-    const dash = row.id_cuenta_dash;
-    const idPart = hub != null && hub !== ""
-      ? `H:${String(hub).trim()}`
-      : `D:${String(dash ?? "").trim()}`;
+    const idPart = `H:${String(hub ?? "").trim()}`;
     return `${idPart}__${row.mes_exportacion}`;
   };
 
@@ -331,7 +328,7 @@ export async function upsertClientesInBatches(
       .join(", ");
     onLog?.(`   Otros estados encontrados: ${muestra}`);
   }
-  onLog?.(`3) ID HubSpot únicos (fallback ID Cuenta dash): ${idsUnicos} (sobre ${rows.length} filas)`);
+  onLog?.(`3) ID HubSpot únicos: ${idsUnicos} (sobre ${rows.length} filas válidas)`);
   onLog?.(
     `4) IDs duplicados: ${idsDuplicados} → ` +
       `mismo estado en todas sus apariciones: ${dupMismoEstado} · ` +
@@ -379,7 +376,7 @@ export async function upsertClientesInBatches(
   };
 
   onLog?.(
-    `Dedupe por ID HubSpot (fallback ID Cuenta dash) + mes. ` +
+    `Dedupe por ID HubSpot + mes. ` +
     `Claves duplicadas: ${duplicateKeys.length} ` +
     `(${duplicateRowsRemoved} filas extra descartadas).`,
   );
