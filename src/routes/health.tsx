@@ -6,7 +6,6 @@ import {
 } from "recharts";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
-import { SupabaseMetricsPanel } from "@/components/SupabaseMetricsPanel";
 import { EmptyPeriod } from "@/components/EmptyPeriod";
 import { type HealthAccount } from "@/data/mockData";
 import { useDashboardData } from "@/data/liveData";
@@ -95,7 +94,6 @@ function Health() {
         ]}
       />
     }>
-      <SupabaseMetricsPanel />
       {!hasData ? (
         <EmptyPeriod section="Health Score" mes={mesLargo(mesActivo)} />
       ) : (
