@@ -220,6 +220,30 @@ export function ImportClientesPanel() {
             {error}
           </div>
         )}
+
+        {logs.length > 0 && (
+          <div
+            ref={logRef}
+            className="mono fs-11"
+            style={{
+              marginTop: 8,
+              maxHeight: 220,
+              overflowY: "auto",
+              padding: "10px 12px",
+              background: "var(--paper-2)",
+              border: "1px solid var(--rule-2)",
+              borderRadius: 8,
+              whiteSpace: "pre-wrap",
+              color: "var(--ink-2)",
+              lineHeight: 1.5,
+            }}
+          >
+            {logs.map((l, i) => (
+              <div key={i}>{l}</div>
+            ))}
+          </div>
+        )}
+
       </div>
     </section>
   );
