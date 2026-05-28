@@ -337,7 +337,20 @@ export async function upsertClientesInBatches(
   }
   let idsDuplicados = 0;
   for (const [, n] of apariciones) if (n > 1) idsDuplicados++;
-  dupMismoEstado = idsDuplicados - dupCambianEstado;
+  onLog?.(`──── Análisis del Excel crudo ────`);
+  onLog?.(`1) Total filas leídas: ${rows.length}`);
+  const distinctEstados = new Map<string, number>();
+  for (const row of rows) {
+    const raw = row.estado_dash;
+    const k = raw == null ? "(null)" : raw === "" ? "(vacío)" : `"${String(raw).trim()}"`;
+    distinctEstados.set(k, (distinctEstados.get(k) || 0) + 1);
+  }
+  const distinctSample = Array.from(distinctEstados.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 15)
+    .map(([k, v]) => `${k}×${v}`)
+    .join(", ");
+  onLog?.(`   Valores distintos en estado_dash (${distinctEstados.size}): ${distinctSample}`);
 
   onLog?.(`──── Análisis del Excel crudo ────`);
   onLog?.(`1) Total filas leídas: ${rows.length}`);
