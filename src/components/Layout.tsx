@@ -14,8 +14,10 @@ const TABS = [
   { to: "/health",    label: "Health Score" },
   { to: "/cola",      label: "Cola CS" },
   { to: "/contactos", label: "Contactos" },
+  { to: "/csat",      label: "CSAT" },
   { to: "/kpis",      label: "KPIs" },
   { to: "/importar",  label: "Importar" },
+
 
 ] as const;
 
@@ -106,6 +108,12 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
       h1: <>Contact <span className="alt">rate</span></>,
       sub: "Frecuencia de contacto CS por cuenta · contactos por mes activo",
     },
+    "/csat": {
+      crumbs: "Fudo Churn Center · Voz del cliente",
+      h1: <>Customer <span className="alt">Satisfaction</span></>,
+      sub: "CSAT Onboarding y Customer Success · score 1-5 por cuenta",
+    },
+
     "/kpis": {
       crumbs: "Fudo Churn Center · Iniciativas",
       h1: <>KPIs e <span className="alt">iniciativas</span></>,
