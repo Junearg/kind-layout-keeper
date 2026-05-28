@@ -12,6 +12,7 @@ import appCss from "../styles.css?url";
 import { ChatWidget } from "@/components/ChatWidget";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { LoginScreen } from "@/components/LoginScreen";
+import { PeriodProvider } from "@/contexts/PeriodContext";
 
 function NotFoundComponent() {
   return (
@@ -117,8 +118,10 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <AuthGate>
-          <Outlet />
-          <ChatWidget />
+          <PeriodProvider>
+            <Outlet />
+            <ChatWidget />
+          </PeriodProvider>
         </AuthGate>
       </AuthProvider>
     </QueryClientProvider>
