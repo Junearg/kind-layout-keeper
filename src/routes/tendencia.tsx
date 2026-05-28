@@ -112,113 +112,87 @@ function Tendencia() {
         <EmptyPeriod section="Tendencia mensual" mes={mesLargo(mesActivo)} />
       ) : (
       <>
-      {/* Sección Churn Rate */}
-      <div className="divider">
-        <span className="kicker">Churn Rate</span>
-        <span className="alt">· análisis y proyección</span>
-        {d.wmaRate !== null && (
-          <span className="sub">WMA {pctfmt(d.wmaRate)} · σ₆ ±{sixStdDev.toFixed(2)} pts</span>
-        )}
-        <span className="rule" />
-      </div>
-
-      {/* Fila 1 — Grid 2×2 Churn Rate */}
-      <div className="bento equal-2" style={{ marginBottom: 20 }}>
+      {/* Fila 1 — Churn Rate · 4 tarjetas */}
+      <div className="bento cols-4" style={{ marginBottom: 20 }}>
 
         {/* Card 1 — Monthly Churn Rate */}
-        <div className="card lg">
+        <div className="card">
           <div className="card-eyebrow" style={{ display: "flex", alignItems: "center" }}>
             Monthly Churn Rate
             <Info tip="Bajas del mes en curso / cuentas activas al inicio del mes. El badge muestra la variación vs el mes anterior en puntos porcentuales." />
           </div>
-          <div className="bignum" style={{ marginTop: 10 }}>
+          <div className="bignum" style={{ marginTop: 8 }}>
             {latestRateP ? pctfmt(latestRateP.rate) : "—"}
           </div>
-          <div className="fs-12 muted" style={{ marginTop: 8 }}>
+          <div className="fs-12 muted" style={{ marginTop: 6 }}>
             {latestRateP
-              ? <>{nfmt(latestRateP.bajas)} bajas / base {nfmt(latestRateP.activeBase)} · {latestRateP.mes}</>
+              ? <>{nfmt(latestRateP.bajas)} bajas · {latestRateP.mes}</>
               : "sin datos"}
           </div>
           {d.monthDeltaRatePts !== null && (
-            <div style={{ marginTop: 14 }}>
+            <div style={{ marginTop: 10 }}>
               <span className={`tag ${d.monthDeltaRatePts > 0 ? "red" : "blue"}`}>
-                {d.monthDeltaRatePts >= 0 ? "+" : ""}{d.monthDeltaRatePts.toFixed(2)} pts vs {prevRateP?.mes ?? "anterior"}
+                {d.monthDeltaRatePts >= 0 ? "+" : ""}{d.monthDeltaRatePts.toFixed(2)} pts vs ant.
               </span>
             </div>
           )}
         </div>
 
         {/* Card 2 — WMA Projected Rate */}
-        {firstProj ? (
-          <div className="card orange lg">
-            <div className="card-eyebrow" style={{ display: "flex", alignItems: "center", color: "rgba(255,255,255,0.85)" }}>
-              WMA Projected Rate
-              <Info tip="Promedio ponderado móvil de las últimas 3 tasas mensuales (pesos 50% / 30% / 20%). Suaviza picos atípicos para estimar el próximo mes." />
-            </div>
-            <div className="bignum" style={{ marginTop: 10 }}>{pctfmt(firstProj.rate)}</div>
-            <div className="fs-12" style={{ color: "rgba(255,255,255,0.85)", marginTop: 8 }}>
-              proyección {firstProj.mes} · ≈ {nfmt(firstProj.bajas)} bajas
-            </div>
-            <div className="fs-12" style={{ color: "rgba(255,255,255,0.75)", marginTop: 4 }}>
-              suaviza picos atípicos (pesos 50/30/20)
-            </div>
-            <div style={{ marginTop: 14 }}>
-              <span className="callout" style={{ background: "rgba(255,255,255,0.2)", color: "white" }}>
-                base inicial {nfmt(firstProj.activeBase)}
-              </span>
-            </div>
-            <div className="bubble-wrap"><div className="bubble" /></div>
+        <div className="card orange">
+          <div className="card-eyebrow" style={{ display: "flex", alignItems: "center", color: "rgba(255,255,255,0.85)" }}>
+            WMA Projected Rate
+            <Info tip="Promedio ponderado móvil de las últimas 3 tasas mensuales (pesos 50% / 30% / 20%). Suaviza picos atípicos para estimar el próximo mes." />
           </div>
-        ) : <div className="card lg" />}
+          <div className="bignum" style={{ marginTop: 8 }}>
+            {firstProj ? pctfmt(firstProj.rate) : d.wmaRate !== null ? pctfmt(d.wmaRate) : "—"}
+          </div>
+          <div className="fs-12" style={{ color: "rgba(255,255,255,0.85)", marginTop: 6 }}>
+            {firstProj ? <>proy. {firstProj.mes} · ≈ {nfmt(firstProj.bajas)} bajas</> : "sin proyección"}
+          </div>
+          <div className="fs-12" style={{ color: "rgba(255,255,255,0.7)", marginTop: 4 }}>
+            suaviza picos (50/30/20)
+          </div>
+        </div>
 
         {/* Card 3 — Projected Churns (3 meses, compuesto) */}
-        <div className="card lg">
+        <div className="card">
           <div className="card-eyebrow" style={{ display: "flex", alignItems: "center" }}>
-            Projected Churns · 3 meses (compuesto)
+            Projected 3m (compuesto)
             <Info tip="Aplica la tasa WMA mes a mes sobre la base activa remanente del mes anterior (no sobre la base actual fija). Total = suma de los 3 meses proyectados." />
           </div>
-          <div className="bignum" style={{ marginTop: 10 }}>{nfmt(proj3Total)}</div>
-          <div className="fs-12 muted" style={{ marginTop: 8 }}>
-            bajas proyectadas próximos 3 meses · tasa {pctfmt(wma)}
+          <div className="bignum" style={{ marginTop: 8 }}>{nfmt(proj3Total)}</div>
+          <div className="fs-12 muted" style={{ marginTop: 6 }}>
+            próximos 3 meses · tasa {pctfmt(wma)}
           </div>
           {proj3.length > 0 && (
-            <table className="tbl" style={{ marginTop: 14 }}>
-              <thead>
-                <tr>
-                  <th>Mes</th>
-                  <th style={{ textAlign: "right" }}>Activos inicio</th>
-                  <th style={{ textAlign: "right" }}>Bajas proy.</th>
-                </tr>
-              </thead>
-              <tbody>
-                {proj3.map((p) => (
-                  <tr key={p.key}>
-                    <td className="strong">{p.mes}</td>
-                    <td className="mono" style={{ textAlign: "right" }}>{nfmt(p.activeBase)}</td>
-                    <td className="mono strong" style={{ textAlign: "right" }}>{nfmt(p.bajas)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="fs-12 muted mono" style={{ marginTop: 8, lineHeight: 1.5 }}>
+              {proj3.map((p) => (
+                <div key={p.key} style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>{p.mes}</span>
+                  <span>base {nfmt(p.activeBase)} · {nfmt(p.bajas)}</span>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
         {/* Card 4 — Confidence Interval */}
-        <div className="card ink lg">
+        <div className="card ink">
           <div className="card-eyebrow" style={{ display: "flex", alignItems: "center", color: "rgba(255,255,255,0.7)" }}>
             Confidence Interval
             <Info tip="Desvío estándar de las últimas 6 tasas mensuales. Rango = tasa WMA ± 1.5 × σ, expresado en bajas absolutas sobre la base del próximo mes." />
           </div>
-          <div className="bignum" style={{ marginTop: 10 }}>
+          <div className="bignum" style={{ marginTop: 8 }}>
             {nfmt(ciMin)}–{nfmt(ciMax)}
           </div>
-          <div className="fs-12" style={{ color: "rgba(255,255,255,0.7)", marginTop: 8 }}>
+          <div className="fs-12" style={{ color: "rgba(255,255,255,0.7)", marginTop: 6 }}>
             centro {nfmt(ciCenter)} · σ₆ ±{sixStdDev.toFixed(2)} pts
           </div>
           <div className="fs-12" style={{ color: "rgba(255,255,255,0.55)", marginTop: 4 }}>
-            rango tasa {pctfmt(ciLowRate)} – {pctfmt(ciHighRate)}
+            tasa {pctfmt(ciLowRate)}–{pctfmt(ciHighRate)}
           </div>
-          <div style={{ marginTop: 14 }}>
+          <div style={{ marginTop: 10 }}>
             <span className="callout" style={{
               background: sixStdDev > 0.8 ? "rgba(220,38,38,0.25)" : sixStdDev < 0.4 ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.12)",
               color: "white",
@@ -228,6 +202,7 @@ function Tendencia() {
           </div>
         </div>
       </div>
+
 
 
       {/* Fila 2 — Chart grande */}
