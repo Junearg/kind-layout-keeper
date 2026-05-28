@@ -13,8 +13,10 @@ const TABS = [
   { to: "/nps",       label: "NPS" },
   { to: "/health",    label: "Health Score" },
   { to: "/cola",      label: "Cola CS" },
+  { to: "/contactos", label: "Contactos" },
   { to: "/kpis",      label: "KPIs" },
   { to: "/importar",  label: "Importar" },
+
 ] as const;
 
 export function Layout({ children, actions }: { children: ReactNode; actions?: ReactNode }) {
@@ -99,11 +101,17 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
       h1: <>Cola de <span className="alt">trabajo</span></>,
       sub: "Priorización CS · cuentas en riesgo ordenadas por urgencia",
     },
+    "/contactos": {
+      crumbs: "Fudo Churn Center · Contactos",
+      h1: <>Contact <span className="alt">rate</span></>,
+      sub: "Frecuencia de contacto CS por cuenta · contactos por mes activo",
+    },
     "/kpis": {
       crumbs: "Fudo Churn Center · Iniciativas",
       h1: <>KPIs e <span className="alt">iniciativas</span></>,
       sub: "Targets a 3 y 6 meses · roadmap de retención",
     },
+
     "/importar": {
       crumbs: "Fudo Churn Center · Datos",
       h1: <>Importar <span className="alt">cuentas</span></>,
