@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Layout } from "@/components/Layout";
+import { SupabaseMetricsPanel } from "@/components/SupabaseMetricsPanel";
 import { ExportButton } from "@/components/ExportButton";
 import { EmptyPeriod } from "@/components/EmptyPeriod";
 import { ORANGE } from "@/data/mockData";
@@ -48,6 +49,7 @@ function Resumen() {
         ]}
       />
     }>
+      <SupabaseMetricsPanel />
       {!resumen ? (
         <EmptyPeriod section="Resumen ejecutivo" mes={mesLargo(mesActivo)} />
       ) : (
