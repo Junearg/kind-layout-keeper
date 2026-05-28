@@ -231,8 +231,15 @@ export async function upsertClientesInBatches(
   const seenCount = new Map<string, number>();
   for (const row of rows) {
     const key = `${row.id_cuenta_dash}__${row.mes_exportacion}`;
-    dedupMap.set(key, row);
     seenCount.set(key, (seenCount.get(key) || 0) + 1);
+    const existing = dedupMap.get(key);
+    if (!existing) {
+      dedupMap.set(key, row);
+    } else if (existing.estado_dash !== "Activo" && row.estado_dash === "Activo") {
+      // Priorizar 'Activo' sobre cualquier otro estado (ej. 'Bloqueado').
+      dedupMap.set(key, row);
+    }
+    // Si la existente ya es 'Activo', no se sobreescribe.
   }
   const deduped = Array.from(dedupMap.values());
   const duplicateKeys = Array.from(seenCount.entries()).filter(([, n]) => n > 1);
