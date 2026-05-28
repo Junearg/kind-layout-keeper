@@ -10,6 +10,8 @@ import {
 
 import appCss from "../styles.css?url";
 import { ChatWidget } from "@/components/ChatWidget";
+import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { LoginScreen } from "@/components/LoginScreen";
 
 function NotFoundComponent() {
   return (
