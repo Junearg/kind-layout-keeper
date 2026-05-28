@@ -76,7 +76,8 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
   const HELLO: Record<string, { crumbs: string; h1: ReactNode; sub: string }> = {
     "/resumen": {
       crumbs: `Fudo Churn Center · ${d.latestClosedFull || periodLabel}`,
-      h1: <>Fudo <span style={{ color: "var(--orange)" }}>Churn</span> Center</>,
+      h1: <>Fudo <span style={{ color: "var(--orange)" }}>Activity</span> Center</>,
+
       sub: `Análisis consolidado · ${periodLabel} · ${nfmt(d.activeAccounts)} cuentas activas`,
     },
     "/tendencia": {
@@ -201,7 +202,8 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
 
         <div className="hello">
           <div>
-            <div className="crumbs">{hello.crumbs}</div>
+            <div className="crumbs">Fudo Activity Center</div>
+
             <h1>{hello.h1}</h1>
             <p className="sub">{hello.sub}</p>
           </div>
