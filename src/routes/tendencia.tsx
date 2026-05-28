@@ -60,6 +60,43 @@ function Tendencia() {
 
   const firstProj = d.trendRate.projected[0] ?? null;
   const latestRateP = d.trendRate.closed[d.trendRate.closed.length - 1] ?? null;
+  const prevRateP = d.trendRate.closed[d.trendRate.closed.length - 2] ?? null;
+
+  // Std dev de las últimas 6 tasas cerradas (en pp).
+  const last6Rates = d.trendRate.closed.slice(-6).map((p) => p.rate);
+  const sixStdDev = (() => {
+    if (last6Rates.length < 2) return 0;
+    const mean = last6Rates.reduce((s, v) => s + v, 0) / last6Rates.length;
+    return Math.sqrt(last6Rates.reduce((s, v) => s + (v - mean) ** 2, 0) / last6Rates.length);
+  })();
+
+  // Proyección 3 meses compuesta (ya viene compuesta en projected).
+  const proj3 = d.trendRate.projected.slice(0, 3);
+  const proj3Total = proj3.reduce((s, p) => s + p.bajas, 0);
+
+  // IC ±1.5σ sobre tasa WMA aplicado a base del primer mes proyectado.
+  const wma = d.wmaRate ?? 0;
+  const ciBase = firstProj?.activeBase ?? d.activeAccounts ?? 0;
+  const ciLowRate = Math.max(0, wma - 1.5 * sixStdDev);
+  const ciHighRate = wma + 1.5 * sixStdDev;
+  const ciCenter = Math.max(0, Math.round((ciBase * wma) / 100));
+  const ciMin = Math.max(0, Math.round((ciBase * ciLowRate) / 100));
+  const ciMax = Math.max(0, Math.round((ciBase * ciHighRate) / 100));
+  const variabilityLabel =
+    sixStdDev > 0.8 ? "Alta variabilidad" :
+    sixStdDev < 0.4 ? "Baja variabilidad — pronóstico confiable" :
+    "Variabilidad moderada";
+
+  const Info = ({ tip }: { tip: string }) => (
+    <span
+      title={tip}
+      style={{
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        width: 16, height: 16, borderRadius: "50%", border: "1px solid var(--rule)",
+        fontSize: 10, color: "var(--ink-3)", cursor: "help", marginLeft: 6,
+      }}
+    >ⓘ</span>
+  );
 
   return (
     <Layout actions={
