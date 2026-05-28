@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import {
   parseClientesSheet,
   mapRowsToClientes,
-  upsertClientesInBatches,
+  replaceClientesInBatches,
 } from "@/lib/import-clientes";
 import { usePeriod } from "@/contexts/PeriodContext";
 
@@ -90,7 +90,8 @@ export function ImportClientesPanel() {
       appendLog(`Filas válidas (con ID Cuenta dash) tras mapeo: ${mapped.length}`);
       if (mapped.length === 0) throw new Error("No se detectaron filas válidas con ID Cuenta (dash).");
       setPhase("uploading");
-      const result = await upsertClientesInBatches(
+      appendLog(`Modo reemplazo: se borrará completa la carga previa de ${mes} antes de insertar.`);
+      const result = await replaceClientesInBatches(
         mapped,
         (u, t) => { setUploaded(u); setTotal(t); },
         500,
@@ -123,7 +124,7 @@ export function ImportClientesPanel() {
           </h2>
           <p className="fs-12" style={{ color: "var(--ink-3)", marginTop: 6, maxWidth: 720 }}>
             Subí el XLSX original con la hoja <span className="mono">Base general</span> (headers en fila 3).
-            Procesamos hasta ~70k filas y deduplicamos por <span className="mono">(ID Cuenta dash, mes)</span>.
+            Procesamos hasta ~70k filas, borramos primero el mes elegido y reinsertamos limpio por <span className="mono">ID Cuenta dash</span>.
           </p>
         </div>
       </div>
@@ -197,16 +198,21 @@ export function ImportClientesPanel() {
               opacity: !fileBuffer || !mes ? 0.6 : 1,
             }}
           >
-            {phase === "uploading" ? "Subiendo…" : phase === "reading" ? "Leyendo…" : "Importar a Supabase"}
+            {phase === "uploading" ? "Subiendo…" : phase === "reading" ? "Leyendo…" : "Borrar mes e importar"}
           </button>
           {!file && (
             <span className="fs-12" style={{ color: "var(--ink-3)" }}>
               ← Primero seleccioná un archivo .xlsx arriba
             </span>
           )}
-          {(phase === "done" || phase === "error") && (
-            <button className="btn ghost" type="button" onClick={reset}>Nueva carga</button>
-          )}
+          <button
+            className="btn ghost"
+            type="button"
+            onClick={reset}
+            disabled={phase === "reading" || phase === "uploading"}
+          >
+            Nueva carga
+          </button>
         </div>
 
 
