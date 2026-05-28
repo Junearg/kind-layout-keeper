@@ -2,17 +2,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Layout } from "@/components/Layout";
 import { SupabaseMetricsPanel } from "@/components/SupabaseMetricsPanel";
 import { ExportButton } from "@/components/ExportButton";
-import { EmptyPeriod } from "@/components/EmptyPeriod";
+import { usePeriod, periodLabel } from "@/contexts/PeriodContext";
+import { useSupabaseResumen } from "@/data/supabase-resumen";
 import { ORANGE } from "@/data/mockData";
-import { useDashboardData } from "@/data/liveData";
-import { useDerived } from "@/data/derived";
-import { useDatasetState, useResumenMes } from "@/data/dataset-store";
-import { computeAlertas } from "@/lib/alert-rules";
-import { mesLargo } from "@/data/schema";
 import {
   ResponsiveContainer, ComposedChart, Bar, Line, Area,
   XAxis, YAxis, Tooltip, CartesianGrid, Cell,
-  PieChart, Pie, ReferenceArea, ReferenceLine,
+  PieChart, Pie,
 } from "recharts";
 
 export const Route = createFileRoute("/resumen")({
@@ -20,81 +16,78 @@ export const Route = createFileRoute("/resumen")({
   component: Resumen,
 });
 
-const tierClass = (t: string) => (t === "At Risk" ? "tier-AtRisk" : t);
 const nfmt = (n: number) => n.toLocaleString("es-AR");
 const pctFmt = (n: number | null | undefined, digits = 1) =>
-  n === null || n === undefined ? "—" : `${n >= 0 ? "+" : ""}${n.toFixed(digits)}%`;
+  n == null ? "—" : `${n >= 0 ? "+" : ""}${n.toFixed(digits)}%`;
+const tierClass = (t: string) => (t === "At Risk" ? "tier-AtRisk" : t);
 
 function Resumen() {
-  const { churnTrend, tierDist } = useDashboardData();
-  const d = useDerived();
-  const { dataset, mesActivo } = useDatasetState();
-  const resumen = useResumenMes();
-  const alertas = computeAlertas(dataset, mesActivo);
+  const { selectedPeriod } = usePeriod();
+  const { data: r, isLoading, error } = useSupabaseResumen(selectedPeriod);
 
   return (
     <Layout actions={
       <ExportButton
         filename="resumen-ejecutivo.xlsx"
-        sheets={[
-          { name: "Tendencia churn", rows: churnTrend },
-          { name: "Distribución tiers", rows: tierDist },
+        sheets={r ? [
+          { name: "Tendencia bajas", rows: r.churnTrend },
+          { name: "Distribución tiers", rows: r.tierDist.map((t) => ({ tier: t.tier, count: t.count, pct: t.pct })) },
           { name: "KPIs período", rows: [
-            { kpi: "NPS Global", valor: d.npsGlobal.toFixed(2) },
-            { kpi: "CSAT", valor: d.csatLatest?.avg.toFixed(2) ?? "—" },
-            { kpi: "CVR Neto", valor: d.cvrLatest ? `${d.cvrLatest.cvr.toFixed(1)}%` : "—" },
-            { kpi: "Cuentas activas", valor: d.activeAccounts },
-            { kpi: "Bajas último mes", valor: d.latestClosed?.bajas ?? "—" },
+            { kpi: "NPS", valor: r.npsScore.toFixed(2) },
+            { kpi: "CSAT", valor: r.csatAvg?.toFixed(2) ?? "—" },
+            { kpi: "CVR", valor: `${r.cvr.toFixed(1)}%` },
+            { kpi: "Cuentas activas", valor: r.activeAccounts },
+            { kpi: "Bajas último mes", valor: r.bajasMesActual },
+            { kpi: "Bajas YTD", valor: r.ytdClosed },
           ] },
-        ]}
+        ] : []}
       />
     }>
       <SupabaseMetricsPanel />
-      {!resumen ? (
-        <EmptyPeriod section="Resumen ejecutivo" mes={mesLargo(mesActivo)} />
-      ) : (
+
+      {!selectedPeriod ? null : isLoading ? (
+        <div className="card" style={{ padding: 20 }}>Cargando datos de Supabase…</div>
+      ) : error ? (
+        <div className="card" style={{ padding: 20, color: "var(--red)" }}>Error: {(error as Error).message}</div>
+      ) : !r ? null : (
       <>
-      {/* ── Fila 1: Alertas activas (centralizadas en alert-rules) ── */}
-      {alertas.length > 0 && (
+      {/* Alertas */}
+      {r.alertas.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
-          {alertas.map((a, i) => (
-            <AlertBanner key={i} tone={a.tone === "blue" ? "amber" : a.tone} icon="●" text={a.titulo} to={a.link ?? "/"} />
+          {r.alertas.map((a, i) => (
+            <AlertBanner key={i} tone={a.tone} text={a.titulo} to={a.link} />
           ))}
         </div>
       )}
 
-      {/* ── Fila 2: Bento cols-3 ── */}
+      {/* Bento 3 cols */}
       <div className="bento cols-3">
-        {/* Hero orange */}
+        {/* Bajas del mes */}
         <div className="card orange lg" style={{ minHeight: 280 }}>
           <div className="bubble-wrap"><div className="bubble" /></div>
           <div className="card-head">
             <div>
               <div className="card-eyebrow">Bajas del mes</div>
-              <div className="card-title" style={{ color: "white" }}>
-                {d.latestClosedFull || "—"}
-              </div>
+              <div className="card-title" style={{ color: "white" }}>{r.latestClosedLabel}</div>
             </div>
             <div className="arrow-up">↗</div>
           </div>
-          <div className="bignum" style={{ fontSize: 72 }}>
-            {d.latestClosed ? nfmt(d.latestClosed.bajas) : "—"}
-          </div>
+          <div className="bignum" style={{ fontSize: 72 }}>{nfmt(r.bajasMesActual)}</div>
           <div className="mt-12" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {d.monthDeltaPct !== null && d.prevClosed && (
+            {r.monthDeltaPct != null && (
               <span className="callout">
-                {d.monthDeltaPct >= 0 ? "↑" : "↓"} {pctFmt(d.monthDeltaPct)} vs {d.prevClosed.mes.replace(/\*+$/, "")}
+                {r.monthDeltaPct >= 0 ? "↑" : "↓"} {pctFmt(r.monthDeltaPct)} vs {r.prevClosedLabel}
               </span>
             )}
-            {d.ytdClosed > 0 && (
+            {r.ytdClosed > 0 && (
               <span className="callout" style={{ background: "rgba(255,255,255,0.18)" }}>
-                {nfmt(d.ytdClosed)} YTD
+                {nfmt(r.ytdClosed)} YTD
               </span>
             )}
           </div>
           <div className="mt-16" style={{ display: "flex", gap: 8, position: "relative", zIndex: 2 }}>
-            <button className="btn" style={{ background: "white", color: "var(--orange-deep)" }}>Plan retención</button>
-            <button className="btn ghost" style={{ borderColor: "rgba(255,255,255,0.4)", color: "white" }}>Ver detalle</button>
+            <Link to="/cola" className="btn" style={{ background: "white", color: "var(--orange-deep)" }}>Plan retención</Link>
+            <Link to="/tendencia" className="btn ghost" style={{ borderColor: "rgba(255,255,255,0.4)", color: "white" }}>Ver detalle</Link>
           </div>
         </div>
 
@@ -103,19 +96,19 @@ function Resumen() {
           <div className="card-head">
             <div>
               <div className="card-eyebrow">Métricas calidad</div>
-              <div className="card-title">{nfmt(d.npsResponses)} respuestas</div>
+              <div className="card-title">{nfmt(r.npsResponses)} respuestas NPS</div>
             </div>
             <div className="arrow-up">⌁</div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginTop: 24 }}>
-            <Q1Metric label="NPS"  value={d.npsGlobal.toFixed(2)}   tone="orange" />
-            <Q1Metric label="CSAT" value={d.csatLatest ? `${d.csatLatest.avg.toFixed(2)}/5` : "—"}  tone="ink" />
-            <Q1Metric label="CVR"  value={d.cvrLatest ? `${d.cvrLatest.cvr.toFixed(1)}%` : "—"}   tone="cream" />
+            <Q1Metric label="NPS" value={r.npsScore.toFixed(2)} tone="orange" />
+            <Q1Metric label="CSAT" value={r.csatAvg != null ? `${r.csatAvg.toFixed(2)}/5` : "—"} tone="ink" />
+            <Q1Metric label="CVR" value={`${r.cvr.toFixed(1)}%`} tone="cream" />
           </div>
           <div className="mt-16 muted fs-12">
-            {d.npsBest && d.npsWorst
-              ? `${d.npsBest.pais} lidera · ${d.npsWorst.pais} bajo objetivo`
-              : "sin datos NPS"}
+            {r.npsBest && r.npsWorst
+              ? `${r.npsBest.pais} lidera · ${r.npsWorst.pais} bajo objetivo`
+              : "sin segmentación por país"}
           </div>
         </div>
 
@@ -124,33 +117,26 @@ function Resumen() {
           <div className="card-head">
             <div>
               <div className="card-eyebrow">Cuentas activas</div>
-              <div className="card-title">{d.snapLatestLabel ?? d.latestClosedFull ?? "—"}</div>
+              <div className="card-title">{periodLabel(r.period)}</div>
             </div>
             <div className="arrow-up">●</div>
           </div>
-          <div className="bignum" style={{ fontSize: 64 }}>{nfmt(d.activeAccounts)}</div>
-          {d.snapDelta !== null && d.snapPrevLabel && (
-            <div className="mt-12">
-              <span className="delta-pill">
-                {d.snapDelta >= 0 ? "▲" : "▼"} {d.snapDelta >= 0 ? "+" : ""}{nfmt(d.snapDelta)} vs {d.snapPrevLabel.split(" ")[0]}
-              </span>
-            </div>
-          )}
-          <TierMiniBars />
+          <div className="bignum" style={{ fontSize: 64 }}>{nfmt(r.activeAccounts)}</div>
+          <TierMiniBars tierDist={r.tierDist} />
         </div>
       </div>
 
-      {/* ── Fila 3: Bento 60/40 ── */}
+      {/* Tendencia */}
       <div className="divider">
         <span className="kicker">Tendencia</span>
         <span className="alt">/ bajas mensuales</span>
-        <span className="sub">{d.periodLabel}{d.totalProjected > 0 ? " (con proyección)" : ""}</span>
+        <span className="sub">{r.churnTrend.length ? `${r.churnTrend[0]!.mes}–${r.churnTrend[r.churnTrend.length-1]!.mes}` : ""}</span>
         <span className="rule" />
       </div>
 
       <div className="bento cols-2">
-        <TrendCard />
-        <TierDonutCard total={d.activeAccounts} />
+        <TrendCard trend={r.churnTrend} delta={r.monthDeltaPct} prevLabel={r.prevClosedLabel} latestLabel={r.latestClosedLabel} />
+        <TierDonutCard tierDist={r.tierDist} total={r.activeAccounts} />
       </div>
       </>
       )}
@@ -158,22 +144,17 @@ function Resumen() {
   );
 }
 
-/* ─────────────────────────────────────────── */
-
-function AlertBanner({ tone, icon, text, to }: { tone: "red" | "amber"; icon: string; text: string; to: string }) {
+function AlertBanner({ tone, text, to }: { tone: "red" | "amber"; text: string; to: string }) {
   const color = tone === "red" ? "var(--red)" : "var(--amber)";
   const bg = tone === "red" ? "rgba(179,38,30,0.05)" : "rgba(181,116,15,0.06)";
   return (
-    <Link
-      to={to}
-      style={{
-        display: "flex", alignItems: "center", gap: 10,
-        background: bg, borderLeft: `3px solid ${color}`,
-        borderRadius: "var(--radius-md)", padding: "10px 14px",
-        color: "var(--ink-2)", fontSize: 12.5, textDecoration: "none",
-      }}
-    >
-      <span style={{ color, fontSize: 10 }}>{icon}</span>
+    <Link to={to} style={{
+      display: "flex", alignItems: "center", gap: 10,
+      background: bg, borderLeft: `3px solid ${color}`,
+      borderRadius: "var(--radius-md)", padding: "10px 14px",
+      color: "var(--ink-2)", fontSize: 12.5, textDecoration: "none",
+    }}>
+      <span style={{ color, fontSize: 10 }}>●</span>
       <span style={{ flex: 1 }}>{text}</span>
       <span style={{ color, fontWeight: 500, fontSize: 12 }}>Ver →</span>
     </Link>
@@ -184,18 +165,14 @@ function Q1Metric({ label, value, tone }: { label: string; value: string; tone: 
   const bg = tone === "orange" ? "var(--orange)" : tone === "ink" ? "var(--ink)" : "var(--paper-2)";
   const color = tone === "cream" ? "var(--ink)" : "white";
   return (
-    <div style={{
-      background: bg, color, borderRadius: 14, padding: "14px 12px",
-      display: "flex", flexDirection: "column", gap: 6,
-    }}>
+    <div style={{ background: bg, color, borderRadius: 14, padding: "14px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
       <div className="fs-11" style={{ opacity: tone === "cream" ? 0.6 : 0.8 }}>{label}</div>
       <div className="mono" style={{ fontSize: 22, fontWeight: 500 }}>{value}</div>
     </div>
   );
 }
 
-function TierMiniBars() {
-  const { tierDist } = useDashboardData();
+function TierMiniBars({ tierDist }: { tierDist: { tier: string; count: number; color: string }[] }) {
   const total = tierDist.reduce((s, t) => s + t.count, 0) || 1;
   return (
     <div className="mt-16">
@@ -211,7 +188,7 @@ function TierMiniBars() {
               <span className="tier-dot" style={{ background: t.color }} />
               <span className="muted">{t.tier}</span>
             </span>
-            <span className="mono strong">{t.count}</span>
+            <span className="mono strong">{nfmt(t.count)}</span>
           </div>
         ))}
       </div>
@@ -219,39 +196,33 @@ function TierMiniBars() {
   );
 }
 
-function TrendCard() {
-  const { churnTrend } = useDashboardData();
-  const d = useDerived();
-  const data = churnTrend.map((dd) => ({
-    ...dd,
-    bajasReal: dd.proyectado ? null : dd.bajas,
-    bajasProj: dd.proyectado ? dd.bajas : null,
-  }));
-
-  // dominio R: min/max de pctMotivo con margen
-  const pctVals = churnTrend.map((x) => x.pctMotivo).filter((v): v is number => v !== null && v !== undefined);
+function TrendCard({ trend, delta, prevLabel, latestLabel }: {
+  trend: { mes: string; bajas: number; pctMotivo: number | null }[];
+  delta: number | null; prevLabel: string; latestLabel: string;
+}) {
+  const pctVals = trend.map((x) => x.pctMotivo).filter((v): v is number => v != null);
   const rMin = pctVals.length ? Math.max(0, Math.floor(Math.min(...pctVals) - 5)) : 0;
   const rMax = pctVals.length ? Math.ceil(Math.max(...pctVals) + 5) : 100;
-
-  const forecastX = churnTrend.filter((x) => x.proyectado).map((x) => x.mes);
 
   return (
     <div className="card lg">
       <div className="minihead">
         <div>
           <div className="card-eyebrow">Bajas vs % registrado con motivo</div>
-          <div className="card-title">Crece la baja, crece la brecha</div>
+          <div className="card-title">Evolución mensual</div>
         </div>
-        {d.accelLabel && (
-          <span className="delta-pill bad">↑ {d.accelLabel}</span>
+        {delta != null && (
+          <span className={`delta-pill ${delta >= 0 ? "bad" : ""}`}>
+            {delta >= 0 ? "↑" : "↓"} {pctFmt(delta)} {prevLabel}→{latestLabel}
+          </span>
         )}
       </div>
-      <div className="chart-wrap" style={{ height: 320, position: "relative" }}>
+      <div className="chart-wrap" style={{ height: 320 }}>
         <ResponsiveContainer>
-          <ComposedChart data={data} margin={{ top: 24, right: 16, left: -8, bottom: 0 }}>
+          <ComposedChart data={trend} margin={{ top: 24, right: 16, left: -8, bottom: 0 }}>
             <defs>
               <linearGradient id="trendG" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%"   stopColor={ORANGE} stopOpacity={0.25} />
+                <stop offset="0%" stopColor={ORANGE} stopOpacity={0.25} />
                 <stop offset="100%" stopColor={ORANGE} stopOpacity={0.02} />
               </linearGradient>
             </defs>
@@ -260,48 +231,19 @@ function TrendCard() {
             <YAxis yAxisId="L" tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
             <YAxis yAxisId="R" orientation="right" domain={[rMin, rMax]} tick={{ fontSize: 11, fill: "#B5740F" }} axisLine={false} tickLine={false} unit="%" />
             <Tooltip contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid #E8E6DC" }} />
-
-            {forecastX.length > 0 && (
-              <ReferenceArea yAxisId="L" x1={forecastX[0]} x2={forecastX[forecastX.length - 1]} fill="#0B0B0A" fillOpacity={0.04} label={{ value: "Forecast", position: "insideTop", fill: "#6E6D66", fontSize: 11 }} />
-            )}
-
             <Area yAxisId="L" type="monotone" dataKey="bajas" stroke="none" fill="url(#trendG)" />
-            <Bar yAxisId="L" dataKey="bajasReal" fill={ORANGE} radius={[6, 6, 0, 0]} barSize={28} />
-            <Bar yAxisId="L" dataKey="bajasProj" radius={[6, 6, 0, 0]} barSize={28}>
-              {data.map((_, i) => (
-                <Cell key={i} fill={ORANGE} fillOpacity={0.35} stroke={ORANGE} strokeDasharray="3 3" />
-              ))}
+            <Bar yAxisId="L" dataKey="bajas" radius={[6, 6, 0, 0]} barSize={28}>
+              {trend.map((_, i) => <Cell key={i} fill={ORANGE} />)}
             </Bar>
             <Line yAxisId="R" type="monotone" dataKey="pctMotivo" stroke="#B5740F" strokeWidth={2} dot={{ r: 3, fill: "#B5740F" }} connectNulls={false} />
-            <ReferenceLine yAxisId="L" y={d.firstClosed?.bajas ?? 0} stroke="#0B0B0A" strokeDasharray="4 4" strokeOpacity={0.4} label={{ value: `inicio ${d.firstClosed?.mes ?? ""} (${nfmt(d.firstClosed?.bajas ?? 0)})`, position: "insideBottomLeft", fill: "#6E6D66", fontSize: 10 }} />
           </ComposedChart>
         </ResponsiveContainer>
-      </div>
-
-      <div className="row-flex mt-16" style={{ gap: 14, fontSize: 11.5 }}>
-        <LegendDot color={ORANGE} label="Bajas reales" />
-        <LegendDot color={ORANGE} label="Bajas proyectadas" dashed />
-        <LegendDot color="#B5740F" label="% con motivo" />
       </div>
     </div>
   );
 }
 
-function LegendDot({ color, label, dashed }: { color: string; label: string; dashed?: boolean }) {
-  return (
-    <span className="row-flex" style={{ gap: 6, color: "var(--ink-3)" }}>
-      <span style={{
-        width: 14, height: 8, borderRadius: 3,
-        background: dashed ? "transparent" : color,
-        border: dashed ? `1.5px dashed ${color}` : "none",
-      }} />
-      {label}
-    </span>
-  );
-}
-
-function TierDonutCard({ total }: { total: number }) {
-  const { tierDist } = useDashboardData();
+function TierDonutCard({ tierDist, total }: { tierDist: { tier: string; count: number; pct: number; color: string }[]; total: number }) {
   return (
     <div className="card cream lg">
       <div className="minihead">
@@ -319,10 +261,7 @@ function TierDonutCard({ total }: { total: number }) {
             <Tooltip contentStyle={{ fontSize: 12 }} />
           </PieChart>
         </ResponsiveContainer>
-        <div style={{
-          position: "absolute", inset: 0, display: "grid", placeItems: "center",
-          pointerEvents: "none", textAlign: "center",
-        }}>
+        <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", pointerEvents: "none", textAlign: "center" }}>
           <div>
             <div className="bignum" style={{ fontSize: 40, justifyContent: "center" }}>{nfmt(total)}</div>
             <div className="muted fs-11" style={{ marginTop: 4 }}>cuentas activas</div>
