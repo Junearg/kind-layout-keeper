@@ -99,6 +99,11 @@ const NUMERIC_COLS = new Set([
 ]);
 
 const DATE_COLS = new Set(["fecha_baja", "primera_fecha_contacto", "ultima_fecha_contacto"]);
+const OPERATIONAL_MOTIVOS = new Set(["CHANGE_METHOD", "CHANGE_FREQUENCY"]);
+
+function isOperationalChurnMotivo(v: unknown): boolean {
+  return typeof v === "string" && OPERATIONAL_MOTIVOS.has(v.trim().toUpperCase());
+}
 
 function excelDateToISO(v: unknown): string | null {
   if (v == null || v === "") return null;
@@ -262,6 +267,10 @@ export function mapRowsToClientes(
     // Skip totally empty rows o filas sin ID Cuenta (dash): es la clave lógica del import.
     if (!hasAny) continue;
     if (out.id_cuenta_dash == null) continue;
+    if (isOperationalChurnMotivo(out.motivo_baja)) {
+      out.motivo_baja = null;
+      out.fecha_baja = null;
+    }
     mapped.push(out);
   }
   return mapped;
@@ -283,7 +292,7 @@ export type ImportSummary = {
   batches: BatchLog[];
 };
 
-export async function upsertClientesInBatches(
+export async function replaceClientesInBatches(
   rows: Record<string, unknown>[],
   onProgress: (uploaded: number, total: number) => void,
   batchSize = 500,
@@ -412,7 +421,7 @@ export async function upsertClientesInBatches(
   };
 
   onLog?.(
-    `Dedupe por ID Cuenta (dash) + mes. ` +
+    `Dedupe por ID Cuenta (dash). ` +
     `Claves duplicadas: ${duplicateKeys.length} ` +
     `(${duplicateRowsRemoved} filas extra descartadas).`,
   );
@@ -430,14 +439,30 @@ export async function upsertClientesInBatches(
   );
   onLog?.(`Inicio: ${rows.length} leídas, ${total} únicas tras dedupe. Batch=${batchSize}.`);
 
-  // Borrar filas previas del/los mes(es) presentes en este import antes de insertar.
+  // Borrado completo del mes antes de insertar: no hacemos upsert para evitar
+  // que queden pegados motivos/fechas viejas de cargas anteriores.
   const mesesAfectados = Array.from(new Set(deduped.map((r) => String(r.mes_exportacion))));
   for (const mes of mesesAfectados) {
-    const { error: delErr } = await supabase.from("clientes").delete().eq("mes_exportacion", mes);
+    onLog?.(`Borrando carga previa completa de ${mes}…`);
+    const { count, error: delErr } = await supabase
+      .from("clientes")
+      .delete({ count: "exact" })
+      .eq("mes_exportacion", mes);
     if (delErr) {
       onLog?.(`No se pudieron borrar filas previas de ${mes}: ${delErr.message}`);
+      throw new Error(`No se pudo borrar la carga previa de ${mes}: ${delErr.message}`);
+    }
+    const { count: remaining, error: verifyDelErr } = await supabase
+      .from("clientes")
+      .select("*", { count: "exact", head: true })
+      .eq("mes_exportacion", mes);
+    if (verifyDelErr) {
+      throw new Error(`No se pudo verificar el borrado de ${mes}: ${verifyDelErr.message}`);
+    }
+    if ((remaining ?? 0) > 0) {
+      throw new Error(`El borrado de ${mes} no quedó limpio: todavía quedan ${remaining} filas.`);
     } else {
-      onLog?.(`Borradas filas previas de ${mes}.`);
+      onLog?.(`Carga previa de ${mes} borrada: ${count ?? 0} filas eliminadas.`);
     }
   }
 
@@ -479,7 +504,27 @@ export async function upsertClientesInBatches(
     `Final: leídas=${summary.totalRead}, únicas=${summary.totalDeduped}, ` +
     `insertadas=${summary.totalInserted}, fallidas=${summary.totalFailed}.`,
   );
+
+  for (const mes of mesesAfectados) {
+    const { count: operationalCount, error: operationalErr } = await supabase
+      .from("clientes")
+      .select("*", { count: "exact", head: true })
+      .eq("mes_exportacion", mes)
+      .in("motivo_baja", Array.from(OPERATIONAL_MOTIVOS));
+    if (operationalErr) {
+      throw new Error(`No se pudo validar motivos operacionales de ${mes}: ${operationalErr.message}`);
+    }
+    if ((operationalCount ?? 0) > 0) {
+      throw new Error(
+        `Validación fallida: quedaron ${operationalCount} filas de ${mes} con ` +
+          `motivo_baja CHANGE_METHOD/CHANGE_FREQUENCY.`,
+      );
+    }
+    onLog?.(`Validación ${mes}: 0 filas con CHANGE_METHOD / CHANGE_FREQUENCY.`);
+  }
   return summary;
 }
+
+export const upsertClientesInBatches = replaceClientesInBatches;
 
 
