@@ -288,13 +288,13 @@ export async function upsertClientesInBatches(
   onProgress: (uploaded: number, total: number) => void,
   batchSize = 500,
   onLog?: (line: string) => void,
-): Promise<ImportSummary> {
-  // Clave de dedupe: ID Cuenta (dash) + mes_exportacion. ID HubSpot es solo un atributo informativo.
+  // Clave de dedupe: SOLO ID Cuenta (dash). El archivo no tiene columna `mes`;
+  // mes_exportacion lo elige el usuario al importar y es el mismo para todas las filas.
   const dedupeKeyOf = (row: Record<string, unknown>): string => {
     const dash = row.id_cuenta_dash;
-    const idPart = `D:${String(dash ?? "").trim()}`;
-    return `${idPart}__${row.mes_exportacion}`;
+    return `D:${String(dash ?? "").trim()}`;
   };
+
 
   // ===== Análisis del Excel CRUDO (antes de cualquier dedupe / upsert) =====
   let nActivo = 0;
