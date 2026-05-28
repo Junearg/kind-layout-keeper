@@ -136,7 +136,7 @@ export function ImportClientesPanel() {
             accept=".xlsx"
             onChange={(e) => {
               const f = e.target.files?.[0];
-              if (f) { setFile(f); setPhase("ready"); setError(""); }
+              if (f) void handleFileSelected(f);
             }}
             disabled={phase === "reading" || phase === "uploading"}
             style={{ display: "none" }}
