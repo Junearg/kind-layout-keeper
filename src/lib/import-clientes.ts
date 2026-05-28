@@ -292,6 +292,13 @@ export async function upsertClientesInBatches(
 
   // Deduplicate by (id_cuenta_dash, mes_exportacion) — keep the LAST occurrence.
   // Postgres rejects ON CONFLICT when the same conflict key appears twice en un statement.
+  // Prioridad: Activo (2) > Bloqueado (1) > null/empty/otro (0).
+  const estadoPriority = (v: unknown): number => {
+    const s = v == null ? "" : String(v).trim();
+    if (s === "Activo") return 2;
+    if (s === "Bloqueado") return 1;
+    return 0;
+  };
   const dedupMap = new Map<string, Record<string, unknown>>();
   const seenCount = new Map<string, number>();
   for (const row of rows) {
@@ -300,11 +307,10 @@ export async function upsertClientesInBatches(
     const existing = dedupMap.get(key);
     if (!existing) {
       dedupMap.set(key, row);
-    } else if (existing.estado_dash !== "Activo" && row.estado_dash === "Activo") {
-      // Priorizar 'Activo' sobre cualquier otro estado (ej. 'Bloqueado').
+    } else if (estadoPriority(row.estado_dash) > estadoPriority(existing.estado_dash)) {
       dedupMap.set(key, row);
     }
-    // Si la existente ya es 'Activo', no se sobreescribe.
+    // Si la existente tiene prioridad >= la nueva, no se sobreescribe.
   }
   const deduped = Array.from(dedupMap.values());
   const duplicateKeys = Array.from(seenCount.entries()).filter(([, n]) => n > 1);
