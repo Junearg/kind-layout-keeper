@@ -151,7 +151,7 @@ function Cola() {
       />
     }>
       <SupabaseMetricsPanel />
-      {!colaMes ? (
+      {!colaMes && scored.length === 0 ? (
         <EmptyPeriod section="Cola CS" mes={mesLargo(mesActivo)} />
       ) : (
       <>
