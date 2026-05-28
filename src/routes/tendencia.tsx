@@ -40,15 +40,32 @@ function Tendencia() {
   const resumen = useResumenMes();
   const mesActivo = useMesActivo();
   const sinMotivo = d.sinMotivo ?? motivosBaja[0];
-  const forecastX = churnTrend.filter((x) => x.proyectado).map((x) => x.mes);
   const hasData = !!resumen || (motivos !== null);
+
+  // Tendencia rate-based: cada fila trae bajas, rate%, activeBase y banda min/max.
+  const chartData = d.trendRate.points.map((p) => ({
+    mes: p.proyectado ? `${p.mes}*` : p.mes,
+    key: p.key,
+    bajas: p.bajas,
+    rate: p.rate,
+    activeBase: p.activeBase,
+    proyectado: p.proyectado,
+    bajasMin: p.bajasMin ?? null,
+    bajasMax: p.bajasMax ?? null,
+    rangoY: p.bajasMin != null && p.bajasMax != null ? [p.bajasMin, p.bajasMax] : null,
+    bajasError: p.bajasError ?? null,
+  }));
+  const forecastX = chartData.filter((x) => x.proyectado).map((x) => x.mes);
+
+  const firstProj = d.trendRate.projected[0] ?? null;
+  const latestRateP = d.trendRate.closed[d.trendRate.closed.length - 1] ?? null;
 
   return (
     <Layout actions={
       <ExportButton
         filename="tendencia-churn.xlsx"
         sheets={[
-          { name: "Tendencia mensual", rows: churnTrend },
+          { name: "Tendencia mensual", rows: chartData },
           { name: "Motivos de baja", rows: motivosBaja },
         ]}
       />
@@ -66,6 +83,14 @@ function Tendencia() {
           <div className="fs-12 muted" style={{ marginTop: 8 }}>
             bajas {d.closedMonthsLabel ?? ""}
           </div>
+          {latestRateP && (
+            <div className="fs-12 muted" style={{ marginTop: 4 }}>
+              tasa último mes: <strong>{pctfmt(latestRateP.rate)}</strong>
+              {d.monthDeltaRatePts !== null && (
+                <> · {d.monthDeltaRatePts >= 0 ? "+" : ""}{d.monthDeltaRatePts.toFixed(2)} pts vs anterior</>
+              )}
+            </div>
+          )}
           {d.firstClosed && d.latestClosed && (
             <div style={{ marginTop: 14, display: "flex", gap: 6 }}>
               <span className="tag outline">{d.firstClosed.mes.replace(/\*+$/, "")} {nfmt(d.firstClosed.bajas)}</span>
@@ -75,18 +100,23 @@ function Tendencia() {
           )}
         </div>
 
-        {d.firstProjected ? (
+        {firstProj ? (
           <div className="card orange lg">
-            <div className="card-eyebrow">Proyección {d.firstProjected.mes.replace(/\*+$/, "")}</div>
-            <div className="bignum" style={{ marginTop: 10 }}>{nfmt(d.firstProjected.bajas)}</div>
+            <div className="card-eyebrow">Proyección {firstProj.mes}</div>
+            <div className="bignum" style={{ marginTop: 10 }}>{nfmt(firstProj.bajas)}</div>
             <div className="fs-12" style={{ color: "rgba(255,255,255,0.85)", marginTop: 8 }}>
-              {d.projectionDeltaPct !== null
-                ? `${d.projectionDeltaPct >= 0 ? "+" : ""}${d.projectionDeltaPct.toFixed(1)}% vs ${d.latestClosed?.mes.replace(/\*+$/, "")} · forecast lineal`
-                : "forecast lineal"}
+              tasa WMA <strong>{pctfmt(firstProj.rate)}</strong>
+              {d.rateStdDev > 0 && <> · ±{d.rateStdDev.toFixed(2)} pts</>}
+            </div>
+            <div className="fs-12" style={{ color: "rgba(255,255,255,0.75)", marginTop: 4 }}>
+              banda {nfmt(firstProj.bajasMin ?? firstProj.bajas)}–{nfmt(firstProj.bajasMax ?? firstProj.bajas)}
+              {d.projectionDeltaPct !== null && (
+                <> · {d.projectionDeltaPct >= 0 ? "+" : ""}{d.projectionDeltaPct.toFixed(1)}% vs {d.latestClosed?.mes.replace(/\*+$/, "")}</>
+              )}
             </div>
             <div style={{ marginTop: 14 }}>
               <span className="callout" style={{ background: "rgba(255,255,255,0.2)", color: "white" }}>
-                {d.projectionDeltaPct !== null && d.projectionDeltaPct > 0 ? "↑ tendencia sostenida" : "tendencia"}
+                WMA 50/30/20 · base actual {nfmt(firstProj.activeBase)}
               </span>
             </div>
             <div className="bubble-wrap"><div className="bubble" /></div>
@@ -94,10 +124,13 @@ function Tendencia() {
         ) : <div className="card lg" />}
 
         <div className="card ink lg">
-          <div className="card-eyebrow">Período estimado</div>
-          <div className="bignum" style={{ marginTop: 10 }}>{nfmt(d.totalAllSeries)}</div>
+          <div className="card-eyebrow">Período estimado (anualizado)</div>
+          <div className="bignum" style={{ marginTop: 10 }}>{nfmt(d.periodoEstimado)}</div>
           <div className="fs-12" style={{ color: "rgba(255,255,255,0.55)", marginTop: 8 }}>
-            cerrados + proyección · base actual
+            YTD real <strong>{nfmt(d.ytdClosed)}</strong> + proyección compuesta <strong>{nfmt(d.totalProjected)}</strong>
+          </div>
+          <div className="fs-12" style={{ color: "rgba(255,255,255,0.55)", marginTop: 4 }}>
+            base recalculada cada mes (active − churn proyectado)
           </div>
           <div style={{ marginTop: 14 }}>
             <span className="callout" style={{ background: "rgba(255,255,255,0.12)", color: "white" }}>
@@ -111,10 +144,10 @@ function Tendencia() {
       <div className="card lg">
         <div className="minihead">
           <div>
-            <div className="card-eyebrow">Bajas mensuales + proyección</div>
+            <div className="card-eyebrow">Bajas mensuales + proyección rate-based</div>
             <div className="card-title">
               {d.firstClosed && d.latestClosed
-                ? `De ${nfmt(d.firstClosed.bajas)} a ${nfmt((churnTrend[churnTrend.length - 1]?.bajas ?? d.latestClosed.bajas))} en ${churnTrend.length} meses`
+                ? `De ${nfmt(d.firstClosed.bajas)} a ${nfmt(chartData[chartData.length - 1]?.bajas ?? d.latestClosed.bajas)} en ${chartData.length} meses`
                 : "Bajas mensuales"}
             </div>
           </div>
@@ -122,7 +155,7 @@ function Tendencia() {
         </div>
         <div className="chart-wrap" style={{ height: 360, position: "relative" }}>
           <ResponsiveContainer>
-            <ComposedChart data={churnTrend} margin={{ top: 36, right: 24, left: 0, bottom: 8 }}>
+            <ComposedChart data={chartData} margin={{ top: 36, right: 24, left: 0, bottom: 8 }}>
               <defs>
                 <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={ORANGE} stopOpacity={0.25} />
@@ -132,19 +165,44 @@ function Tendencia() {
               <CartesianGrid stroke="#E8E6DC" vertical={false} />
               <XAxis dataKey="mes" tick={{ fontSize: 12, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid #E8E6DC" }} />
+              <Tooltip
+                contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid #E8E6DC" }}
+                formatter={(value: any, name: any, item: any) => {
+                  const row = item?.payload ?? {};
+                  if (name === "bajas") {
+                    const rate = typeof row.rate === "number" ? ` (${row.rate.toFixed(2)}%)` : "";
+                    const band = row.proyectado && row.bajasMin != null && row.bajasMax != null
+                      ? ` · banda ${nfmt(row.bajasMin)}–${nfmt(row.bajasMax)}`
+                      : "";
+                    return [`${nfmt(Number(value))}${rate}${band}`, row.proyectado ? "proyección" : "bajas"];
+                  }
+                  if (name === "rangoY") return [null, null] as any;
+                  return [value, name];
+                }}
+              />
               {forecastX.length > 0 && (
-                <ReferenceArea x1={forecastX[0]} x2={forecastX[forecastX.length - 1]} fill="#0B0B0A" fillOpacity={0.04} label={{ value: "Forecast", position: "insideTop", fill: "#6E6D66", fontSize: 11 }} />
+                <ReferenceArea x1={forecastX[0]} x2={forecastX[forecastX.length - 1]} fill="#0B0B0A" fillOpacity={0.04} label={{ value: "Forecast WMA", position: "insideTop", fill: "#6E6D66", fontSize: 11 }} />
               )}
               <Area type="monotone" dataKey="bajas" stroke="none" fill="url(#areaFill)" />
+              {/* Banda de confianza (sólo proyectados) */}
+              <Area
+                type="monotone"
+                dataKey="rangoY"
+                stroke="none"
+                fill={ORANGE}
+                fillOpacity={0.12}
+                isAnimationActive={false}
+                connectNulls={false}
+              />
               <Bar dataKey="bajas" radius={[6, 6, 0, 0]} barSize={42}>
-                {churnTrend.map((dd, i) => (
+                {chartData.map((dd, i) => (
                   <Cell
                     key={i}
                     fill={dd.proyectado ? "#FFB089" : ORANGE}
                     fillOpacity={dd.proyectado ? 0.7 : 1}
                   />
                 ))}
+                <ErrorBar dataKey="bajasError" width={6} strokeWidth={1.5} stroke="#7A3A12" direction="y" />
                 <LabelList
                   dataKey="bajas"
                   position="top"
@@ -155,7 +213,13 @@ function Tendencia() {
             </ComposedChart>
           </ResponsiveContainer>
         </div>
+        {d.wmaRate !== null && (
+          <div className="fs-12 muted" style={{ marginTop: 10 }}>
+            WMA 3 meses: <strong>{pctfmt(d.wmaRate)}</strong> · stdDev ±{d.rateStdDev.toFixed(2)} pts · base actual {nfmt(d.activeAccounts)}
+          </div>
+        )}
       </div>
+
 
       {/* Divider */}
       <div className="divider">
