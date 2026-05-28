@@ -13,6 +13,7 @@ const COLUMN_MAP: Record<string, string> = {
   GMV: "gmv",
   Plan: "plan",
   "Fecha de Baja": "fecha_baja",
+  "Motivo de Baja (HB)": "motivo_baja",
   "Motivo de Baja": "motivo_baja",
   "Sub-motivo de Baja": "submotivo_baja",
   "Estado en Dash": "estado_dash",
