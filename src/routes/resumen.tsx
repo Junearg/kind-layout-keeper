@@ -113,11 +113,6 @@ function Resumen() {
                 {r.npsScore.toFixed(1)}
               </div>
             </div>
-            <div style={{ display: "flex", gap: 12, fontSize: 11, opacity: 0.95 }}>
-              <span>P {nfmt(r.npsPromotores)}</span>
-              <span>Pa {nfmt(r.npsPasivos)}</span>
-              <span>D {nfmt(r.npsDetractores)}</span>
-            </div>
 
           </div>
 
