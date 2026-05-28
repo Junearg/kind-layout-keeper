@@ -93,7 +93,7 @@ function monthLabel(key: string): string {
 }
 
 async function fetchResumen(period: string): Promise<ResumenData> {
-  const [activos, bajas, nps, csat] = await Promise.all([
+  const [activos, bajasRaw, nps, csat] = await Promise.all([
     pageAll<ScoreRow>(() => supabase
       .from("clientes")
       .select("productos,usuarios,v_salon,v_delivery,v_mostrador,cant_contactos,nps_score,motivo_baja,motivo_metabase,estado_dash,pais")
