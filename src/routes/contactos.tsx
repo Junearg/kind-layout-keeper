@@ -7,7 +7,7 @@ import { usePeriod } from "@/contexts/PeriodContext";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/contactos")({
-  head: () => ({ meta: [{ title: "Contact Rate · Fudo Churn Center" }] }),
+  head: () => ({ meta: [{ title: "Contact Rate · Fudo Customer Center" }] }),
   component: ContactosPage,
 });
 

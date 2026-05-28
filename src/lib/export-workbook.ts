@@ -449,7 +449,7 @@ function buildCoverSheet(wb: ExcelJS.Workbook, sections: Section[]) {
   // Title
   ws.mergeCells("A3:D3");
   const title = ws.getCell("A3");
-  title.value = "Fudo Churn Center";
+  title.value = "Fudo Customer Center";
   title.font = { name: "Inter", size: 28, bold: true, color: { argb: INK } };
   ws.getRow(3).height = 38;
 
@@ -561,7 +561,7 @@ function buildSectionSheet(wb: ExcelJS.Workbook, section: Section) {
 // ---------- Public API ----------
 export async function exportFullWorkbook(filename = "fudo-churn-center.xlsx") {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Fudo Churn Center";
+  wb.creator = "Fudo Customer Center";
   wb.created = new Date();
 
   const sections = buildSections();

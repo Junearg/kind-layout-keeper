@@ -29,7 +29,7 @@ export function LoginScreen() {
       }}>
         <div className="brand-mark" style={{ marginBottom: 16 }}>f</div>
         <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 4 }}>
-          Fudo <span style={{ color: "var(--orange)" }}>Churn</span> Center
+          Fudo <span style={{ color: "var(--orange)" }}>Customer</span> Center
         </h1>
         <p className="muted fs-12" style={{ marginBottom: 20 }}>
           Iniciá sesión para acceder al dashboard.
