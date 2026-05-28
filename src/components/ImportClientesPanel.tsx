@@ -228,11 +228,7 @@ export function ImportClientesPanel() {
               opacity: !fileBuffer || !mes ? 0.6 : 1,
             }}
           >
-            {phase === "uploading"
-              ? "Subiendo…"
-              : phase === "reading"
-                ? "Leyendo…"
-                : "Nueva carga"}
+            {phase === "uploading" ? "Subiendo…" : phase === "reading" ? "Leyendo…" : "Nueva carga"}
           </button>
           {!file && (
             <span className="fs-12" style={{ color: "var(--ink-3)" }}>
