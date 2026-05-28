@@ -4,7 +4,7 @@
 import { useMemo } from "react";
 import { useDashboardData } from "./liveData";
 import { useDatasetState, useForecastAutoNext } from "./dataset-store";
-import { mesLargo } from "./schema";
+import { mesLargo, mesCorto, type DashboardDataset } from "./schema";
 
 const MES_FULL: Record<string, string> = {
   Ene: "Enero", Feb: "Febrero", Mar: "Marzo", Abr: "Abril",
@@ -28,6 +28,153 @@ function weightedAvg(items: { value: number; weight: number }[]): number {
   if (!totalW) return 0;
   return items.reduce((s, i) => s + i.value * i.weight, 0) / totalW;
 }
+
+// ─── Tendencia rate-based ──────────────────────────────────────────────
+// Pesos WMA: 50% último mes, 30% dos meses atrás, 20% tres meses atrás.
+const WMA_WEIGHTS = [0.5, 0.3, 0.2] as const;
+
+export type TrendRatePoint = {
+  mes: string;        // label corto (Ene, Feb, …)
+  key: string;        // YYYY-MM
+  bajas: number;      // bajas reales (cerrado) o proyectadas
+  activeBase: number; // cuentas activas al inicio del mes
+  rate: number;       // % de churn = bajas / activeBase * 100
+  proyectado: boolean;
+  bajasMin?: number;
+  bajasMax?: number;
+  rateMin?: number;
+  rateMax?: number;
+  // Para Recharts ErrorBar: [delta hacia abajo, delta hacia arriba] absolutos.
+  bajasError?: [number, number];
+};
+
+export type TrendRate = {
+  points: TrendRatePoint[];
+  closed: TrendRatePoint[];
+  projected: TrendRatePoint[];
+  latestRate: number | null;
+  wmaRate: number | null;
+  stdDev: number;            // desvío estándar (puntos %) de las 3 últimas tasas
+  ytdActualClosed: number;   // bajas reales acumuladas del año del mes activo
+  totalProjected: number;    // bajas proyectadas en los meses restantes del año
+  periodoEstimado: number;   // YTD real + proyección anualizada
+};
+
+function nextMonth(key: string): string {
+  const [y, m] = key.split("-").map(Number);
+  if (!y || !m) return key;
+  const ny = m === 12 ? y + 1 : y;
+  const nm = m === 12 ? 1 : m + 1;
+  return `${ny}-${String(nm).padStart(2, "0")}`;
+}
+
+function stdDev(values: number[]): number {
+  if (values.length < 2) return 0;
+  const mean = values.reduce((s, v) => s + v, 0) / values.length;
+  const variance = values.reduce((s, v) => s + (v - mean) ** 2, 0) / values.length;
+  return Math.sqrt(variance);
+}
+
+function buildTrendRate(dataset: DashboardDataset, mesActivo: string): TrendRate {
+  // Meses cerrados (con bajas reales) hasta el mes activo, ordenados.
+  const cerradosRaw = dataset.tendencia_mensual
+    .filter((p) => !p.es_forecast && p.bajas_reales != null && p.mes <= mesActivo)
+    .sort((a, b) => a.mes.localeCompare(b.mes));
+
+  const resumenByKey = new Map(dataset.resumen_mensual.map((r) => [r.mes, r]));
+
+  // Base activa al INICIO del mes:
+  //   end-of-prev-month si existe; si no, end-of-month + bajas (aprox).
+  const closed: TrendRatePoint[] = cerradosRaw.map((p, i) => {
+    const bajas = (p.bajas_reales ?? 0);
+    const prevKey = i > 0 ? cerradosRaw[i - 1]!.mes : null;
+    const endPrev = prevKey ? resumenByKey.get(prevKey)?.cuentas_activas_total ?? null : null;
+    const endThis = resumenByKey.get(p.mes)?.cuentas_activas_total ?? null;
+    const activeBase = endPrev ?? (endThis != null ? endThis + bajas : 0);
+    const rate = activeBase > 0 ? (bajas / activeBase) * 100 : 0;
+    return {
+      mes: mesCorto(p.mes),
+      key: p.mes,
+      bajas,
+      activeBase,
+      rate,
+      proyectado: false,
+    };
+  });
+
+  const latestClosed = closed[closed.length - 1] ?? null;
+  const latestRate = latestClosed ? latestClosed.rate : null;
+
+  // WMA y stdDev sobre las últimas 3 tasas cerradas.
+  const last3 = closed.slice(-3).map((p) => p.rate);
+  let wmaRate: number | null = null;
+  if (last3.length > 0) {
+    // pesos en orden: más reciente recibe 0.5; rellenamos con 0 si hay menos de 3.
+    const padded = [...Array(3 - last3.length).fill(0), ...last3]; // [n-3, n-2, n-1]
+    // WMA_WEIGHTS = [0.5, 0.3, 0.2] → último, anteúltimo, antepenúltimo
+    // padded está en orden cronológico ascendente, así que invertimos:
+    const reversed = [...padded].reverse(); // [n-1, n-2, n-3]
+    const totalW = WMA_WEIGHTS.slice(0, last3.length).reduce((s, w) => s + w, 0);
+    wmaRate = reversed.reduce((s, v, idx) => s + v * (WMA_WEIGHTS[idx] ?? 0), 0) / (totalW || 1);
+  }
+  const sd = stdDev(last3);
+
+  // Proyectamos los meses restantes del AÑO del mes activo, comenzando por el
+  // siguiente mes al último cerrado. Compounding: cada mes, la base activa
+  // baja en la cantidad proyectada del mes anterior.
+  const projected: TrendRatePoint[] = [];
+  if (latestClosed && wmaRate !== null && latestClosed.activeBase > 0) {
+    const year = Number(latestClosed.key.split("-")[0]);
+    // base activa al INICIO del primer mes proyectado = end-of-latest-closed
+    let baseAtStart =
+      resumenByKey.get(latestClosed.key)?.cuentas_activas_total ?? Math.max(0, latestClosed.activeBase - latestClosed.bajas);
+    let curKey = nextMonth(latestClosed.key);
+    while (Number(curKey.split("-")[0]) === year) {
+      const safeBase = Math.max(0, baseAtStart);
+      const bajas = Math.max(0, Math.round((safeBase * wmaRate) / 100));
+      const rateLow = Math.max(0, wmaRate - sd);
+      const rateHigh = wmaRate + sd;
+      const bajasMin = Math.max(0, Math.round((safeBase * rateLow) / 100));
+      const bajasMax = Math.max(0, Math.round((safeBase * rateHigh) / 100));
+      projected.push({
+        mes: mesCorto(curKey),
+        key: curKey,
+        bajas,
+        activeBase: safeBase,
+        rate: wmaRate,
+        proyectado: true,
+        bajasMin,
+        bajasMax,
+        rateMin: rateLow,
+        rateMax: rateHigh,
+        bajasError: [bajas - bajasMin, bajasMax - bajas],
+      });
+      baseAtStart = safeBase - bajas;
+      curKey = nextMonth(curKey);
+    }
+  }
+
+  const points = [...closed, ...projected];
+  const activeYear = latestClosed ? latestClosed.key.split("-")[0] : mesActivo.split("-")[0];
+  const ytdActualClosed = closed
+    .filter((p) => p.key.startsWith(`${activeYear}-`))
+    .reduce((s, p) => s + p.bajas, 0);
+  const totalProjected = projected.reduce((s, p) => s + p.bajas, 0);
+  const periodoEstimado = ytdActualClosed + totalProjected;
+
+  return {
+    points,
+    closed,
+    projected,
+    latestRate,
+    wmaRate,
+    stdDev: sd,
+    ytdActualClosed,
+    totalProjected,
+    periodoEstimado,
+  };
+}
+
 
 export function useDerived() {
   const data = useDashboardData();
