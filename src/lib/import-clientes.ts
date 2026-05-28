@@ -238,9 +238,9 @@ export function mapRowsToClientes(
       if (value !== null && value !== undefined && value !== "") hasAny = true;
       out[dbCol] = value;
     }
-    // Skip totally empty rows o filas sin ID HubSpot: es la clave lógica del import.
+    // Skip totally empty rows o filas sin ID Cuenta (dash): es la clave lógica del import.
     if (!hasAny) continue;
-    if (out.id_hubspot == null || normalizeText(out.id_hubspot) === "") continue;
+    if (out.id_cuenta_dash == null) continue;
     mapped.push(out);
   }
   return mapped;
@@ -268,10 +268,10 @@ export async function upsertClientesInBatches(
   batchSize = 500,
   onLog?: (line: string) => void,
 ): Promise<ImportSummary> {
-  // Clave de dedupe: ID HubSpot + mes_exportacion. ID Cuenta dash es solo un atributo informativo.
+  // Clave de dedupe: ID Cuenta (dash) + mes_exportacion. ID HubSpot es solo un atributo informativo.
   const dedupeKeyOf = (row: Record<string, unknown>): string => {
-    const hub = row.id_hubspot;
-    const idPart = `H:${String(hub ?? "").trim()}`;
+    const dash = row.id_cuenta_dash;
+    const idPart = `D:${String(dash ?? "").trim()}`;
     return `${idPart}__${row.mes_exportacion}`;
   };
 
@@ -328,7 +328,7 @@ export async function upsertClientesInBatches(
       .join(", ");
     onLog?.(`   Otros estados encontrados: ${muestra}`);
   }
-  onLog?.(`3) ID HubSpot únicos: ${idsUnicos} (sobre ${rows.length} filas válidas)`);
+  onLog?.(`3) ID Cuenta (dash) únicos: ${idsUnicos} (sobre ${rows.length} filas válidas)`);
   onLog?.(
     `4) IDs duplicados: ${idsDuplicados} → ` +
       `mismo estado en todas sus apariciones: ${dupMismoEstado} · ` +
@@ -376,7 +376,7 @@ export async function upsertClientesInBatches(
   };
 
   onLog?.(
-    `Dedupe por ID HubSpot + mes. ` +
+    `Dedupe por ID Cuenta (dash) + mes. ` +
     `Claves duplicadas: ${duplicateKeys.length} ` +
     `(${duplicateRowsRemoved} filas extra descartadas).`,
   );
