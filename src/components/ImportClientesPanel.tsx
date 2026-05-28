@@ -4,6 +4,7 @@ import {
   mapRowsToClientes,
   upsertClientesInBatches,
 } from "@/lib/import-clientes";
+import { usePeriod } from "@/contexts/PeriodContext";
 
 type Phase = "idle" | "ready" | "reading" | "uploading" | "done" | "error";
 
@@ -12,7 +13,6 @@ function defaultMonth(): string {
   d.setMonth(d.getMonth() - 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
-
 export function ImportClientesPanel() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -22,6 +22,7 @@ export function ImportClientesPanel() {
   const [uploaded, setUploaded] = useState<number>(0);
   const [total, setTotal] = useState<number>(0);
   const [error, setError] = useState<string>("");
+  const { refresh, setSelectedPeriod } = usePeriod();
 
   const pct = useMemo(() => (total ? Math.round((uploaded / total) * 100) : 0), [uploaded, total]);
 
@@ -46,6 +47,9 @@ export function ImportClientesPanel() {
         setUploaded(u); setTotal(t);
       });
       setPhase("done");
+      // Refrescar el contexto de períodos y seleccionar el mes recién importado
+      await refresh();
+      setSelectedPeriod(mes);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error inesperado.");
       setPhase("error");
@@ -78,13 +82,28 @@ export function ImportClientesPanel() {
               if (f) { setFile(f); setPhase("ready"); setError(""); }
             }}
             disabled={phase === "reading" || phase === "uploading"}
+            style={{ display: "none" }}
           />
-          {file && (
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={() => inputRef.current?.click()}
+            disabled={phase === "reading" || phase === "uploading"}
+            style={{ background: "var(--paper-2)", border: "1px dashed var(--rule-2)" }}
+          >
+            📂 {file ? "Cambiar archivo" : "Seleccionar archivo .xlsx"}
+          </button>
+          {file ? (
             <span className="fs-12 mono" style={{ color: "var(--ink-2)" }}>
               {file.name} · {(file.size / 1024 / 1024).toFixed(1)} MB
             </span>
+          ) : (
+            <span className="fs-12" style={{ color: "var(--ink-3)" }}>
+              Ningún archivo seleccionado
+            </span>
           )}
         </div>
+
 
         {/* Step 2: month */}
         <label style={{ display: "flex", alignItems: "center", gap: 10 }}>
