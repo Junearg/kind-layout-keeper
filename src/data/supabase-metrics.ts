@@ -116,8 +116,10 @@ async function fetchMetrics(period: string): Promise<SupabaseMetrics> {
   const total = scores.length;
   const score = total ? ((promotores - detractores) / total) * 100 : 0;
 
-  // Bajas agregadas
-  const bajasMes = (bajasRes.data ?? []) as { motivo_baja: string | null; pais: string | null }[];
+  // Bajas agregadas — excluyendo motivos operacionales (no son churn real).
+  const OPERATIONAL_MOTIVOS = new Set(["CHANGE_METHOD", "CHANGE_FREQUENCY"]);
+  const bajasMes = ((bajasRes.data ?? []) as { motivo_baja: string | null; pais: string | null }[])
+    .filter((b) => !(b.motivo_baja && OPERATIONAL_MOTIVOS.has(b.motivo_baja.trim().toUpperCase())));
   const motivoMap = new Map<string, number>();
   const paisMap = new Map<string, number>();
   for (const b of bajasMes) {

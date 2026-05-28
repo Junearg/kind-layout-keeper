@@ -11,6 +11,13 @@ const TIER_COLORS: Record<Tier, string> = {
 
 const MES_CORTO = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 
+// Motivos operacionales internos (no son churn real de cliente).
+// Se excluyen de todos los conteos / tendencias / proyecciones de churn.
+const OPERATIONAL_MOTIVOS = new Set(["CHANGE_METHOD", "CHANGE_FREQUENCY"]);
+function isOperationalChurn(motivo: string | null | undefined): boolean {
+  return motivo != null && OPERATIONAL_MOTIVOS.has(motivo.trim().toUpperCase());
+}
+
 type ScoreRow = {
   productos: number | null; usuarios: number | null;
   v_salon: number | null; v_delivery: number | null; v_mostrador: number | null;
@@ -86,7 +93,7 @@ function monthLabel(key: string): string {
 }
 
 async function fetchResumen(period: string): Promise<ResumenData> {
-  const [activos, bajas, nps, csat] = await Promise.all([
+  const [activos, bajasRaw, nps, csat] = await Promise.all([
     pageAll<ScoreRow>(() => supabase
       .from("clientes")
       .select("productos,usuarios,v_salon,v_delivery,v_mostrador,cant_contactos,nps_score,motivo_baja,motivo_metabase,estado_dash,pais")
@@ -108,6 +115,11 @@ async function fetchResumen(period: string): Promise<ResumenData> {
       .eq("mes_exportacion", period)
       .or("csat_cs_promedio.not.is.null,csat_onb_promedio.not.is.null")),
   ]);
+
+  // Excluir churn operacional (cambios de método/frecuencia de pago) de TODO
+  // conteo, trend, motivos, YTD, CVR y proyecciones derivadas.
+  const bajas = bajasRaw.filter((b) => !isOperationalChurn(b.motivo_baja));
+
 
   // --- Tier dist (de activos)
   const tierCount: Record<Tier, number> = { Champion: 0, Healthy: 0, "At Risk": 0, Critical: 0 };
