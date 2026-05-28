@@ -170,29 +170,48 @@ async function fetchResumen(period: string): Promise<ResumenData> {
     if (b.motivo_baja) slot.conMotivo++;
     byMonth.set(k, slot);
   }
-  const sortedKeys = Array.from(byMonth.keys()).sort();
+  // Bucket separado para el trend de 12 meses (no afecta YTD/motivos del mes actual)
+  const bajasTrend = bajasTrendRaw.filter((b) => !isOperationalChurn(b.motivo_baja));
+  const byMonthTrend = new Map<string, { bajas: number; conMotivo: number }>();
+  for (const b of bajasTrend) {
+    if (!b.fecha_baja) continue;
+    const k = monthKey(new Date(b.fecha_baja));
+    const slot = byMonthTrend.get(k) ?? { bajas: 0, conMotivo: 0 };
+    slot.bajas++;
+    if (b.motivo_baja) slot.conMotivo++;
+    byMonthTrend.set(k, slot);
+  }
   // Mes cerrado = el período seleccionado (snapshot)
   const latest = period;
   // Mes anterior al período
   const prev = (() => {
     const [y, m] = period.split("-").map(Number);
-    if (!y || !m) return sortedKeys[sortedKeys.length - 2];
+    if (!y || !m) return undefined;
     const py = m === 1 ? y - 1 : y;
     const pm = m === 1 ? 12 : m - 1;
     return `${py}-${String(pm).padStart(2, "0")}`;
   })();
-  // Trend: últimos 12 meses hasta el período (inclusive), descartando posteriores
-  const validKeys = sortedKeys.filter((k) => k <= period);
-  const last7 = validKeys.slice(-12);
-
-  const churnTrend = last7.map((k) => {
-    const s = byMonth.get(k)!;
+  // Trend: últimos 12 meses hasta el período (inclusive), generando todos los buckets
+  const last12Keys: string[] = (() => {
+    const [y, m] = period.split("-").map(Number);
+    const arr: string[] = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(y!, (m! - 1) - i, 1);
+      arr.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+    }
+    return arr;
+  })();
+  const churnTrend = last12Keys.map((k) => {
+    const s = byMonthTrend.get(k) ?? { bajas: 0, conMotivo: 0 };
     return {
       key: k, mes: monthLabel(k), bajas: s.bajas,
       pctMotivo: s.bajas ? (s.conMotivo / s.bajas) * 100 : null,
       proyectado: false,
     };
   });
+  const bajasMesActual = byMonth.get(latest)?.bajas ?? 0;
+  const bajasMesPrev = prev ? (byMonthTrend.get(prev)?.bajas ?? 0) : 0;
+
   const bajasMesActual = byMonth.get(latest)?.bajas ?? 0;
   const bajasMesPrev = prev ? (byMonth.get(prev)?.bajas ?? 0) : 0;
   const monthDeltaPct = bajasMesPrev ? ((bajasMesActual - bajasMesPrev) / bajasMesPrev) * 100 : null;
