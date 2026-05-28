@@ -10,7 +10,7 @@ import { usePeriod, periodLabel } from "@/contexts/PeriodContext";
 const TABS = [
 
   { to: "/resumen",   label: "Dashboard" },
-  { to: "/tendencia", label: "Proyección" },
+  { to: "/tendencia", label: "Churn Rate" },
   { to: "/health",    label: "Health Score" },
   { to: "/contactos", label: "Contact Rate" },
   { to: "/nps",       label: "NPS" },
