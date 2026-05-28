@@ -234,3 +234,60 @@ function MesSelector() {
     </label>
   );
 }
+
+function UserMenu() {
+  const { user, signOut } = useAuth();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, []);
+  const initials = (user?.email ?? "?").slice(0, 2).toUpperCase();
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="avatar"
+        style={{ border: 0, cursor: "pointer", fontFamily: "inherit" }}
+        title={user?.email ?? ""}
+      >
+        {initials}
+      </button>
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 6px)", right: 0,
+          background: "var(--card)", border: "1px solid var(--rule)",
+          borderRadius: 12, boxShadow: "0 12px 32px rgba(0,0,0,0.12)",
+          minWidth: 220, zIndex: 30, overflow: "hidden",
+        }}>
+          <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--rule)" }}>
+            <div className="fs-11 muted" style={{ textTransform: "uppercase", letterSpacing: 0.5 }}>
+              Sesión
+            </div>
+            <div className="fs-12 strong" style={{ color: "var(--ink)", wordBreak: "break-all" }}>
+              {user?.email}
+            </div>
+          </div>
+          <button
+            onClick={() => { setOpen(false); signOut(); }}
+            style={{
+              display: "block", width: "100%", textAlign: "left",
+              padding: "10px 14px", background: "transparent", border: 0,
+              cursor: "pointer", fontSize: 13, color: "var(--ink)",
+              fontFamily: "inherit",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--paper-2)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
