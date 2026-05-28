@@ -202,10 +202,8 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
 
         <div className="hello">
           <div>
-            <div className="crumbs">Fudo Activity Center</div>
-
             <h1>{hello.h1}</h1>
-            <p className="sub">{hello.sub}</p>
+
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 12 }}>
             {active !== "/importar" && (
