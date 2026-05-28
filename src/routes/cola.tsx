@@ -97,12 +97,7 @@ function Cola() {
   const [filter, setFilter] = useState<FilterKey>("Todos");
   const [contactedSet, setContactedSet] = useState<Set<number>>(new Set());
 
-function Cola() {
-  const { healthAccounts } = useDashboardData();
-  const colaMes = useColaMes();
-  const mesActivo = useMesActivo();
-  const [filter, setFilter] = useState<FilterKey>("Todos");
-  const [contactedSet, setContactedSet] = useState<Set<number>>(new Set());
+
 
   const queue = useMemo(
     () => [...healthAccounts].filter((a) => a.csPrio >= 35).sort((a, b) => b.csPrio - a.csPrio),
