@@ -16,7 +16,11 @@ function defaultMonth(): string {
 export function ImportClientesPanel() {
   const inputRef = useRef<HTMLInputElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
+export function ImportClientesPanel() {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const logRef = useRef<HTMLDivElement>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [fileBuffer, setFileBuffer] = useState<ArrayBuffer | null>(null);
   const [mes, setMes] = useState<string>(defaultMonth());
   const [phase, setPhase] = useState<Phase>("idle");
   const [detected, setDetected] = useState<number>(0);
@@ -38,19 +42,47 @@ export function ImportClientesPanel() {
   }
 
   function reset() {
-    setFile(null); setPhase("idle"); setDetected(0); setUploaded(0); setTotal(0);
+    setFile(null); setFileBuffer(null); setPhase("idle"); setDetected(0); setUploaded(0); setTotal(0);
     setError(""); setLogs([]); setSummary(null);
     if (inputRef.current) inputRef.current.value = "";
   }
 
+  async function handleFileSelected(f: File) {
+    setFile(f);
+    setFileBuffer(null);
+    setError("");
+    setPhase("reading");
+    // Leemos el archivo YA, mientras el permiso del navegador está vigente.
+    // En archivos grandes (>20MB) el handle puede expirar si esperamos al click.
+    try {
+      let buf: ArrayBuffer;
+      try {
+        buf = await f.arrayBuffer();
+      } catch {
+        buf = await new Promise<ArrayBuffer>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as ArrayBuffer);
+          reader.onerror = () => reject(reader.error ?? new Error("No se pudo leer el archivo"));
+          reader.readAsArrayBuffer(f);
+        });
+      }
+      setFileBuffer(buf);
+      setPhase("ready");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "No se pudo leer el archivo.";
+      setError(`${msg} Volvé a seleccionar el archivo.`);
+      setPhase("error");
+    }
+  }
+
   async function handleConfirm() {
-    if (!file || !mes) return;
+    if (!fileBuffer || !mes) return;
     setError("");
     setLogs([]);
     setSummary(null);
     setPhase("reading");
     try {
-      const raw = await parseClientesSheet(file);
+      const raw = await parseClientesSheet(fileBuffer);
       setDetected(raw.length);
       appendLog(`Filas detectadas en el Excel: ${raw.length}`);
       const mapped = mapRowsToClientes(raw, mes);
@@ -80,6 +112,7 @@ export function ImportClientesPanel() {
       setPhase("error");
     }
   }
+
 
 
   return (
