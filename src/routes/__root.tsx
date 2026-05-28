@@ -108,15 +108,32 @@ function RootShell({ children }: { children: React.ReactNode }) {
       </body>
     </html>
   );
-}
-
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
-      <ChatWidget />
+      <AuthProvider>
+        <AuthGate>
+          <Outlet />
+          <ChatWidget />
+        </AuthGate>
+      </AuthProvider>
     </QueryClientProvider>
+  );
+}
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "var(--paper)" }}>
+        <div className="muted fs-12">Cargando…</div>
+      </div>
+    );
+  }
+  if (!user) return <LoginScreen />;
+  return <>{children}</>;
+}
   );
 }
