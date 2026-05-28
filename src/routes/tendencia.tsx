@@ -18,6 +18,8 @@ export const Route = createFileRoute("/tendencia")({
   head: () => ({ meta: [{ title: "Tendencia · Churn Hub" }] }),
   component: Tendencia,
 });
+const nfmt = (n: number) => n.toLocaleString("es-AR");
+const pctfmt = (n: number, d = 2) => `${n.toFixed(d)}%`;
 
 const nfmt = (n: number) => n.toLocaleString("es-AR");
 
