@@ -93,7 +93,7 @@ function monthLabel(key: string): string {
 }
 
 async function fetchResumen(period: string): Promise<ResumenData> {
-  const [activos, bajasRaw, nps, csat] = await Promise.all([
+  const [activos, bajasRaw, bajasTrendRaw, nps, csat] = await Promise.all([
     pageAll<ScoreRow>(() => supabase
       .from("clientes")
       .select("productos,usuarios,v_salon,v_delivery,v_mostrador,cant_contactos,nps_score,motivo_baja,motivo_metabase,estado_dash,pais")
@@ -103,6 +103,21 @@ async function fetchResumen(period: string): Promise<ResumenData> {
       const [y, m] = period.split("-").map(Number);
       const from = `${period}-01`;
       const toDate = new Date(y!, m!, 1); // first day of next month
+      const to = toDate.toISOString().slice(0, 10);
+      return supabase
+        .from("clientes")
+        .select("fecha_baja,motivo_baja,pais")
+        .eq("mes_exportacion", period)
+        .eq("estado_dash", "Bloqueado")
+        .gte("fecha_baja", from)
+        .lt("fecha_baja", to);
+    }),
+    // Trend de últimos 12 meses (incluye el período seleccionado)
+    pageAll<BajaRow>(() => {
+      const [y, m] = period.split("-").map(Number);
+      const fromDate = new Date(y!, (m! - 1) - 11, 1); // 12 meses atrás (inicio)
+      const from = fromDate.toISOString().slice(0, 10);
+      const toDate = new Date(y!, m!, 1); // primer día del mes siguiente al período
       const to = toDate.toISOString().slice(0, 10);
       return supabase
         .from("clientes")
@@ -123,6 +138,7 @@ async function fetchResumen(period: string): Promise<ResumenData> {
       .eq("mes_exportacion", period)
       .or("csat_cs_promedio.not.is.null,csat_onb_promedio.not.is.null")),
   ]);
+
 
   // Excluir churn operacional (cambios de método/frecuencia de pago) de TODO
   // conteo, trend, motivos, YTD, CVR y proyecciones derivadas.
@@ -154,22 +170,39 @@ async function fetchResumen(period: string): Promise<ResumenData> {
     if (b.motivo_baja) slot.conMotivo++;
     byMonth.set(k, slot);
   }
-  const sortedKeys = Array.from(byMonth.keys()).sort();
+  // Bucket separado para el trend de 12 meses (no afecta YTD/motivos del mes actual)
+  const bajasTrend = bajasTrendRaw.filter((b) => !isOperationalChurn(b.motivo_baja));
+  const byMonthTrend = new Map<string, { bajas: number; conMotivo: number }>();
+  for (const b of bajasTrend) {
+    if (!b.fecha_baja) continue;
+    const k = monthKey(new Date(b.fecha_baja));
+    const slot = byMonthTrend.get(k) ?? { bajas: 0, conMotivo: 0 };
+    slot.bajas++;
+    if (b.motivo_baja) slot.conMotivo++;
+    byMonthTrend.set(k, slot);
+  }
   // Mes cerrado = el período seleccionado (snapshot)
   const latest = period;
   // Mes anterior al período
   const prev = (() => {
     const [y, m] = period.split("-").map(Number);
-    if (!y || !m) return sortedKeys[sortedKeys.length - 2];
+    if (!y || !m) return undefined;
     const py = m === 1 ? y - 1 : y;
     const pm = m === 1 ? 12 : m - 1;
     return `${py}-${String(pm).padStart(2, "0")}`;
   })();
-  // Trend: últimos 7 meses hasta el período (inclusive), descartando posteriores
-  const validKeys = sortedKeys.filter((k) => k <= period);
-  const last7 = validKeys.slice(-7);
-  const churnTrend = last7.map((k) => {
-    const s = byMonth.get(k)!;
+  // Trend: últimos 12 meses hasta el período (inclusive), generando todos los buckets
+  const last12Keys: string[] = (() => {
+    const [y, m] = period.split("-").map(Number);
+    const arr: string[] = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(y!, (m! - 1) - i, 1);
+      arr.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+    }
+    return arr;
+  })();
+  const churnTrend = last12Keys.map((k) => {
+    const s = byMonthTrend.get(k) ?? { bajas: 0, conMotivo: 0 };
     return {
       key: k, mes: monthLabel(k), bajas: s.bajas,
       pctMotivo: s.bajas ? (s.conMotivo / s.bajas) * 100 : null,
@@ -177,7 +210,8 @@ async function fetchResumen(period: string): Promise<ResumenData> {
     };
   });
   const bajasMesActual = byMonth.get(latest)?.bajas ?? 0;
-  const bajasMesPrev = prev ? (byMonth.get(prev)?.bajas ?? 0) : 0;
+  const bajasMesPrev = prev ? (byMonthTrend.get(prev)?.bajas ?? 0) : 0;
+
   const monthDeltaPct = bajasMesPrev ? ((bajasMesActual - bajasMesPrev) / bajasMesPrev) * 100 : null;
 
 
