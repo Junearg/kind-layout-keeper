@@ -16,9 +16,7 @@ function defaultMonth(): string {
 export function ImportClientesPanel() {
   const inputRef = useRef<HTMLInputElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
-export function ImportClientesPanel() {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const logRef = useRef<HTMLDivElement>(null);
+
   const [file, setFile] = useState<File | null>(null);
   const [fileBuffer, setFileBuffer] = useState<ArrayBuffer | null>(null);
   const [mes, setMes] = useState<string>(defaultMonth());
