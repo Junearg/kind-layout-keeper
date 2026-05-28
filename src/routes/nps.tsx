@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
+import { SupabaseMetricsPanel } from "@/components/SupabaseMetricsPanel";
 import { EmptyPeriod } from "@/components/EmptyPeriod";
 import { ORANGE } from "@/data/mockData";
 import { useDashboardData } from "@/data/liveData";
@@ -51,6 +52,7 @@ function Nps() {
         ]}
       />
     }>
+      <SupabaseMetricsPanel />
       {!npsMes ? (
         <EmptyPeriod section="NPS & CSAT" mes={mesLargo(mesActivo)} />
       ) : (

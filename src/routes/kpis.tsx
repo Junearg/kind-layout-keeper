@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
+import { SupabaseMetricsPanel } from "@/components/SupabaseMetricsPanel";
 import { SectionDivider } from "@/components/SectionDivider";
 import { EmptyPeriod } from "@/components/EmptyPeriod";
 import { useDashboardData } from "@/data/liveData";
@@ -135,6 +136,7 @@ function Kpis() {
         ]}
       />
     }>
+      <SupabaseMetricsPanel />
       {!kpisMes ? (
         <EmptyPeriod section="KPIs & Iniciativas" mes={mesLargo(mesActivo)} />
       ) : (
