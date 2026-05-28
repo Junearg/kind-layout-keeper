@@ -316,14 +316,22 @@ export async function upsertClientesInBatches(
   onLog?.(`──────────────────────────────────`);
 
 
-  // Deduplicate by (id_cuenta_dash, mes_exportacion).
-  // Postgres rejects ON CONFLICT when the same conflict key appears twice en un statement.
+  // Clave de dedupe: ID HubSpot (preferido) o ID Cuenta dash como fallback, + mes_exportacion.
+  const dedupeKeyOf = (row: Record<string, unknown>): string => {
+    const hub = row.id_hubspot;
+    const dash = row.id_cuenta_dash;
+    const idPart = hub != null && hub !== ""
+      ? `H:${String(hub).trim()}`
+      : `D:${String(dash ?? "").trim()}`;
+    return `${idPart}__${row.mes_exportacion}`;
+  };
+
   // Prioridad: Activo (2) > Bloqueado (1) > null/empty/otro (0).
   const dedupMap = new Map<string, Record<string, unknown>>();
   const seenCount = new Map<string, number>();
   const activeKeysInRaw = new Set<string>();
   for (const row of rows) {
-    const key = `${row.id_cuenta_dash}__${row.mes_exportacion}`;
+    const key = dedupeKeyOf(row);
     seenCount.set(key, (seenCount.get(key) || 0) + 1);
     if (estadoPriority(row.estado_dash) === 2) activeKeysInRaw.add(key);
     const existing = dedupMap.get(key);
@@ -337,13 +345,13 @@ export async function upsertClientesInBatches(
   const activeKeysAfterDedupe = new Set(
     deduped
       .filter((row) => estadoPriority(row.estado_dash) === 2)
-      .map((row) => `${row.id_cuenta_dash}__${row.mes_exportacion}`),
+      .map((row) => dedupeKeyOf(row)),
   );
   const lostActiveKeys = Array.from(activeKeysInRaw).filter((key) => !activeKeysAfterDedupe.has(key));
   if (lostActiveKeys.length > 0) {
     throw new Error(
       `Dedupe inválido: se perdieron ${lostActiveKeys.length} cuentas con estado_dash=Activo. ` +
-        `Ejemplos: ${lostActiveKeys.slice(0, 10).map((k) => k.split("__")[0]).join(", ")}`,
+        `Ejemplos: ${lostActiveKeys.slice(0, 10).join(", ")}`,
     );
   }
   const duplicateKeys = Array.from(seenCount.entries()).filter(([, n]) => n > 1);
@@ -359,15 +367,16 @@ export async function upsertClientesInBatches(
   };
 
   onLog?.(
-    `IDs duplicados en el Excel: ${duplicateKeys.length} claves repetidas ` +
-    `(${duplicateRowsRemoved} filas extra descartadas en dedupe).`,
+    `Dedupe por ID HubSpot (fallback ID Cuenta dash) + mes. ` +
+    `Claves duplicadas: ${duplicateKeys.length} ` +
+    `(${duplicateRowsRemoved} filas extra descartadas).`,
   );
   if (duplicateKeys.length > 0) {
     const sample = duplicateKeys
       .slice(0, 10)
       .map(([k, n]) => `${k.split("__")[0]}×${n}`)
       .join(", ");
-    onLog?.(`Ejemplos de IDs repetidos: ${sample}${duplicateKeys.length > 10 ? "…" : ""}`);
+    onLog?.(`Ejemplos de claves repetidas: ${sample}${duplicateKeys.length > 10 ? "…" : ""}`);
   }
   onLog?.(
     `Tras dedupe por prioridad → Activo: ${activeKeysAfterDedupe.size} · ` +
@@ -375,6 +384,17 @@ export async function upsertClientesInBatches(
       `vacío/otro: ${deduped.filter((row) => estadoPriority(row.estado_dash) === 0).length}`,
   );
   onLog?.(`Inicio: ${rows.length} leídas, ${total} únicas tras dedupe. Batch=${batchSize}.`);
+
+  // Borrar filas previas del/los mes(es) presentes en este import antes de insertar.
+  const mesesAfectados = Array.from(new Set(deduped.map((r) => String(r.mes_exportacion))));
+  for (const mes of mesesAfectados) {
+    const { error: delErr } = await supabase.from("clientes").delete().eq("mes_exportacion", mes);
+    if (delErr) {
+      onLog?.(`No se pudieron borrar filas previas de ${mes}: ${delErr.message}`);
+    } else {
+      onLog?.(`Borradas filas previas de ${mes}.`);
+    }
+  }
 
   for (let i = 0; i < total; i += batchSize) {
     const batch = deduped.slice(i, i + batchSize);
@@ -387,7 +407,7 @@ export async function upsertClientesInBatches(
       attempts++;
       const { error } = await supabase
         .from("clientes")
-        .upsert(batch as never, { onConflict: "id_cuenta_dash,mes_exportacion" });
+        .insert(batch as never);
       if (!error) {
         ok = true;
         break;
@@ -398,16 +418,7 @@ export async function upsertClientesInBatches(
     }
 
     if (ok) {
-      summary.totalInserted += batch.length;
-      summary.batches.push({ batch: batchNum, uploaded: batch.length, failed: 0, attempts });
-      onLog?.(`Batch ${batchNum} completado: ${batch.length} filas subidas, error: 0 (intentos: ${attempts})`);
-    } else {
-      summary.totalFailed += batch.length;
-      summary.batches.push({ batch: batchNum, uploaded: 0, failed: batch.length, attempts, error: lastError });
-      onLog?.(`Batch ${batchNum} completado: 0 filas subidas, error: ${batch.length} (tras ${attempts} intentos) — ${lastError}`);
-    }
-    onProgress(Math.min(i + batch.length, total), total);
-  }
+
 
 
 
