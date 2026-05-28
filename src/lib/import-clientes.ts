@@ -212,12 +212,13 @@ export async function parseClientesSheet(file: File | ArrayBuffer): Promise<Reco
   const ws = wb.Sheets[sheetName];
   if (!ws) throw new Error(`No se encontró la hoja "Base general" en el archivo.`);
 
-  // range from row 3 (index 2): row 3 has headers, row 4+ data
+  // range from row 2 (index 1): row 1 = "DATOS CHURN BASE", row 2 = headers, row 3+ = data
   const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
-    range: 2,
+    range: 1,
     defval: null,
     raw: true,
   });
+
 
   return rows;
 }
@@ -288,12 +289,14 @@ export async function upsertClientesInBatches(
   batchSize = 500,
   onLog?: (line: string) => void,
 ): Promise<ImportSummary> {
-  // Clave de dedupe: ID Cuenta (dash) + mes_exportacion. ID HubSpot es solo un atributo informativo.
+  // Clave de dedupe: SOLO ID Cuenta (dash). El archivo no tiene columna `mes`;
+  // mes_exportacion lo elige el usuario al importar y es el mismo para todas las filas.
   const dedupeKeyOf = (row: Record<string, unknown>): string => {
+
     const dash = row.id_cuenta_dash;
-    const idPart = `D:${String(dash ?? "").trim()}`;
-    return `${idPart}__${row.mes_exportacion}`;
+    return `D:${String(dash ?? "").trim()}`;
   };
+
 
   // ===== Análisis del Excel CRUDO (antes de cualquier dedupe / upsert) =====
   let nActivo = 0;
@@ -334,7 +337,20 @@ export async function upsertClientesInBatches(
   }
   let idsDuplicados = 0;
   for (const [, n] of apariciones) if (n > 1) idsDuplicados++;
-  dupMismoEstado = idsDuplicados - dupCambianEstado;
+  onLog?.(`──── Análisis del Excel crudo ────`);
+  onLog?.(`1) Total filas leídas: ${rows.length}`);
+  const distinctEstados = new Map<string, number>();
+  for (const row of rows) {
+    const raw = row.estado_dash;
+    const k = raw == null ? "(null)" : raw === "" ? "(vacío)" : `"${String(raw).trim()}"`;
+    distinctEstados.set(k, (distinctEstados.get(k) || 0) + 1);
+  }
+  const distinctSample = Array.from(distinctEstados.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 15)
+    .map(([k, v]) => `${k}×${v}`)
+    .join(", ");
+  onLog?.(`   Valores distintos en estado_dash (${distinctEstados.size}): ${distinctSample}`);
 
   onLog?.(`──── Análisis del Excel crudo ────`);
   onLog?.(`1) Total filas leídas: ${rows.length}`);
