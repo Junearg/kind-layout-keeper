@@ -135,5 +135,4 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   if (!user) return <LoginScreen />;
   return <>{children}</>;
 }
-  );
-}
+
