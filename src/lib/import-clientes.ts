@@ -192,9 +192,18 @@ export async function upsertClientesInBatches(
   onProgress: (uploaded: number, total: number) => void,
   batchSize = 500
 ): Promise<void> {
-  const total = rows.length;
+  // Deduplicate by (id_cuenta_dash, mes_exportacion) — keep the LAST occurrence.
+  // Postgres rejects ON CONFLICT when the same conflict key appears twice in one statement.
+  const dedupMap = new Map<string, Record<string, unknown>>();
+  for (const row of rows) {
+    const key = `${row.id_cuenta_dash}__${row.mes_exportacion}`;
+    dedupMap.set(key, row);
+  }
+  const deduped = Array.from(dedupMap.values());
+
+  const total = deduped.length;
   for (let i = 0; i < total; i += batchSize) {
-    const batch = rows.slice(i, i + batchSize);
+    const batch = deduped.slice(i, i + batchSize);
     const { error } = await supabase
       .from("clientes")
       .upsert(batch as never, { onConflict: "id_cuenta_dash,mes_exportacion" });
@@ -204,3 +213,4 @@ export async function upsertClientesInBatches(
     onProgress(Math.min(i + batch.length, total), total);
   }
 }
+
