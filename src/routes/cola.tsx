@@ -42,7 +42,10 @@ function ScoreRing({ score, color }: { score: number; color: string }) {
   );
 }
 
-function QueueCard({ a, contacted, onToggle }: { a: HealthAccount; contacted: boolean; onToggle: () => void }) {
+function QueueCard({ a, contacted, onToggle, tierColor, flagColor }: {
+  a: HealthAccount; contacted: boolean; onToggle: () => void;
+  tierColor: (t: string) => string; flagColor: (f: string) => string;
+}) {
   const color = tierColor(a.tier);
   return (
     <div className="card" style={{ display: "flex", alignItems: "center", gap: 18, borderLeft: `4px solid ${color}`, padding: 18 }}>
@@ -77,6 +80,22 @@ function QueueCard({ a, contacted, onToggle }: { a: HealthAccount; contacted: bo
     </div>
   );
 }
+
+function Cola() {
+  const legacy = useDashboardData();
+  const colaMes = useColaMes();
+  const mesActivo = useMesActivo();
+  const { selectedPeriod } = usePeriod();
+  const { data: scored = [] } = useSupabaseScoredAccounts(selectedPeriod);
+
+  const healthAccounts = scored.length ? scored : legacy.healthAccounts;
+  const tierDist = scored.length ? tierDistFromScored(scored) : legacyTierDist;
+  const riskFlagDist = scored.length ? riskFlagDistFromScored(scored) : legacyFlagDist;
+  const tierColor = (t: string) => tierDist.find((x) => x.tier === t)?.color ?? "#6E6D66";
+  const flagColor = (f: string) => riskFlagDist.find((r) => r.flag === f)?.color ?? "#6E6D66";
+
+  const [filter, setFilter] = useState<FilterKey>("Todos");
+  const [contactedSet, setContactedSet] = useState<Set<number>>(new Set());
 
 function Cola() {
   const { healthAccounts } = useDashboardData();
