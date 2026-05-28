@@ -231,7 +231,7 @@ export function useDerived() {
       // misc
       lastUpdate,
     };
-  }, [data, dataset, mesActivo, forecastAuto]);
+  }, [data, dataset, mesActivo, forecastAuto, trendRate]);
 }
 
 export type Derived = ReturnType<typeof useDerived>;
