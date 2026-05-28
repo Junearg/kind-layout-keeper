@@ -13,8 +13,10 @@ const TABS = [
   { to: "/nps",       label: "NPS" },
   { to: "/health",    label: "Health Score" },
   { to: "/cola",      label: "Cola CS" },
+  { to: "/contactos", label: "Contactos" },
   { to: "/kpis",      label: "KPIs" },
   { to: "/importar",  label: "Importar" },
+
 ] as const;
 
 export function Layout({ children, actions }: { children: ReactNode; actions?: ReactNode }) {
