@@ -317,9 +317,10 @@ export function useDerived() {
     const closedMonthsLabel = firstClosed && latestClosed
       ? `${stripStar(firstClosed.mes)}→${stripStar(latestClosed.mes)} · ${closed.length} meses`
       : null;
-    const periodLabel = churnTrend.length
-      ? `${stripStar(churnTrend[0]!.mes)}–${stripStar(churnTrend[churnTrend.length - 1]!.mes)}`
+    const periodLabel = trendRate.points.length
+      ? `${stripStar(trendRate.points[0]!.mes)}–${stripStar(trendRate.points[trendRate.points.length - 1]!.mes)}`
       : "";
+
 
     // Ratio de altos detractores por costo (sumamos % de "costo" en detracción)
     const detrCostoPct = motivosDetraccion
