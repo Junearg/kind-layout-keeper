@@ -12,7 +12,8 @@ type Props = {
 
 export function ExportButton({
   filename = "fudo-churn-center.xlsx",
-  label = "Exportar todo (XLSX)",
+  label = "Exportar",
+
 }: Props) {
   const [busy, setBusy] = useState(false);
 
