@@ -90,26 +90,54 @@ function Resumen() {
           </div>
         </div>
 
-        {/* Métricas calidad */}
+        {/* NPS por país + general */}
         <div className="card lg">
           <div className="card-head">
             <div>
-              <div className="card-eyebrow">Métricas calidad</div>
-              <div className="card-title">{nfmt(r.npsResponses)} respuestas NPS</div>
+              <div className="card-eyebrow">NPS por país</div>
+              <div className="card-title">{nfmt(r.npsResponses)} respuestas</div>
             </div>
             <div className="arrow-up">⌁</div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginTop: 24 }}>
-            <Q1Metric label="NPS" value={r.npsScore.toFixed(2)} tone="orange" />
-            <Q1Metric label="CSAT" value={r.csatAvg != null ? `${r.csatAvg.toFixed(2)}/5` : "—"} tone="ink" />
-            <Q1Metric label="CVR" value={`${r.cvr.toFixed(1)}%`} tone="cream" />
+
+          {/* NPS general */}
+          <div style={{
+            display: "grid", gridTemplateColumns: "auto 1fr", gap: 14,
+            alignItems: "center", marginTop: 18,
+            padding: "14px 14px", borderRadius: 14,
+            background: "var(--orange)", color: "white",
+          }}>
+            <div>
+              <div className="fs-11" style={{ opacity: 0.8 }}>NPS GENERAL</div>
+              <div className="mono" style={{ fontSize: 28, fontWeight: 500, lineHeight: 1 }}>
+                {r.npsScore.toFixed(1)}
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, opacity: 0.95 }}>
+              <div className="mono">(P − D) / N × 100</div>
+              <div className="mono">
+                ({nfmt(r.npsPromotores)} − {nfmt(r.npsDetractores)}) / {nfmt(r.npsResponses)} × 100
+              </div>
+              <div style={{ display: "flex", gap: 10, marginTop: 2 }}>
+                <span>P {nfmt(r.npsPromotores)}</span>
+                <span>Pa {nfmt(r.npsPasivos)}</span>
+                <span>D {nfmt(r.npsDetractores)}</span>
+              </div>
+            </div>
           </div>
-          <div className="mt-16 muted fs-12">
-            {r.npsBest && r.npsWorst
-              ? `${r.npsBest.pais} lidera · ${r.npsWorst.pais} bajo objetivo`
-              : "sin segmentación por país"}
+
+          {/* NPS por país */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 14 }}>
+            {r.npsByPais.length === 0 ? (
+              <div className="muted fs-12">Sin segmentación por país (n &lt; 10)</div>
+            ) : (
+              [...r.npsByPais].sort((a, b) => b.nps - a.nps).map((p) => (
+                <NpsPaisRow key={p.pais} pais={p.pais} nps={p.nps} n={p.n} />
+              ))
+            )}
           </div>
         </div>
+
 
         {/* Cuentas activas */}
         <div className="card lg">
@@ -159,6 +187,25 @@ function AlertBanner({ tone, text, to }: { tone: "red" | "amber"; text: string; 
     </Link>
   );
 }
+function NpsPaisRow({ pais, nps, n }: { pais: string; nps: number; n: number }) {
+  // Escala visual: -100 a 100 → 0 a 100% del ancho, con 50% como cero
+  const pct = Math.max(0, Math.min(100, (nps + 100) / 2));
+  const color = nps >= 50 ? "var(--green, #2f7d4f)" : nps >= 0 ? "var(--orange)" : "var(--red)";
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 70px", alignItems: "center", gap: 10, fontSize: 12 }}>
+      <span style={{ color: "var(--ink-2)" }}>{pais}</span>
+      <div style={{ position: "relative", height: 6, background: "var(--paper-2)", borderRadius: 99 }}>
+        <div style={{ position: "absolute", left: "50%", top: -2, width: 1, height: 10, background: "var(--rule-2)" }} />
+        <div style={{ position: "absolute", left: `${Math.min(50, pct)}%`, width: `${Math.abs(pct - 50)}%`, top: 0, bottom: 0, background: color, borderRadius: 99 }} />
+      </div>
+      <span className="mono" style={{ textAlign: "right" }}>
+        <span style={{ color: "var(--ink)", fontWeight: 500 }}>{nps.toFixed(1)}</span>
+        <span className="muted" style={{ marginLeft: 4, fontSize: 10 }}>n={n}</span>
+      </span>
+    </div>
+  );
+}
+
 
 function Q1Metric({ label, value, tone }: { label: string; value: string; tone: "orange" | "ink" | "cream" }) {
   const bg = tone === "orange" ? "var(--orange)" : tone === "ink" ? "var(--ink)" : "var(--paper-2)";
