@@ -11,6 +11,13 @@ const TIER_COLORS: Record<Tier, string> = {
 
 const MES_CORTO = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 
+// Motivos operacionales internos (no son churn real de cliente).
+// Se excluyen de todos los conteos / tendencias / proyecciones de churn.
+const OPERATIONAL_MOTIVOS = new Set(["CHANGE_METHOD", "CHANGE_FREQUENCY"]);
+function isOperationalChurn(motivo: string | null | undefined): boolean {
+  return motivo != null && OPERATIONAL_MOTIVOS.has(motivo.trim().toUpperCase());
+}
+
 type ScoreRow = {
   productos: number | null; usuarios: number | null;
   v_salon: number | null; v_delivery: number | null; v_mostrador: number | null;
