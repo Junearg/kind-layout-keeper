@@ -4,6 +4,7 @@ import {
   mapRowsToClientes,
   upsertClientesInBatches,
 } from "@/lib/import-clientes";
+import { usePeriod } from "@/contexts/PeriodContext";
 
 type Phase = "idle" | "ready" | "reading" | "uploading" | "done" | "error";
 
