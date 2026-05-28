@@ -97,21 +97,27 @@ async function fetchTrendRate(mesActivo: string): Promise<TrendRate> {
     if (k > mesActivo) continue;
     byMonth.set(k, (byMonth.get(k) ?? 0) + 1);
   }
-  // Últimos 7 meses con bajas registradas (ascendente).
-  const closedKeys = Array.from(byMonth.keys()).sort().slice(-7);
+  // Últimos 6 meses con bajas registradas (ascendente).
+  const closedKeys = Array.from(byMonth.keys()).sort().slice(-6);
   if (closedKeys.length === 0) return emptyTrend();
 
   // 3. Cuentas activas (estado_dash=Activo) en CADA snapshot mes_exportacion
   //    correspondiente al fin de cada mes cerrado. Counts paralelos.
   const activeCounts = await Promise.all(
     closedKeys.map(async (k) => {
-      const { count, error } = await supabase
-        .from("clientes")
-        .select("*", { count: "exact", head: true })
-        .eq("mes_exportacion", k)
-        .eq("estado_dash", "Activo");
-      if (error) return [k, null] as const;
-      return [k, count ?? null] as const;
+      const [totalRes, activeRes] = await Promise.all([
+        supabase
+          .from("clientes")
+          .select("*", { count: "exact", head: true })
+          .eq("mes_exportacion", k),
+        supabase
+          .from("clientes")
+          .select("*", { count: "exact", head: true })
+          .eq("mes_exportacion", k)
+          .eq("estado_dash", "Activo"),
+      ]);
+      if (totalRes.error || activeRes.error || !totalRes.count) return [k, null] as const;
+      return [k, activeRes.count ?? 0] as const;
     }),
   );
   const activeByMonth = new Map<string, number | null>(activeCounts);
