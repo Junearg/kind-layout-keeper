@@ -15,6 +15,7 @@ import { Route as NpsRouteImport } from './routes/nps'
 import { Route as KpisRouteImport } from './routes/kpis'
 import { Route as ImportarRouteImport } from './routes/importar'
 import { Route as HealthRouteImport } from './routes/health'
+import { Route as ContactosRouteImport } from './routes/contactos'
 import { Route as ColaRouteImport } from './routes/cola'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
@@ -49,6 +50,11 @@ const HealthRoute = HealthRouteImport.update({
   path: '/health',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContactosRoute = ContactosRouteImport.update({
+  id: '/contactos',
+  path: '/contactos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ColaRoute = ColaRouteImport.update({
   id: '/cola',
   path: '/cola',
@@ -68,6 +74,7 @@ const ApiChatRoute = ApiChatRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/cola': typeof ColaRoute
+  '/contactos': typeof ContactosRoute
   '/health': typeof HealthRoute
   '/importar': typeof ImportarRoute
   '/kpis': typeof KpisRoute
@@ -79,6 +86,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cola': typeof ColaRoute
+  '/contactos': typeof ContactosRoute
   '/health': typeof HealthRoute
   '/importar': typeof ImportarRoute
   '/kpis': typeof KpisRoute
@@ -91,6 +99,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/cola': typeof ColaRoute
+  '/contactos': typeof ContactosRoute
   '/health': typeof HealthRoute
   '/importar': typeof ImportarRoute
   '/kpis': typeof KpisRoute
@@ -104,6 +113,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/cola'
+    | '/contactos'
     | '/health'
     | '/importar'
     | '/kpis'
@@ -115,6 +125,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/cola'
+    | '/contactos'
     | '/health'
     | '/importar'
     | '/kpis'
@@ -126,6 +137,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/cola'
+    | '/contactos'
     | '/health'
     | '/importar'
     | '/kpis'
@@ -138,6 +150,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ColaRoute: typeof ColaRoute
+  ContactosRoute: typeof ContactosRoute
   HealthRoute: typeof HealthRoute
   ImportarRoute: typeof ImportarRoute
   KpisRoute: typeof KpisRoute
@@ -191,6 +204,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HealthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/contactos': {
+      id: '/contactos'
+      path: '/contactos'
+      fullPath: '/contactos'
+      preLoaderRoute: typeof ContactosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cola': {
       id: '/cola'
       path: '/cola'
@@ -218,6 +238,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ColaRoute: ColaRoute,
+  ContactosRoute: ContactosRoute,
   HealthRoute: HealthRoute,
   ImportarRoute: ImportarRoute,
   KpisRoute: KpisRoute,
@@ -229,3 +250,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
