@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Layout } from "@/components/Layout";
-import { SupabaseMetricsPanel } from "@/components/SupabaseMetricsPanel";
+
 import { ExportButton } from "@/components/ExportButton";
 import { usePeriod, periodLabel } from "@/contexts/PeriodContext";
 import { useSupabaseResumen } from "@/data/supabase-resumen";
