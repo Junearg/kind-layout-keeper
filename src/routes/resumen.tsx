@@ -43,9 +43,8 @@ function Resumen() {
         ] : []}
       />
     }>
-      <SupabaseMetricsPanel />
-
       {!selectedPeriod ? null : isLoading ? (
+
         <div className="card" style={{ padding: 20 }}>Cargando datos de Supabase…</div>
       ) : error ? (
         <div className="card" style={{ padding: 20, color: "var(--red)" }}>Error: {(error as Error).message}</div>
