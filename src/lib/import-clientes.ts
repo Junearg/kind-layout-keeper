@@ -418,8 +418,16 @@ export async function upsertClientesInBatches(
     }
 
     if (ok) {
-
-
+      summary.totalInserted += batch.length;
+      summary.batches.push({ batch: batchNum, uploaded: batch.length, failed: 0, attempts });
+      onLog?.(`Batch ${batchNum} completado: ${batch.length} filas subidas, error: 0 (intentos: ${attempts})`);
+    } else {
+      summary.totalFailed += batch.length;
+      summary.batches.push({ batch: batchNum, uploaded: 0, failed: batch.length, attempts, error: lastError });
+      onLog?.(`Batch ${batchNum} completado: 0 filas subidas, error: ${batch.length} (tras ${attempts} intentos) — ${lastError}`);
+    }
+    onProgress(Math.min(i + batch.length, total), total);
+  }
 
 
   onLog?.(
