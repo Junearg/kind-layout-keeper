@@ -9,9 +9,10 @@ import { useMotivosMes, useResumenMes, useMesActivo } from "@/data/dataset-store
 import { mesLargo } from "@/data/schema";
 import {
   ResponsiveContainer, ComposedChart, Bar, Area, LabelList,
-  XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea,
+  XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, ErrorBar,
   PieChart, Pie, Cell,
 } from "recharts";
+
 
 export const Route = createFileRoute("/tendencia")({
   head: () => ({ meta: [{ title: "Tendencia · Churn Hub" }] }),
