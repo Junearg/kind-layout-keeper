@@ -206,8 +206,14 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
             <p className="sub">{hello.sub}</p>
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 12 }}>
+            {active !== "/importar" && (
+              <Link to="/importar" className="btn ghost" style={{ fontSize: 12 }}>
+                Importar
+              </Link>
+            )}
             {actions}
             {active !== "/importar" && <PeriodSelector />}
+
 
             <div className="stamp">
               última actualización<br />
