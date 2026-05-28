@@ -22,7 +22,7 @@ const TABS = [
 export function Layout({ children, actions }: { children: ReactNode; actions?: ReactNode }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const active = TABS.find((t) => pathname.startsWith(t.to))?.to ?? "/resumen";
+  const active: string = TABS.find((t) => pathname.startsWith(t.to))?.to ?? (pathname.startsWith("/importar") ? "/importar" : "/resumen");
   const d = useDerived();
   const { healthAccounts } = useDashboardData();
 
