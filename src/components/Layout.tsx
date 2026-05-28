@@ -193,6 +193,7 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 12 }}>
             {actions}
+            {active !== "/importar" && <PeriodSelector />}
             <MesSelector />
             <div className="stamp">
               última actualización<br />
