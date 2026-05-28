@@ -5,6 +5,7 @@ import { useDashboardData } from "@/data/liveData";
 import { useMesActivo, useMesesDisponibles, setMesActivo } from "@/data/dataset-store";
 import { mesLargo } from "@/data/schema";
 import { useAuth } from "@/lib/auth-context";
+import { usePeriod, periodLabel } from "@/contexts/PeriodContext";
 
 const TABS = [
   { to: "/resumen",   label: "Resumen" },
@@ -116,7 +117,10 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
       <div className="bg-decor">Churn · Churn · Churn ·</div>
       <div className="shell">
         <div className="topbar">
-          <div className="brand-mark">f</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div className="brand-mark">f</div>
+            {active !== "/importar" && <PeriodBadge />}
+          </div>
           <nav className="tabs">
             {TABS.map((t) => (
               <Link
@@ -189,6 +193,7 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 12 }}>
             {actions}
+            {active !== "/importar" && <PeriodSelector />}
             <MesSelector />
             <div className="stamp">
               última actualización<br />
@@ -288,6 +293,62 @@ function UserMenu() {
         </div>
       )}
     </div>
+  );
+}
+
+function PeriodBadge() {
+  const { selectedPeriod, loading } = usePeriod();
+  if (loading || !selectedPeriod) return null;
+  return (
+    <span
+      className="mono"
+      style={{
+        fontSize: 11,
+        padding: "3px 8px",
+        borderRadius: 999,
+        background: "rgba(240,90,40,0.10)",
+        color: "var(--orange)",
+        border: "1px solid rgba(240,90,40,0.25)",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        fontWeight: 600,
+      }}
+      title="Período activo (Supabase)"
+    >
+      {periodLabel(selectedPeriod)}
+    </span>
+  );
+}
+
+function PeriodSelector() {
+  const { selectedPeriod, availablePeriods, setSelectedPeriod, loading } = usePeriod();
+  if (loading) return null;
+  if (availablePeriods.length === 0) {
+    return (
+      <Link to="/importar" className="btn ghost" style={{ fontSize: 12 }}>
+        Importar datos
+      </Link>
+    );
+  }
+  return (
+    <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <span className="fs-11" style={{ color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+        Período (Supabase)
+      </span>
+      <select
+        value={selectedPeriod}
+        onChange={(e) => setSelectedPeriod(e.target.value)}
+        style={{
+          padding: "6px 10px", borderRadius: 8, border: "1px solid var(--rule-2)",
+          background: "var(--paper)", fontSize: 12.5, color: "var(--ink)",
+          fontFamily: "inherit", cursor: "pointer",
+        }}
+      >
+        {availablePeriods.map((p) => (
+          <option key={p} value={p}>{periodLabel(p)}</option>
+        ))}
+      </select>
+    </label>
   );
 }
 
