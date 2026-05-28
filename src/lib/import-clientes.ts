@@ -495,6 +495,7 @@ export async function replaceClientesInBatches(
       summary.totalFailed += batch.length;
       summary.batches.push({ batch: batchNum, uploaded: 0, failed: batch.length, attempts, error: lastError });
       onLog?.(`Batch ${batchNum} completado: 0 filas subidas, error: ${batch.length} (tras ${attempts} intentos) — ${lastError}`);
+      throw new Error(`La carga se detuvo en el batch ${batchNum}: ${lastError}`);
     }
     onProgress(Math.min(i + batch.length, total), total);
   }
