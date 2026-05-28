@@ -156,6 +156,17 @@ function normalizeText(v: unknown): string {
     .trim();
 }
 
+function normalizeHeaderKey(v: unknown): string {
+  return normalizeText(v)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("es-AR");
+}
+
+function firstColumnValue(row: Record<string, unknown>): unknown {
+  return Object.values(row)[0] ?? null;
+}
+
 function normalizeEstadoDash(v: unknown): string | null {
   const s = normalizeText(v);
   if (!s) return null;
@@ -217,18 +228,20 @@ export function mapRowsToClientes(
   rows: Record<string, unknown>[],
   mesExportacion: string
 ): Record<string, unknown>[] {
-  // Build header -> dbCol resolver tolerant to extra whitespace
+  // Build header -> dbCol resolver tolerant to whitespace/accents and force column A as ID Cuenta (dash).
   const normalizedMap = new Map<string, string>();
   for (const [k, v] of Object.entries(COLUMN_MAP)) {
-    normalizedMap.set(k.trim().toLowerCase(), v);
+    normalizedMap.set(normalizeHeaderKey(k), v);
   }
+  normalizedMap.set("id cuenta dash", "id_cuenta_dash");
+  normalizedMap.set("id cuenta (dash)", "id_cuenta_dash");
 
   const mapped: Record<string, unknown>[] = [];
   for (const row of rows) {
     const out: Record<string, unknown> = { mes_exportacion: mesExportacion };
     let hasAny = false;
     for (const [header, raw] of Object.entries(row)) {
-      const dbCol = normalizedMap.get(String(header).trim().toLowerCase());
+      const dbCol = normalizedMap.get(normalizeHeaderKey(header));
       if (!dbCol) continue;
       let value: unknown = raw;
       if (DATE_COLS.has(dbCol)) value = excelDateToISO(raw);
@@ -237,6 +250,13 @@ export function mapRowsToClientes(
       else if (typeof raw === "string") value = normalizeText(raw) || null;
       if (value !== null && value !== undefined && value !== "") hasAny = true;
       out[dbCol] = value;
+    }
+    if (out.id_cuenta_dash == null) {
+      const idFromColumnA = toNumber(firstColumnValue(row));
+      if (idFromColumnA != null) {
+        out.id_cuenta_dash = idFromColumnA;
+        hasAny = true;
+      }
     }
     // Skip totally empty rows o filas sin ID Cuenta (dash): es la clave lógica del import.
     if (!hasAny) continue;
