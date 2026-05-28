@@ -14,7 +14,327 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      clientes: {
+        Row: {
+          ad_combo: number | null
+          ad_lista_precio: number | null
+          ad_pc: number | null
+          ad_tablet: number | null
+          arqueos: number | null
+          cant_contactos: number | null
+          cantidad_cajas: number | null
+          cantidad_clientes: number | null
+          cantidad_proveedores: number | null
+          cantidad_turnos: number | null
+          carta_qr_habilitado: number | null
+          cat_gastos: number | null
+          cat_gastos_financiera: number | null
+          cat_ingredientes: number | null
+          cat_productos: number | null
+          comentarios_metabase: string | null
+          csat_cs_n: number | null
+          csat_cs_promedio: number | null
+          csat_onb_n: number | null
+          csat_onb_promedio: number | null
+          csat_periodo: string | null
+          descuentos: number | null
+          ejecutivo: string | null
+          estado_dash: string | null
+          etapa: string | null
+          fecha_baja: string | null
+          fiscal: number | null
+          gastos: number | null
+          gmv: number | null
+          id: string
+          id_cuenta_dash: number | null
+          id_hubspot: string | null
+          ing_con_costo: number | null
+          ing_con_stock: number | null
+          ing_en_recetas: number | null
+          ingredientes: number | null
+          menu_online_habilitado: number | null
+          mes_exportacion: string
+          mesas: number | null
+          meses_con_contacto: string | null
+          motivo_baja: string | null
+          motivo_metabase: string | null
+          motivos_contacto: string | null
+          movimientos_caja: number | null
+          nombre: string | null
+          nps_categoria: string | null
+          nps_motivo: string | null
+          nps_periodo: string | null
+          nps_score: number | null
+          nps_submotivo: string | null
+          pais: string | null
+          plan: string | null
+          pr_con_costo: number | null
+          pr_con_stock: number | null
+          primera_fecha_contacto: string | null
+          productos: number | null
+          propietario_hubspot: string | null
+          propinas: number | null
+          salas: number | null
+          sub_cat_gastos: number | null
+          sub_ing_en_recetas: number | null
+          submotivo_baja: string | null
+          temas_contacto: string | null
+          ultima_fecha_contacto: string | null
+          usuarios: number | null
+          v_delivery: number | null
+          v_didi: number | null
+          v_ifood: number | null
+          v_justo: number | null
+          v_menu_online: number | null
+          v_mostrador: number | null
+          v_pedidosya: number | null
+          v_rappi: number | null
+          v_salon: number | null
+          v_ubereats: number | null
+          ventas_con_clientes: number | null
+          ventas_deli_con_repartidor: number | null
+          ventas_pagadas_mp: number | null
+          zonas_delivery: number | null
+        }
+        Insert: {
+          ad_combo?: number | null
+          ad_lista_precio?: number | null
+          ad_pc?: number | null
+          ad_tablet?: number | null
+          arqueos?: number | null
+          cant_contactos?: number | null
+          cantidad_cajas?: number | null
+          cantidad_clientes?: number | null
+          cantidad_proveedores?: number | null
+          cantidad_turnos?: number | null
+          carta_qr_habilitado?: number | null
+          cat_gastos?: number | null
+          cat_gastos_financiera?: number | null
+          cat_ingredientes?: number | null
+          cat_productos?: number | null
+          comentarios_metabase?: string | null
+          csat_cs_n?: number | null
+          csat_cs_promedio?: number | null
+          csat_onb_n?: number | null
+          csat_onb_promedio?: number | null
+          csat_periodo?: string | null
+          descuentos?: number | null
+          ejecutivo?: string | null
+          estado_dash?: string | null
+          etapa?: string | null
+          fecha_baja?: string | null
+          fiscal?: number | null
+          gastos?: number | null
+          gmv?: number | null
+          id?: string
+          id_cuenta_dash?: number | null
+          id_hubspot?: string | null
+          ing_con_costo?: number | null
+          ing_con_stock?: number | null
+          ing_en_recetas?: number | null
+          ingredientes?: number | null
+          menu_online_habilitado?: number | null
+          mes_exportacion: string
+          mesas?: number | null
+          meses_con_contacto?: string | null
+          motivo_baja?: string | null
+          motivo_metabase?: string | null
+          motivos_contacto?: string | null
+          movimientos_caja?: number | null
+          nombre?: string | null
+          nps_categoria?: string | null
+          nps_motivo?: string | null
+          nps_periodo?: string | null
+          nps_score?: number | null
+          nps_submotivo?: string | null
+          pais?: string | null
+          plan?: string | null
+          pr_con_costo?: number | null
+          pr_con_stock?: number | null
+          primera_fecha_contacto?: string | null
+          productos?: number | null
+          propietario_hubspot?: string | null
+          propinas?: number | null
+          salas?: number | null
+          sub_cat_gastos?: number | null
+          sub_ing_en_recetas?: number | null
+          submotivo_baja?: string | null
+          temas_contacto?: string | null
+          ultima_fecha_contacto?: string | null
+          usuarios?: number | null
+          v_delivery?: number | null
+          v_didi?: number | null
+          v_ifood?: number | null
+          v_justo?: number | null
+          v_menu_online?: number | null
+          v_mostrador?: number | null
+          v_pedidosya?: number | null
+          v_rappi?: number | null
+          v_salon?: number | null
+          v_ubereats?: number | null
+          ventas_con_clientes?: number | null
+          ventas_deli_con_repartidor?: number | null
+          ventas_pagadas_mp?: number | null
+          zonas_delivery?: number | null
+        }
+        Update: {
+          ad_combo?: number | null
+          ad_lista_precio?: number | null
+          ad_pc?: number | null
+          ad_tablet?: number | null
+          arqueos?: number | null
+          cant_contactos?: number | null
+          cantidad_cajas?: number | null
+          cantidad_clientes?: number | null
+          cantidad_proveedores?: number | null
+          cantidad_turnos?: number | null
+          carta_qr_habilitado?: number | null
+          cat_gastos?: number | null
+          cat_gastos_financiera?: number | null
+          cat_ingredientes?: number | null
+          cat_productos?: number | null
+          comentarios_metabase?: string | null
+          csat_cs_n?: number | null
+          csat_cs_promedio?: number | null
+          csat_onb_n?: number | null
+          csat_onb_promedio?: number | null
+          csat_periodo?: string | null
+          descuentos?: number | null
+          ejecutivo?: string | null
+          estado_dash?: string | null
+          etapa?: string | null
+          fecha_baja?: string | null
+          fiscal?: number | null
+          gastos?: number | null
+          gmv?: number | null
+          id?: string
+          id_cuenta_dash?: number | null
+          id_hubspot?: string | null
+          ing_con_costo?: number | null
+          ing_con_stock?: number | null
+          ing_en_recetas?: number | null
+          ingredientes?: number | null
+          menu_online_habilitado?: number | null
+          mes_exportacion?: string
+          mesas?: number | null
+          meses_con_contacto?: string | null
+          motivo_baja?: string | null
+          motivo_metabase?: string | null
+          motivos_contacto?: string | null
+          movimientos_caja?: number | null
+          nombre?: string | null
+          nps_categoria?: string | null
+          nps_motivo?: string | null
+          nps_periodo?: string | null
+          nps_score?: number | null
+          nps_submotivo?: string | null
+          pais?: string | null
+          plan?: string | null
+          pr_con_costo?: number | null
+          pr_con_stock?: number | null
+          primera_fecha_contacto?: string | null
+          productos?: number | null
+          propietario_hubspot?: string | null
+          propinas?: number | null
+          salas?: number | null
+          sub_cat_gastos?: number | null
+          sub_ing_en_recetas?: number | null
+          submotivo_baja?: string | null
+          temas_contacto?: string | null
+          ultima_fecha_contacto?: string | null
+          usuarios?: number | null
+          v_delivery?: number | null
+          v_didi?: number | null
+          v_ifood?: number | null
+          v_justo?: number | null
+          v_menu_online?: number | null
+          v_mostrador?: number | null
+          v_pedidosya?: number | null
+          v_rappi?: number | null
+          v_salon?: number | null
+          v_ubereats?: number | null
+          ventas_con_clientes?: number | null
+          ventas_deli_con_repartidor?: number | null
+          ventas_pagadas_mp?: number | null
+          zonas_delivery?: number | null
+        }
+        Relationships: []
+      }
+      iniciativas: {
+        Row: {
+          area: string | null
+          descripcion: string | null
+          estado: string | null
+          id: string
+          impacto_esperado: string | null
+          mes_actualizacion: string | null
+          mes_creacion: string | null
+          numero: number | null
+          prioridad: string | null
+          timeline_semanas: string | null
+          titulo: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          area?: string | null
+          descripcion?: string | null
+          estado?: string | null
+          id?: string
+          impacto_esperado?: string | null
+          mes_actualizacion?: string | null
+          mes_creacion?: string | null
+          numero?: number | null
+          prioridad?: string | null
+          timeline_semanas?: string | null
+          titulo?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          area?: string | null
+          descripcion?: string | null
+          estado?: string | null
+          id?: string
+          impacto_esperado?: string | null
+          mes_actualizacion?: string | null
+          mes_creacion?: string | null
+          numero?: number | null
+          prioridad?: string | null
+          timeline_semanas?: string | null
+          titulo?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      kpis_targets: {
+        Row: {
+          direccion: string | null
+          id: string
+          nombre: string
+          target_3m: number | null
+          target_6m: number | null
+          unidad: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          direccion?: string | null
+          id?: string
+          nombre: string
+          target_3m?: number | null
+          target_6m?: number | null
+          unidad?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          direccion?: string | null
+          id?: string
+          nombre?: string
+          target_3m?: number | null
+          target_6m?: number | null
+          unidad?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
