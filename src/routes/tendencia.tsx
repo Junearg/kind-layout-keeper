@@ -21,7 +21,6 @@ export const Route = createFileRoute("/tendencia")({
 const nfmt = (n: number) => n.toLocaleString("es-AR");
 const pctfmt = (n: number, d = 2) => `${n.toFixed(d)}%`;
 
-const nfmt = (n: number) => n.toLocaleString("es-AR");
 
 function exportEmptyCsv() {
   const headers = ["dash_id", "pais", "plan", "fecha_baja", "responsable_asignacion"];
