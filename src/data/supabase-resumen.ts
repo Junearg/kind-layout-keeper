@@ -93,7 +93,7 @@ function monthLabel(key: string): string {
 }
 
 async function fetchResumen(period: string): Promise<ResumenData> {
-  const [activos, bajasRaw, nps, csat] = await Promise.all([
+  const [activos, bajasRaw, bajasTrendRaw, nps, csat] = await Promise.all([
     pageAll<ScoreRow>(() => supabase
       .from("clientes")
       .select("productos,usuarios,v_salon,v_delivery,v_mostrador,cant_contactos,nps_score,motivo_baja,motivo_metabase,estado_dash,pais")
@@ -103,6 +103,21 @@ async function fetchResumen(period: string): Promise<ResumenData> {
       const [y, m] = period.split("-").map(Number);
       const from = `${period}-01`;
       const toDate = new Date(y!, m!, 1); // first day of next month
+      const to = toDate.toISOString().slice(0, 10);
+      return supabase
+        .from("clientes")
+        .select("fecha_baja,motivo_baja,pais")
+        .eq("mes_exportacion", period)
+        .eq("estado_dash", "Bloqueado")
+        .gte("fecha_baja", from)
+        .lt("fecha_baja", to);
+    }),
+    // Trend de últimos 12 meses (incluye el período seleccionado)
+    pageAll<BajaRow>(() => {
+      const [y, m] = period.split("-").map(Number);
+      const fromDate = new Date(y!, (m! - 1) - 11, 1); // 12 meses atrás (inicio)
+      const from = fromDate.toISOString().slice(0, 10);
+      const toDate = new Date(y!, m!, 1); // primer día del mes siguiente al período
       const to = toDate.toISOString().slice(0, 10);
       return supabase
         .from("clientes")
@@ -123,6 +138,7 @@ async function fetchResumen(period: string): Promise<ResumenData> {
       .eq("mes_exportacion", period)
       .or("csat_cs_promedio.not.is.null,csat_onb_promedio.not.is.null")),
   ]);
+
 
   // Excluir churn operacional (cambios de método/frecuencia de pago) de TODO
   // conteo, trend, motivos, YTD, CVR y proyecciones derivadas.
