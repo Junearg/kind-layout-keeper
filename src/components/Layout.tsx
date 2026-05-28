@@ -8,18 +8,16 @@ import { useAuth } from "@/lib/auth-context";
 import { usePeriod, periodLabel } from "@/contexts/PeriodContext";
 
 const TABS = [
-  { to: "/resumen",   label: "Resumen" },
-  { to: "/tendencia", label: "Tendencia" },
-  { to: "/nps",       label: "NPS" },
+const TABS = [
+  { to: "/resumen",   label: "Dashboard" },
+  { to: "/tendencia", label: "Proyección" },
   { to: "/health",    label: "Health Score" },
-  { to: "/cola",      label: "Cola CS" },
-  { to: "/contactos", label: "Contactos" },
+  { to: "/contactos", label: "Contact Rate" },
+  { to: "/nps",       label: "NPS" },
   { to: "/csat",      label: "CSAT" },
-  { to: "/kpis",      label: "KPIs" },
-  { to: "/importar",  label: "Importar" },
-
-
+  { to: "/kpis",      label: "KPI´s" },
 ] as const;
+
 
 export function Layout({ children, actions }: { children: ReactNode; actions?: ReactNode }) {
   const { pathname } = useLocation();
