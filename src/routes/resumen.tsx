@@ -50,14 +50,6 @@ function Resumen() {
         <div className="card" style={{ padding: 20, color: "var(--red)" }}>Error: {(error as Error).message}</div>
       ) : !r ? null : (
       <>
-      {/* Alertas */}
-      {r.alertas.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
-          {r.alertas.map((a, i) => (
-            <AlertBanner key={i} tone={a.tone} text={a.titulo} to={a.link} />
-          ))}
-        </div>
-      )}
 
       {/* Bento 3 cols */}
       <div className="bento cols-3">
