@@ -87,8 +87,8 @@ export function ImportClientesPanel() {
       const mapped = mapRowsToClientes(raw, mes);
       setTotal(mapped.length);
       setUploaded(0);
-      appendLog(`Filas válidas (con ID HubSpot) tras mapeo: ${mapped.length}`);
-      if (mapped.length === 0) throw new Error("No se detectaron filas válidas con ID HubSpot.");
+      appendLog(`Filas válidas (con ID Cuenta dash) tras mapeo: ${mapped.length}`);
+      if (mapped.length === 0) throw new Error("No se detectaron filas válidas con ID Cuenta (dash).");
       setPhase("uploading");
       const result = await upsertClientesInBatches(
         mapped,
@@ -123,7 +123,7 @@ export function ImportClientesPanel() {
           </h2>
           <p className="fs-12" style={{ color: "var(--ink-3)", marginTop: 6, maxWidth: 720 }}>
             Subí el XLSX original con la hoja <span className="mono">Base general</span> (headers en fila 3).
-            Procesamos hasta ~70k filas y deduplicamos por <span className="mono">(ID HubSpot, mes)</span>.
+            Procesamos hasta ~70k filas y deduplicamos por <span className="mono">(ID Cuenta dash, mes)</span>.
           </p>
         </div>
       </div>
