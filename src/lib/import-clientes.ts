@@ -203,13 +203,30 @@ export function mapRowsToClientes(
   return mapped;
 }
 
+export type BatchLog = {
+  batch: number;
+  uploaded: number;
+  failed: number;
+  attempts: number;
+  error?: string;
+};
+
+export type ImportSummary = {
+  totalRead: number;
+  totalDeduped: number;
+  totalInserted: number;
+  totalFailed: number;
+  batches: BatchLog[];
+};
+
 export async function upsertClientesInBatches(
   rows: Record<string, unknown>[],
   onProgress: (uploaded: number, total: number) => void,
-  batchSize = 500
-): Promise<void> {
+  batchSize = 500,
+  onLog?: (line: string) => void,
+): Promise<ImportSummary> {
   // Deduplicate by (id_cuenta_dash, mes_exportacion) — keep the LAST occurrence.
-  // Postgres rejects ON CONFLICT when the same conflict key appears twice in one statement.
+  // Postgres rejects ON CONFLICT when the same conflict key appears twice en un statement.
   const dedupMap = new Map<string, Record<string, unknown>>();
   for (const row of rows) {
     const key = `${row.id_cuenta_dash}__${row.mes_exportacion}`;
@@ -218,15 +235,55 @@ export async function upsertClientesInBatches(
   const deduped = Array.from(dedupMap.values());
 
   const total = deduped.length;
+  const summary: ImportSummary = {
+    totalRead: rows.length,
+    totalDeduped: total,
+    totalInserted: 0,
+    totalFailed: 0,
+    batches: [],
+  };
+
+  onLog?.(`Inicio: ${rows.length} leídas, ${total} únicas tras dedupe. Batch=${batchSize}.`);
+
   for (let i = 0; i < total; i += batchSize) {
     const batch = deduped.slice(i, i + batchSize);
-    const { error } = await supabase
-      .from("clientes")
-      .upsert(batch as never, { onConflict: "id_cuenta_dash,mes_exportacion" });
-    if (error) {
-      throw new Error(`Error en lote ${i / batchSize + 1}: ${error.message}`);
+    const batchNum = i / batchSize + 1;
+    let attempts = 0;
+    let lastError = "";
+    let ok = false;
+
+    while (attempts < 3 && !ok) {
+      attempts++;
+      const { error } = await supabase
+        .from("clientes")
+        .upsert(batch as never, { onConflict: "id_cuenta_dash,mes_exportacion" });
+      if (!error) {
+        ok = true;
+        break;
+      }
+      lastError = error.message;
+      onLog?.(`Batch ${batchNum} intento ${attempts} falló: ${lastError}`);
+      // small backoff
+      await new Promise((r) => setTimeout(r, 300 * attempts));
+    }
+
+    if (ok) {
+      summary.totalInserted += batch.length;
+      summary.batches.push({ batch: batchNum, uploaded: batch.length, failed: 0, attempts });
+      onLog?.(`Batch ${batchNum} completado: ${batch.length} filas subidas, error: 0 (intentos: ${attempts})`);
+    } else {
+      summary.totalFailed += batch.length;
+      summary.batches.push({ batch: batchNum, uploaded: 0, failed: batch.length, attempts, error: lastError });
+      onLog?.(`Batch ${batchNum} completado: 0 filas subidas, error: ${batch.length} (tras ${attempts} intentos) — ${lastError}`);
     }
     onProgress(Math.min(i + batch.length, total), total);
   }
+
+  onLog?.(
+    `Final: leídas=${summary.totalRead}, únicas=${summary.totalDeduped}, ` +
+    `insertadas=${summary.totalInserted}, fallidas=${summary.totalFailed}.`,
+  );
+  return summary;
 }
+
 
