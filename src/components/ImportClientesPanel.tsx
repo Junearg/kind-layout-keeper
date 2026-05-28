@@ -13,7 +13,6 @@ function defaultMonth(): string {
   d.setMonth(d.getMonth() - 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
-
 export function ImportClientesPanel() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -23,6 +22,7 @@ export function ImportClientesPanel() {
   const [uploaded, setUploaded] = useState<number>(0);
   const [total, setTotal] = useState<number>(0);
   const [error, setError] = useState<string>("");
+  const { refresh, setSelectedPeriod } = usePeriod();
 
   const pct = useMemo(() => (total ? Math.round((uploaded / total) * 100) : 0), [uploaded, total]);
 
@@ -47,10 +47,15 @@ export function ImportClientesPanel() {
         setUploaded(u); setTotal(t);
       });
       setPhase("done");
+      // Refrescar el contexto de períodos y seleccionar el mes recién importado
+      await refresh();
+      setSelectedPeriod(mes);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error inesperado.");
       setPhase("error");
     }
+  }
+
   }
 
   return (
