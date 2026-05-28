@@ -188,12 +188,12 @@ export function ImportClientesPanel() {
             className="btn"
             type="button"
             onClick={handleConfirm}
-            disabled={!file || !mes || phase === "reading" || phase === "uploading"}
+            disabled={!fileBuffer || !mes || phase === "reading" || phase === "uploading"}
             style={{
-              background: !file || !mes ? "var(--ink-5)" : "var(--orange)",
+              background: !fileBuffer || !mes ? "var(--ink-5)" : "var(--orange)",
               color: "white",
-              cursor: !file || !mes ? "not-allowed" : "pointer",
-              opacity: !file || !mes ? 0.6 : 1,
+              cursor: !fileBuffer || !mes ? "not-allowed" : "pointer",
+              opacity: !fileBuffer || !mes ? 0.6 : 1,
             }}
           >
             {phase === "uploading" ? "Subiendo…" : phase === "reading" ? "Leyendo…" : "Importar a Supabase"}
