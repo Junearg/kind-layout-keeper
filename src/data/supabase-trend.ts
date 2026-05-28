@@ -116,14 +116,36 @@ async function fetchTrendRate(mesActivo: string): Promise<TrendRate> {
   );
   const activeByMonth = new Map<string, number | null>(activeCounts);
 
-  // 4. Construir puntos cerrados con base activa al INICIO del mes:
-  //    end-of-prev-snapshot si existe, sino end-of-this-snapshot + bajas.
-  const closed: TrendRatePoint[] = closedKeys.map((k, i) => {
+  // 4. Construir puntos cerrados con base activa al INICIO del mes.
+  //    Estrategia: 1) usar end-of-prev-snapshot si existe; 2) si no, usar
+  //    end-of-this-snapshot + bajas; 3) si tampoco existe ese snapshot,
+  //    reconstruir hacia atrás (end-of-mes-k = activeBase[mes-k+1]).
+  const activeBaseByKey = new Map<string, number>();
+  // Pasada 1: directo desde snapshots disponibles.
+  for (let i = 0; i < closedKeys.length; i++) {
+    const k = closedKeys[i]!;
     const bajasMes = byMonth.get(k) ?? 0;
     const prevKey = i > 0 ? closedKeys[i - 1]! : null;
     const endPrev = prevKey ? activeByMonth.get(prevKey) ?? null : null;
     const endThis = activeByMonth.get(k) ?? null;
-    const activeBase = endPrev != null ? endPrev : (endThis != null ? endThis + bajasMes : 0);
+    if (endPrev != null) activeBaseByKey.set(k, endPrev);
+    else if (endThis != null) activeBaseByKey.set(k, endThis + bajasMes);
+  }
+  // Pasada 2: reconstruir hacia atrás los que quedaron sin base.
+  for (let i = closedKeys.length - 2; i >= 0; i--) {
+    const k = closedKeys[i]!;
+    if (activeBaseByKey.has(k)) continue;
+    const nextKey = closedKeys[i + 1]!;
+    const nextBase = activeBaseByKey.get(nextKey);
+    if (nextBase == null) continue;
+    // end-of-mes-k = activeBase del mes siguiente.
+    // activeBase[k] = end-of-mes-k + bajas[k]
+    activeBaseByKey.set(k, nextBase + (byMonth.get(k) ?? 0));
+  }
+
+  const closed: TrendRatePoint[] = closedKeys.map((k) => {
+    const bajasMes = byMonth.get(k) ?? 0;
+    const activeBase = activeBaseByKey.get(k) ?? 0;
     const rate = activeBase > 0 ? (bajasMes / activeBase) * 100 : 0;
     return {
       mes: mesCorto(k),
