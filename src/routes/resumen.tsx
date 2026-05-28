@@ -113,17 +113,12 @@ function Resumen() {
                 {r.npsScore.toFixed(1)}
               </div>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, opacity: 0.95 }}>
-              <div className="mono">(P − D) / N × 100</div>
-              <div className="mono">
-                ({nfmt(r.npsPromotores)} − {nfmt(r.npsDetractores)}) / {nfmt(r.npsResponses)} × 100
-              </div>
-              <div style={{ display: "flex", gap: 10, marginTop: 2 }}>
-                <span>P {nfmt(r.npsPromotores)}</span>
-                <span>Pa {nfmt(r.npsPasivos)}</span>
-                <span>D {nfmt(r.npsDetractores)}</span>
-              </div>
+            <div style={{ display: "flex", gap: 12, fontSize: 11, opacity: 0.95 }}>
+              <span>P {nfmt(r.npsPromotores)}</span>
+              <span>Pa {nfmt(r.npsPasivos)}</span>
+              <span>D {nfmt(r.npsDetractores)}</span>
             </div>
+
           </div>
 
           {/* NPS por país */}
