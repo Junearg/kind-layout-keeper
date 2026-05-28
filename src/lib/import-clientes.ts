@@ -247,6 +247,17 @@ export async function upsertClientesInBatches(
     batches: [],
   };
 
+  onLog?.(
+    `IDs duplicados en el Excel: ${duplicateKeys.length} claves repetidas ` +
+    `(${duplicateRowsRemoved} filas extra descartadas en dedupe).`,
+  );
+  if (duplicateKeys.length > 0) {
+    const sample = duplicateKeys
+      .slice(0, 10)
+      .map(([k, n]) => `${k.split("__")[0]}×${n}`)
+      .join(", ");
+    onLog?.(`Ejemplos de IDs repetidos: ${sample}${duplicateKeys.length > 10 ? "…" : ""}`);
+  }
   onLog?.(`Inicio: ${rows.length} leídas, ${total} únicas tras dedupe. Batch=${batchSize}.`);
 
   for (let i = 0; i < total; i += batchSize) {
