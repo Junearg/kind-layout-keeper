@@ -90,26 +90,54 @@ function Resumen() {
           </div>
         </div>
 
-        {/* Métricas calidad */}
+        {/* NPS por país + general */}
         <div className="card lg">
           <div className="card-head">
             <div>
-              <div className="card-eyebrow">Métricas calidad</div>
-              <div className="card-title">{nfmt(r.npsResponses)} respuestas NPS</div>
+              <div className="card-eyebrow">NPS por país</div>
+              <div className="card-title">{nfmt(r.npsResponses)} respuestas</div>
             </div>
             <div className="arrow-up">⌁</div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginTop: 24 }}>
-            <Q1Metric label="NPS" value={r.npsScore.toFixed(2)} tone="orange" />
-            <Q1Metric label="CSAT" value={r.csatAvg != null ? `${r.csatAvg.toFixed(2)}/5` : "—"} tone="ink" />
-            <Q1Metric label="CVR" value={`${r.cvr.toFixed(1)}%`} tone="cream" />
+
+          {/* NPS general */}
+          <div style={{
+            display: "grid", gridTemplateColumns: "auto 1fr", gap: 14,
+            alignItems: "center", marginTop: 18,
+            padding: "14px 14px", borderRadius: 14,
+            background: "var(--orange)", color: "white",
+          }}>
+            <div>
+              <div className="fs-11" style={{ opacity: 0.8 }}>NPS GENERAL</div>
+              <div className="mono" style={{ fontSize: 28, fontWeight: 500, lineHeight: 1 }}>
+                {r.npsScore.toFixed(1)}
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, opacity: 0.95 }}>
+              <div className="mono">(P − D) / N × 100</div>
+              <div className="mono">
+                ({nfmt(r.npsPromotores)} − {nfmt(r.npsDetractores)}) / {nfmt(r.npsResponses)} × 100
+              </div>
+              <div style={{ display: "flex", gap: 10, marginTop: 2 }}>
+                <span>P {nfmt(r.npsPromotores)}</span>
+                <span>Pa {nfmt(r.npsPasivos)}</span>
+                <span>D {nfmt(r.npsDetractores)}</span>
+              </div>
+            </div>
           </div>
-          <div className="mt-16 muted fs-12">
-            {r.npsBest && r.npsWorst
-              ? `${r.npsBest.pais} lidera · ${r.npsWorst.pais} bajo objetivo`
-              : "sin segmentación por país"}
+
+          {/* NPS por país */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 14 }}>
+            {r.npsByPais.length === 0 ? (
+              <div className="muted fs-12">Sin segmentación por país (n &lt; 10)</div>
+            ) : (
+              [...r.npsByPais].sort((a, b) => b.nps - a.nps).map((p) => (
+                <NpsPaisRow key={p.pais} pais={p.pais} nps={p.nps} n={p.n} />
+              ))
+            )}
           </div>
         </div>
+
 
         {/* Cuentas activas */}
         <div className="card lg">
