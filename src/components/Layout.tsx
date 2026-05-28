@@ -178,7 +178,7 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
               </div>
             )}
           </div>
-          <div className="avatar">CS</div>
+          <UserMenu />
         </div>
 
         <div className="hello">
