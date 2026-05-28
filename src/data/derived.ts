@@ -326,16 +326,24 @@ export function useDerived() {
     const detrCostoPct = motivosDetraccion
       .filter((m) => /costo|precio/i.test(m.motivo))
       .reduce((s, m) => s + m.pct, 0);
-
     return {
       // tendencia
       latestClosed, prevClosed, firstClosed, firstProjected,
       latestClosedFull: latestClosed ? mesFull(latestClosed.mes) : "",
       ytdClosed, totalProjected, totalAllSeries,
-      monthDeltaPct, projectionDeltaPct,
+      monthDeltaPct, monthDeltaRatePts, projectionDeltaPct,
       accelFebToLatest, accelLabel,
       seriesGrowthPct, seriesGrowthLabel,
       closedMonthsLabel, periodLabel,
+
+      // tendencia rate-based (nuevo)
+      trendRate,
+      latestRate: trendRate.latestRate,
+      wmaRate: trendRate.wmaRate,
+      rateStdDev: trendRate.stdDev,
+      periodoEstimado: trendRate.periodoEstimado,
+
+
 
       // motivos
       sinMotivo, pctSinMotivo, totalCategorizadas,
