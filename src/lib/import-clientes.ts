@@ -316,41 +316,24 @@ export async function upsertClientesInBatches(
   onLog?.(`──────────────────────────────────`);
 
 
-  // Deduplicate by (id_cuenta_dash, mes_exportacion).
-  // Postgres rejects ON CONFLICT when the same conflict key appears twice en un statement.
-  // Prioridad: Activo (2) > Bloqueado (1) > null/empty/otro (0).
-  const dedupMap = new Map<string, Record<string, unknown>>();
-  const seenCount = new Map<string, number>();
-  const activeKeysInRaw = new Set<string>();
-  for (const row of rows) {
-    const key = `${row.id_cuenta_dash}__${row.mes_exportacion}`;
-    seenCount.set(key, (seenCount.get(key) || 0) + 1);
-    if (estadoPriority(row.estado_dash) === 2) activeKeysInRaw.add(key);
-    const existing = dedupMap.get(key);
-    if (!existing) {
-      dedupMap.set(key, row);
-    } else if (estadoPriority(row.estado_dash) > estadoPriority(existing.estado_dash)) {
-      dedupMap.set(key, row);
-    }
-    // Si la existente tiene prioridad >= la nueva, no se sobreescribe.
-  }
-  const deduped = Array.from(dedupMap.values());
-  const activeKeysAfterDedupe = new Set(
-    deduped
-      .filter((row) => estadoPriority(row.estado_dash) === 2)
-      .map((row) => `${row.id_cuenta_dash}__${row.mes_exportacion}`),
+  // No deduplicamos: cada fila del Excel se inserta tal cual.
+  // La tabla tiene `id` UUID con default gen_random_uuid(), así que cada fila
+  // recibe su propio identificador único. Para permitir re-imports del mismo mes
+  // sin acumular filas, borramos primero todo lo que haya de ese mes.
+  const mesesEnLote = Array.from(
+    new Set(rows.map((r) => r.mes_exportacion).filter((m): m is string => typeof m === "string" && m.length > 0)),
   );
-  const lostActiveKeys = Array.from(activeKeysInRaw).filter((key) => !activeKeysAfterDedupe.has(key));
-  if (lostActiveKeys.length > 0) {
-    throw new Error(
-      `Dedupe inválido: se perdieron ${lostActiveKeys.length} cuentas con estado_dash=Activo. ` +
-        `Ejemplos: ${lostActiveKeys.slice(0, 10).map((k) => k.split("__")[0]).join(", ")}`,
-    );
+  for (const mes of mesesEnLote) {
+    const { error: delErr } = await supabase.from("clientes").delete().eq("mes_exportacion", mes);
+    if (delErr) {
+      onLog?.(`No se pudo limpiar filas previas de ${mes}: ${delErr.message}`);
+    } else {
+      onLog?.(`Limpieza previa: filas existentes de ${mes} eliminadas.`);
+    }
   }
-  const duplicateKeys = Array.from(seenCount.entries()).filter(([, n]) => n > 1);
-  const duplicateRowsRemoved = duplicateKeys.reduce((sum, [, n]) => sum + (n - 1), 0);
 
-  const total = deduped.length;
+  const toInsert = rows;
+  const total = toInsert.length;
   const summary: ImportSummary = {
     totalRead: rows.length,
     totalDeduped: total,
@@ -359,26 +342,17 @@ export async function upsertClientesInBatches(
     batches: [],
   };
 
+  const nActivoIns = toInsert.filter((r) => estadoPriority(r.estado_dash) === 2).length;
+  const nBloqueadoIns = toInsert.filter((r) => estadoPriority(r.estado_dash) === 1).length;
+  const nOtroIns = total - nActivoIns - nBloqueadoIns;
   onLog?.(
-    `IDs duplicados en el Excel: ${duplicateKeys.length} claves repetidas ` +
-    `(${duplicateRowsRemoved} filas extra descartadas en dedupe).`,
+    `Sin dedupe → se insertarán ${total} filas tal cual. ` +
+      `Activo: ${nActivoIns} · Bloqueado: ${nBloqueadoIns} · vacío/otro: ${nOtroIns}.`,
   );
-  if (duplicateKeys.length > 0) {
-    const sample = duplicateKeys
-      .slice(0, 10)
-      .map(([k, n]) => `${k.split("__")[0]}×${n}`)
-      .join(", ");
-    onLog?.(`Ejemplos de IDs repetidos: ${sample}${duplicateKeys.length > 10 ? "…" : ""}`);
-  }
-  onLog?.(
-    `Tras dedupe por prioridad → Activo: ${activeKeysAfterDedupe.size} · ` +
-      `Bloqueado: ${deduped.filter((row) => estadoPriority(row.estado_dash) === 1).length} · ` +
-      `vacío/otro: ${deduped.filter((row) => estadoPriority(row.estado_dash) === 0).length}`,
-  );
-  onLog?.(`Inicio: ${rows.length} leídas, ${total} únicas tras dedupe. Batch=${batchSize}.`);
+  onLog?.(`Inicio: ${rows.length} leídas, ${total} a insertar. Batch=${batchSize}.`);
 
   for (let i = 0; i < total; i += batchSize) {
-    const batch = deduped.slice(i, i + batchSize);
+    const batch = toInsert.slice(i, i + batchSize);
     const batchNum = i / batchSize + 1;
     let attempts = 0;
     let lastError = "";
@@ -386,16 +360,13 @@ export async function upsertClientesInBatches(
 
     while (attempts < 3 && !ok) {
       attempts++;
-      const { error } = await supabase
-        .from("clientes")
-        .upsert(batch as never, { onConflict: "id_cuenta_dash,mes_exportacion" });
+      const { error } = await supabase.from("clientes").insert(batch as never);
       if (!error) {
         ok = true;
         break;
       }
       lastError = error.message;
       onLog?.(`Batch ${batchNum} intento ${attempts} falló: ${lastError}`);
-      // small backoff
       await new Promise((r) => setTimeout(r, 300 * attempts));
     }
 
@@ -410,6 +381,7 @@ export async function upsertClientesInBatches(
     }
     onProgress(Math.min(i + batch.length, total), total);
   }
+
 
   onLog?.(
     `Final: leídas=${summary.totalRead}, únicas=${summary.totalDeduped}, ` +
