@@ -189,11 +189,15 @@ export function ImportClientesPanel() {
                   Subiendo a Supabase: <span className="mono strong">{uploaded}/{total}</span> ({pct}%)
                 </>
               )}
-              {phase === "done" && (
-                <span style={{ color: "var(--green, #2e7d32)" }}>
-                  ✓ Carga completa: <span className="mono strong">{uploaded}</span> filas guardadas para <span className="mono">{mes}</span>.
+              {phase === "done" && summary && (
+                <span style={{ color: summary.failed === 0 ? "var(--green, #2e7d32)" : "var(--orange)" }}>
+                  ✓ Finalizado para <span className="mono">{mes}</span> · leídas:{" "}
+                  <span className="mono strong">{summary.read}</span> · insertadas:{" "}
+                  <span className="mono strong">{summary.inserted}</span>
+                  {summary.failed > 0 && <> · <span className="mono strong">fallidas: {summary.failed}</span></>}
                 </span>
               )}
+
             </div>
             <div style={{ height: 8, background: "var(--paper-2)", borderRadius: 999, overflow: "hidden" }}>
               <div
