@@ -10,7 +10,7 @@ import {
 } from "recharts";
 
 export const Route = createFileRoute("/csat")({
-  head: () => ({ meta: [{ title: "CSAT · Fudo Churn Center" }] }),
+  head: () => ({ meta: [{ title: "CSAT · Fudo Customer Center" }] }),
   component: CsatPage,
 });
 

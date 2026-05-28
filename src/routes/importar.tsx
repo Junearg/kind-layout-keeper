@@ -3,7 +3,7 @@ import { Layout } from "@/components/Layout";
 import { ImportClientesPanel } from "@/components/ImportClientesPanel";
 
 export const Route = createFileRoute("/importar")({
-  head: () => ({ meta: [{ title: "Importar · Fudo Churn Center" }] }),
+  head: () => ({ meta: [{ title: "Importar · Fudo Customer Center" }] }),
   component: ImportarPage,
 });
 

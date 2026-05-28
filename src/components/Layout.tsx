@@ -75,52 +75,52 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
 
   const HELLO: Record<string, { crumbs: string; h1: ReactNode; sub: string }> = {
     "/resumen": {
-      crumbs: `Fudo Churn Center · ${d.latestClosedFull || periodLabel}`,
+      crumbs: `Fudo Customer Center · ${d.latestClosedFull || periodLabel}`,
       h1: <>Fudo <span style={{ color: "var(--orange)" }}>Activity</span> Center</>,
 
       sub: `Análisis consolidado · ${periodLabel} · ${nfmt(d.activeAccounts)} cuentas activas`,
     },
     "/tendencia": {
-      crumbs: "Fudo Churn Center · Churn Rate",
+      crumbs: "Fudo Customer Center · Churn Rate",
       h1: <>Churn <span className="alt">Rate</span></>,
       sub: d.closedMonthsLabel
         ? `Bajas, motivos y proyección · ${d.closedMonthsLabel.split(" · ")[1] ?? ""} cerrados + ${d.totalProjected > 0 ? "proyección" : "sin proyección"}`
         : "Bajas, motivos y proyección",
     },
     "/nps": {
-      crumbs: "Fudo Churn Center · Voz del cliente",
+      crumbs: "Fudo Customer Center · Voz del cliente",
       h1: <>Net Promoter <span className="alt">Score</span></>,
       sub: `${nfmt(d.npsResponses)} respuestas · LATAM · ${periodLabel}`,
     },
     "/health": {
-      crumbs: "Fudo Churn Center · Health Score",
+      crumbs: "Fudo Customer Center · Health Score",
       h1: <>Salud de la <span className="alt">base</span></>,
       sub: `${nfmt(d.activeAccounts)} cuentas activas · scoring 0-100 · tiers + flags`,
     },
     "/cola": {
-      crumbs: "Fudo Churn Center · Workflow",
+      crumbs: "Fudo Customer Center · Workflow",
       h1: <>Cola de <span className="alt">trabajo</span></>,
       sub: "Priorización CS · cuentas en riesgo ordenadas por urgencia",
     },
     "/contactos": {
-      crumbs: "Fudo Churn Center · Contactos",
+      crumbs: "Fudo Customer Center · Contactos",
       h1: <>Contact <span className="alt">rate</span></>,
       sub: "Frecuencia de contacto CS por cuenta · contactos por mes activo",
     },
     "/csat": {
-      crumbs: "Fudo Churn Center · Voz del cliente",
+      crumbs: "Fudo Customer Center · Voz del cliente",
       h1: <>Customer <span className="alt">Satisfaction</span></>,
       sub: "CSAT Onboarding y Customer Success · score 1-5 por cuenta",
     },
 
     "/kpis": {
-      crumbs: "Fudo Churn Center · Iniciativas",
+      crumbs: "Fudo Customer Center · Iniciativas",
       h1: <>KPIs e <span className="alt">iniciativas</span></>,
       sub: "Targets a 3 y 6 meses · roadmap de retención",
     },
 
     "/importar": {
-      crumbs: "Fudo Churn Center · Datos",
+      crumbs: "Fudo Customer Center · Datos",
       h1: <>Importar <span className="alt">cuentas</span></>,
       sub: "Validación automática antes de cargar el snapshot mensual",
     },

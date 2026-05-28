@@ -1,4 +1,4 @@
-// Parses a multi-sheet workbook produced from the Fudo Churn Center
+// Parses a multi-sheet workbook produced from the Fudo Customer Center
 // template (the same shape the in-app exporter produces) and returns
 // dashboard overrides + the raw snapshot rows.
 

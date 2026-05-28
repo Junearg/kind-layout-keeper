@@ -12,7 +12,7 @@ import {
 } from "recharts";
 
 export const Route = createFileRoute("/resumen")({
-  head: () => ({ meta: [{ title: "Fudo Churn Center" }] }),
+  head: () => ({ meta: [{ title: "Fudo Customer Center" }] }),
   component: Resumen,
 });
 
