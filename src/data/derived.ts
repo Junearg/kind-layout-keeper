@@ -179,7 +179,8 @@ function buildTrendRate(dataset: DashboardDataset, mesActivo: string): TrendRate
 export function useDerived() {
   const data = useDashboardData();
   const { dataset, mesActivo } = useDatasetState();
-  const forecastAuto = useForecastAutoNext();
+  const forecastAuto = useForecastAutoNext(); // mantenido por compat (no se usa abajo)
+  void forecastAuto;
 
   return useMemo(() => {
     const {
@@ -187,23 +188,32 @@ export function useDerived() {
       tierDist, motivosDetraccion, motivosPromocion,
     } = data;
 
-    // ─── Tendencia mensual ───
-    const closed = churnTrend.filter((m) => !m.proyectado);
-    // Si forecast_auto está activo, reemplazamos el valor del primer mes proyectado.
-    const projected = churnTrend
-      .filter((m) => m.proyectado)
-      .map((m, i) => (i === 0 && forecastAuto !== null ? { ...m, bajas: forecastAuto } : m));
+    // ─── Tendencia rate-based (con WMA + compounding + banda de confianza) ───
+    const trendRate = buildTrendRate(dataset, mesActivo);
+    const closed = trendRate.closed.map((p) => ({
+      mes: p.mes, bajas: p.bajas, pctMotivo: null as number | null, proyectado: false,
+    }));
+    const projected = trendRate.projected.map((p) => ({
+      mes: `${p.mes}*`, bajas: p.bajas, pctMotivo: null as number | null, proyectado: true,
+    }));
     const latestClosed = closed[closed.length - 1] ?? null;
     const prevClosed = closed[closed.length - 2] ?? null;
     const firstClosed = closed[0] ?? null;
     const firstProjected = projected[0] ?? null;
 
-    const ytdClosed = closed.reduce((s, m) => s + (m.bajas ?? 0), 0);
-    const totalProjected = projected.reduce((s, m) => s + (m.bajas ?? 0), 0);
-    const totalAllSeries = ytdClosed + totalProjected;
+    const ytdClosed = trendRate.ytdActualClosed;
+    const totalProjected = trendRate.totalProjected;
+    const totalAllSeries = trendRate.periodoEstimado;
 
     const monthDeltaPct = latestClosed && prevClosed
       ? pctChange(latestClosed.bajas, prevClosed.bajas)
+      : null;
+
+    // Delta de TASA (puntos porcentuales) último cerrado vs anterior.
+    const latestRateP = trendRate.closed[trendRate.closed.length - 1] ?? null;
+    const prevRateP = trendRate.closed[trendRate.closed.length - 2] ?? null;
+    const monthDeltaRatePts = latestRateP && prevRateP
+      ? latestRateP.rate - prevRateP.rate
       : null;
 
     const projectionDeltaPct = firstProjected && latestClosed
@@ -220,15 +230,15 @@ export function useDerived() {
       : null;
 
     // Crecimiento de toda la serie (primero cerrado → último proyectado)
-    const seriesGrowthPct = firstClosed && (projected[projected.length - 1] ?? latestClosed)
-      ? pctChange(
-          (projected[projected.length - 1] ?? latestClosed)!.bajas,
-          firstClosed.bajas,
-        )
+    const lastProj = projected[projected.length - 1] ?? latestClosed;
+    const seriesGrowthPct = firstClosed && lastProj
+      ? pctChange(lastProj.bajas, firstClosed.bajas)
       : null;
+    const seriesLen = trendRate.points.length;
     const seriesGrowthLabel = seriesGrowthPct !== null
-      ? `${seriesGrowthPct >= 0 ? "+" : ""}${Math.round(seriesGrowthPct)}% en ${churnTrend.length - 1} meses`
+      ? `${seriesGrowthPct >= 0 ? "+" : ""}${Math.round(seriesGrowthPct)}% en ${Math.max(1, seriesLen - 1)} meses`
       : null;
+    void churnTrend; // legacy shape ya no se consume desde acá; se reconstruye desde trendRate
 
     // ─── Motivos / brecha ───
     const totalCategorizadas = motivosBaja.reduce((s, m) => s + m.n, 0);
