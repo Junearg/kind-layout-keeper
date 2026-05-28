@@ -56,8 +56,6 @@ export function ImportClientesPanel() {
     }
   }
 
-  }
-
   return (
     <section className="card" style={{ padding: 24 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
@@ -84,13 +82,28 @@ export function ImportClientesPanel() {
               if (f) { setFile(f); setPhase("ready"); setError(""); }
             }}
             disabled={phase === "reading" || phase === "uploading"}
+            style={{ display: "none" }}
           />
-          {file && (
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={() => inputRef.current?.click()}
+            disabled={phase === "reading" || phase === "uploading"}
+            style={{ background: "var(--paper-2)", border: "1px dashed var(--rule-2)" }}
+          >
+            📂 {file ? "Cambiar archivo" : "Seleccionar archivo .xlsx"}
+          </button>
+          {file ? (
             <span className="fs-12 mono" style={{ color: "var(--ink-2)" }}>
               {file.name} · {(file.size / 1024 / 1024).toFixed(1)} MB
             </span>
+          ) : (
+            <span className="fs-12" style={{ color: "var(--ink-3)" }}>
+              Ningún archivo seleccionado
+            </span>
           )}
         </div>
+
 
         {/* Step 2: month */}
         <label style={{ display: "flex", alignItems: "center", gap: 10 }}>
