@@ -4,10 +4,16 @@ import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
 import { SupabaseMetricsPanel } from "@/components/SupabaseMetricsPanel";
 import { EmptyPeriod } from "@/components/EmptyPeriod";
-import { tierDist, riskFlagDist, type HealthAccount } from "@/data/mockData";
+import { tierDist as legacyTierDist, riskFlagDist as legacyFlagDist, type HealthAccount } from "@/data/mockData";
 import { useDashboardData } from "@/data/liveData";
 import { useColaMes, useMesActivo } from "@/data/dataset-store";
 import { mesLargo } from "@/data/schema";
+import { usePeriod } from "@/contexts/PeriodContext";
+import {
+  useSupabaseScoredAccounts,
+  tierDistFromScored,
+  riskFlagDistFromScored,
+} from "@/data/supabase-health";
 
 export const Route = createFileRoute("/cola")({
   head: () => ({ meta: [{ title: "Cola CS · Churn Hub" }] }),
@@ -15,8 +21,6 @@ export const Route = createFileRoute("/cola")({
 });
 
 const tierClass = (t: string) => (t === "At Risk" ? "tier-AtRisk" : t);
-const tierColor = (t: string) => tierDist.find((x) => x.tier === t)?.color ?? "#6E6D66";
-const flagColor = (f: string) => riskFlagDist.find((r) => r.flag === f)?.color ?? "#6E6D66";
 
 type FilterKey = "Todos" | "Critical" | "At Risk" | "CaidaCritica" | "NpsDetractor";
 
@@ -38,7 +42,10 @@ function ScoreRing({ score, color }: { score: number; color: string }) {
   );
 }
 
-function QueueCard({ a, contacted, onToggle }: { a: HealthAccount; contacted: boolean; onToggle: () => void }) {
+function QueueCard({ a, contacted, onToggle, tierColor, flagColor }: {
+  a: HealthAccount; contacted: boolean; onToggle: () => void;
+  tierColor: (t: string) => string; flagColor: (f: string) => string;
+}) {
   const color = tierColor(a.tier);
   return (
     <div className="card" style={{ display: "flex", alignItems: "center", gap: 18, borderLeft: `4px solid ${color}`, padding: 18 }}>
@@ -75,11 +82,22 @@ function QueueCard({ a, contacted, onToggle }: { a: HealthAccount; contacted: bo
 }
 
 function Cola() {
-  const { healthAccounts } = useDashboardData();
+  const legacy = useDashboardData();
   const colaMes = useColaMes();
   const mesActivo = useMesActivo();
+  const { selectedPeriod } = usePeriod();
+  const { data: scored = [] } = useSupabaseScoredAccounts(selectedPeriod);
+
+  const healthAccounts = scored.length ? scored : legacy.healthAccounts;
+  const tierDist = scored.length ? tierDistFromScored(scored) : legacyTierDist;
+  const riskFlagDist = scored.length ? riskFlagDistFromScored(scored) : legacyFlagDist;
+  const tierColor = (t: string) => tierDist.find((x) => x.tier === t)?.color ?? "#6E6D66";
+  const flagColor = (f: string) => riskFlagDist.find((r) => r.flag === f)?.color ?? "#6E6D66";
+
   const [filter, setFilter] = useState<FilterKey>("Todos");
   const [contactedSet, setContactedSet] = useState<Set<number>>(new Set());
+
+
 
   const queue = useMemo(
     () => [...healthAccounts].filter((a) => a.csPrio >= 35).sort((a, b) => b.csPrio - a.csPrio),
@@ -133,7 +151,7 @@ function Cola() {
       />
     }>
       <SupabaseMetricsPanel />
-      {!colaMes ? (
+      {!colaMes && scored.length === 0 ? (
         <EmptyPeriod section="Cola CS" mes={mesLargo(mesActivo)} />
       ) : (
       <>
@@ -186,7 +204,7 @@ function Cola() {
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {criticos.map((a) => (
-              <QueueCard key={a.id} a={a} contacted={contactedSet.has(a.id)} onToggle={() => toggle(a.id)} />
+              <QueueCard key={a.id} a={a} contacted={contactedSet.has(a.id)} onToggle={() => toggle(a.id)} tierColor={tierColor} flagColor={flagColor} />
             ))}
           </div>
         </>
@@ -202,7 +220,7 @@ function Cola() {
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {resto.map((a) => (
-              <QueueCard key={a.id} a={a} contacted={contactedSet.has(a.id)} onToggle={() => toggle(a.id)} />
+              <QueueCard key={a.id} a={a} contacted={contactedSet.has(a.id)} onToggle={() => toggle(a.id)} tierColor={tierColor} flagColor={flagColor} />
             ))}
           </div>
         </>
