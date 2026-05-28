@@ -159,7 +159,7 @@ function excelDateToISO(v: unknown): string | null {
   const d = new Date(s);
   if (!isNaN(d.getTime())) return d.toISOString();
   // DD/MM/YYYY
-  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+  const m = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
   if (m) {
     const [, dd, mm, yyyy] = m;
     const year = yyyy.length === 2 ? 2000 + Number(yyyy) : Number(yyyy);
@@ -369,7 +369,7 @@ export async function replaceClientesInBatches(
     statesByKey.set(key, set);
   }
   const idsUnicos = statesByKey.size;
-  let dupMismoEstado = 0;
+  const dupMismoEstado = 0;
   let dupCambianEstado = 0;
   for (const [, set] of statesByKey) {
     // (solo cuentan los duplicados; las cuentas únicas se miden aparte abajo)
