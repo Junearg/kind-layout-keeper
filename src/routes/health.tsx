@@ -12,6 +12,12 @@ import { type HealthAccount } from "@/data/mockData";
 import { useDashboardData } from "@/data/liveData";
 import { useHealthMes, useMesActivo } from "@/data/dataset-store";
 import { mesLargo } from "@/data/schema";
+import { usePeriod } from "@/contexts/PeriodContext";
+import {
+  useSupabaseScoredAccounts,
+  tierDistFromScored,
+  riskFlagDistFromScored,
+} from "@/data/supabase-health";
 
 export const Route = createFileRoute("/health")({
   head: () => ({ meta: [{ title: "Health Score · Churn Hub" }] }),
@@ -42,9 +48,16 @@ function ScatterTooltip({ active, payload }: any) {
 }
 
 function Health() {
-  const { healthAccounts, tierDist, riskFlagDist } = useDashboardData();
+  const legacy = useDashboardData();
   const healthMes = useHealthMes();
   const mesActivo = useMesActivo();
+  const { selectedPeriod } = usePeriod();
+  const { data: scored = [] } = useSupabaseScoredAccounts(selectedPeriod);
+
+  // Si hay datos de Supabase para el período, son fuente de verdad.
+  const healthAccounts = scored.length ? scored : legacy.healthAccounts;
+  const tierDist = scored.length ? tierDistFromScored(scored) : legacy.tierDist;
+  const riskFlagDist = scored.length ? riskFlagDistFromScored(scored) : legacy.riskFlagDist;
   const tierColor = (t: string) => tierDist.find((x) => x.tier === t)?.color ?? TIER_COLORS[t] ?? "#6E6D66";
   const [tier, setTier] = useState<(typeof TIERS)[number]>("Todos");
 
