@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
-import { SupabaseMetricsPanel } from "@/components/SupabaseMetricsPanel";
 import { EmptyPeriod } from "@/components/EmptyPeriod";
 import { tierDist as legacyTierDist, riskFlagDist as legacyFlagDist, type HealthAccount } from "@/data/mockData";
 import { useDashboardData } from "@/data/liveData";
@@ -150,7 +149,6 @@ function Cola() {
         ]}
       />
     }>
-      <SupabaseMetricsPanel />
       {!colaMes && scored.length === 0 ? (
         <EmptyPeriod section="Cola CS" mes={mesLargo(mesActivo)} />
       ) : (
