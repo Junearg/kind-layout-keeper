@@ -1,0 +1,1 @@
+ALTER TABLE public.clientes DROP CONSTRAINT IF EXISTS clientes_id_cuenta_dash_mes_exportacion_key;
