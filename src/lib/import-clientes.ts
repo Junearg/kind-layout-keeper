@@ -147,6 +147,31 @@ function toNumber(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function normalizeText(v: unknown): string {
+  if (v == null) return "";
+  return String(v)
+    .normalize("NFKC")
+    .replace(/[\u00A0\u200B-\u200D\uFEFF]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeEstadoDash(v: unknown): string | null {
+  const s = normalizeText(v);
+  if (!s) return null;
+  const lower = s.toLocaleLowerCase("es-AR");
+  if (lower === "activo") return "Activo";
+  if (lower === "bloqueado") return "Bloqueado";
+  return s;
+}
+
+function estadoPriority(v: unknown): number {
+  const s = normalizeEstadoDash(v);
+  if (s === "Activo") return 2;
+  if (s === "Bloqueado") return 1;
+  return 0;
+}
+
 export type ImportProgress = {
   phase: "reading" | "uploading" | "done" | "error";
   totalRows: number;
@@ -191,7 +216,8 @@ export function mapRowsToClientes(
       let value: unknown = raw;
       if (DATE_COLS.has(dbCol)) value = excelDateToISO(raw);
       else if (NUMERIC_COLS.has(dbCol)) value = toNumber(raw);
-      else if (typeof raw === "string") value = raw.trim() || null;
+      else if (dbCol === "estado_dash") value = normalizeEstadoDash(raw);
+      else if (typeof raw === "string") value = normalizeText(raw) || null;
       if (value !== null && value !== undefined && value !== "") hasAny = true;
       out[dbCol] = value;
     }
@@ -290,20 +316,16 @@ export async function upsertClientesInBatches(
   onLog?.(`──────────────────────────────────`);
 
 
-  // Deduplicate by (id_cuenta_dash, mes_exportacion) — keep the LAST occurrence.
+  // Deduplicate by (id_cuenta_dash, mes_exportacion).
   // Postgres rejects ON CONFLICT when the same conflict key appears twice en un statement.
   // Prioridad: Activo (2) > Bloqueado (1) > null/empty/otro (0).
-  const estadoPriority = (v: unknown): number => {
-    const s = v == null ? "" : String(v).trim();
-    if (s === "Activo") return 2;
-    if (s === "Bloqueado") return 1;
-    return 0;
-  };
   const dedupMap = new Map<string, Record<string, unknown>>();
   const seenCount = new Map<string, number>();
+  const activeKeysInRaw = new Set<string>();
   for (const row of rows) {
     const key = `${row.id_cuenta_dash}__${row.mes_exportacion}`;
     seenCount.set(key, (seenCount.get(key) || 0) + 1);
+    if (estadoPriority(row.estado_dash) === 2) activeKeysInRaw.add(key);
     const existing = dedupMap.get(key);
     if (!existing) {
       dedupMap.set(key, row);
@@ -313,6 +335,18 @@ export async function upsertClientesInBatches(
     // Si la existente tiene prioridad >= la nueva, no se sobreescribe.
   }
   const deduped = Array.from(dedupMap.values());
+  const activeKeysAfterDedupe = new Set(
+    deduped
+      .filter((row) => estadoPriority(row.estado_dash) === 2)
+      .map((row) => `${row.id_cuenta_dash}__${row.mes_exportacion}`),
+  );
+  const lostActiveKeys = Array.from(activeKeysInRaw).filter((key) => !activeKeysAfterDedupe.has(key));
+  if (lostActiveKeys.length > 0) {
+    throw new Error(
+      `Dedupe inválido: se perdieron ${lostActiveKeys.length} cuentas con estado_dash=Activo. ` +
+        `Ejemplos: ${lostActiveKeys.slice(0, 10).map((k) => k.split("__")[0]).join(", ")}`,
+    );
+  }
   const duplicateKeys = Array.from(seenCount.entries()).filter(([, n]) => n > 1);
   const duplicateRowsRemoved = duplicateKeys.reduce((sum, [, n]) => sum + (n - 1), 0);
 
@@ -336,6 +370,11 @@ export async function upsertClientesInBatches(
       .join(", ");
     onLog?.(`Ejemplos de IDs repetidos: ${sample}${duplicateKeys.length > 10 ? "…" : ""}`);
   }
+  onLog?.(
+    `Tras dedupe por prioridad → Activo: ${activeKeysAfterDedupe.size} · ` +
+      `Bloqueado: ${deduped.filter((row) => estadoPriority(row.estado_dash) === 1).length} · ` +
+      `vacío/otro: ${deduped.filter((row) => estadoPriority(row.estado_dash) === 0).length}`,
+  );
   onLog?.(`Inicio: ${rows.length} leídas, ${total} únicas tras dedupe. Batch=${batchSize}.`);
 
   for (let i = 0; i < total; i += batchSize) {
