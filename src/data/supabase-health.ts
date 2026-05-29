@@ -40,10 +40,7 @@ function trendFromContacto(ultima: string | null): { trendDir: HealthAccount["tr
   return { trendDir: "flat", tendencia: "Estable" };
 }
 
-function normalizeNps(v: number | null | undefined): number | null {
-  if (v == null) return null;
-  return v > 10 ? v / 10 : v;
-}
+import { normalizeNps } from "@/data/supabase-resumen";
 
 function npsGrupo(score: number | null): string {
   if (score == null) return "—";

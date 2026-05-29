@@ -43,10 +43,12 @@ async function pageAll<T>(builder: () => any): Promise<T[]> {
   return out;
 }
 
+export const NPS_DB_SCALE = 10; // La DB guarda NPS en escala 0-100 (factor ×10)
+
 /** Normaliza NPS guardado como 0-100 (factor x10) a 0-10. */
-function normalizeNps(v: number | null | undefined): number | null {
+export function normalizeNps(v: number | null | undefined): number | null {
   if (v == null) return null;
-  return v > 10 ? v / 10 : v;
+  return v > NPS_DB_SCALE ? v / NPS_DB_SCALE : v;
 }
 /** Normaliza CSAT guardado como 0-500 (x100) a 0-5. */
 function normalizeCsat(v: number | null | undefined): number | null {
