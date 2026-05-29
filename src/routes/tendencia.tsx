@@ -338,7 +338,7 @@ function Tendencia() {
         <div className="card lg">
           <div className="card-eyebrow">Distribución de motivos</div>
           <div className="card-title" style={{ marginBottom: 12 }}>{nfmt(d.totalCategorizadas)} bajas categorizadas</div>
-          <div className="chart-wrap" style={{ height: 320, position: "relative", background: "white" }}>
+          <div className="chart-wrap" style={{ height: 480, position: "relative", background: "white" }}>
             <ResponsiveContainer>
               <PieChart>
                 <Pie
@@ -347,8 +347,8 @@ function Tendencia() {
                   nameKey="motivo"
                   cx="50%"
                   cy="50%"
-                  innerRadius={70}
-                  outerRadius={110}
+                  innerRadius={110}
+                  outerRadius={170}
                   paddingAngle={1}
                   stroke="white"
                   strokeWidth={2}
@@ -364,21 +364,12 @@ function Tendencia() {
               </PieChart>
             </ResponsiveContainer>
             <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none" }}>
-              <div style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 32, color: "#DC2626", lineHeight: 1, letterSpacing: "-0.03em" }}>{d.pctSinMotivo.toFixed(1)}%</div>
-              <div className="serif" style={{ fontSize: 16, color: "#DC2626", marginTop: 4 }}>sin motivo</div>
+              <div style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 44, color: "#DC2626", lineHeight: 1, letterSpacing: "-0.03em" }}>{d.pctSinMotivo.toFixed(1)}%</div>
+              <div className="serif" style={{ fontSize: 18, color: "#DC2626", marginTop: 6 }}>sin motivo</div>
             </div>
           </div>
-          <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            {motivosBaja.map((m) => (
-              <div key={m.motivo} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
-                <span className="tier-dot" style={{ background: m.color }} />
-                <span style={{ flex: 1, color: m.brecha ? "#DC2626" : "var(--ink-2)", fontWeight: m.brecha ? 500 : 400 }}>{m.motivo}</span>
-                <span className="mono muted">{m.n.toLocaleString()}</span>
-                <span className="mono" style={{ color: m.brecha ? "#DC2626" : "var(--ink-3)", width: 42, textAlign: "right" }}>{m.pct}%</span>
-              </div>
-            ))}
-          </div>
         </div>
+
 
 
         {/* Tabla */}
