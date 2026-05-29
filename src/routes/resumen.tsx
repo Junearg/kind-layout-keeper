@@ -113,7 +113,7 @@ function Resumen() {
 
       <div className="bento cols-2">
         <TrendCard trend={r.churnTrend} delta={r.monthDeltaPct} prevLabel={r.prevClosedLabel} latestLabel={r.latestClosedLabel} />
-        <MotivosDonutCard motivos={motivos6m} />
+        <MotivosDonutCard rows={insights6m?.rows ?? null} />
       </div>
       </>
       )}
