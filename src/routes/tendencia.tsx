@@ -202,9 +202,10 @@ function Tendencia() {
             </span>
           </div>
         </div>
-      </div>
 
 
+      {/* Segmentación */}
+      <SegmentacionChurn />
 
       {/* Fila 2 — Chart grande */}
       <div className="card lg">
