@@ -138,19 +138,25 @@ async function fetchResumen(period: string): Promise<ResumenData> {
     tier, count: tierCount[tier], pct: (tierCount[tier] / totalAct) * 100, color: TIER_COLORS[tier],
   }));
 
-  // --- Trend histórico: dedup por cliente y agrupar por fecha_baja real (no por mes_exportacion).
+  // --- Trend histórico: dedup por cliente, asignar mes por fecha_baja o por snapshot más antiguo.
+  // Todo Bloqueado es una baja real. Si tiene fecha_baja la usamos como mes de la baja.
+  // Si no tiene fecha_baja, el snapshot más antiguo donde aparece Bloqueado es el mejor proxy.
   const trendDedup = new Map<number, BajaRow>();
   for (const b of bajasAllRaw) {
-    if (!b.id) continue;
-    if (!trendDedup.has(b.id)) trendDedup.set(b.id, b);
+    if (!b.id || !b.mes_exportacion) continue;
+    const existing = trendDedup.get(b.id);
+    // Nos quedamos con el snapshot más antiguo (primer mes en que apareció como Bloqueado)
+    if (!existing || b.mes_exportacion < existing.mes_exportacion!) trendDedup.set(b.id, b);
   }
   const bajasAll = Array.from(trendDedup.values())
     .filter((b) => !isOperationalChurn(b.motivo_baja));
   const byMonthAll = new Map<string, { bajas: number; conMotivo: number }>();
   for (const b of bajasAll) {
-    if (!b.fecha_baja) continue;
-    const k = monthKey(new Date(b.fecha_baja));
-    if (k > period) continue;
+    // Prioridad: fecha_baja real → si no, mes_exportacion más antiguo como proxy
+    const k = b.fecha_baja
+      ? monthKey(new Date(b.fecha_baja))
+      : b.mes_exportacion!;
+    if (k > period) continue; // no incluir fechas futuras al período
     const slot = byMonthAll.get(k) ?? { bajas: 0, conMotivo: 0 };
     slot.bajas++;
     if (b.motivo_baja) slot.conMotivo++;
@@ -186,8 +192,9 @@ async function fetchResumen(period: string): Promise<ResumenData> {
       proyectado: false,
     };
   });
-  // Solo contamos Bloqueados con fecha_baja en el mes del período.
-  // Activos con fecha_baja NO son bajas reales y nunca llegan aquí (filtrado por estado_dash).
+  // Bajas del mes: Bloqueados con fecha_baja en el período, más los sin fecha asignados
+  // al primer snapshot en que aparecen como Bloqueado (proxy del mes real de baja).
+  // Activos con fecha_baja nunca llegan aquí (filtrado por estado_dash = Bloqueado).
   const bajasMesActual = byMonthAll.get(latest)?.bajas ?? 0;
   const bajasMesPrev = prev ? (byMonthAll.get(prev)?.bajas ?? 0) : 0;
   const monthDeltaPct = bajasMesPrev ? ((bajasMesActual - bajasMesPrev) / bajasMesPrev) * 100 : null;
