@@ -228,11 +228,11 @@ function Nps() {
               <YAxis type="category" dataKey="plan" tick={{ fontSize: 12, fill: "#2B2B27" }} axisLine={false} tickLine={false} width={90} />
               <Tooltip
                 contentStyle={{ fontSize: 12 }}
-                formatter={(v: number, _n, p) => [`NPS ${Number(v).toFixed(1)} · n=${(p?.payload as any)?.n ?? ""}`, "NPS"]}
+                formatter={(v: any, _n: any, p: any) => [`NPS ${Number(v).toFixed(1)} · n=${p?.payload?.n ?? ""}`, "NPS"]}
               />
               <Bar dataKey="nps" radius={[0, 6, 6, 0]}>
                 {npsData.npsPlan.map((p, i) => (
-                  <NpsBarCell key={i} fill={npsColor(p.nps)} />
+                  <Cell key={i} fill={npsColor(p.nps)} />
                 ))}
                 <LabelList dataKey="nps" position="right" formatter={(v: any) => Number(v).toFixed(1)} style={{ fontSize: 11, fill: "#2B2B27" }} />
               </Bar>
