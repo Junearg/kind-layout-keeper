@@ -170,15 +170,19 @@ function TrendCard({ trend, delta, prevLabel, latestLabel }: {
   trend: { mes: string; bajas: number; pctMotivo: number | null }[];
   delta: number | null; prevLabel: string; latestLabel: string;
 }) {
-  const pctVals = trend.map((x) => x.pctMotivo).filter((v): v is number => v != null);
-  const rMin = pctVals.length ? Math.max(0, Math.floor(Math.min(...pctVals) - 5)) : 0;
-  const rMax = pctVals.length ? Math.ceil(Math.max(...pctVals) + 5) : 100;
+  const SIN_COLOR = "#E8C9B8";
+  const data = trend.map((d) => {
+    const pct = d.pctMotivo ?? 0;
+    const conMotivo = Math.round((d.bajas * pct) / 100);
+    const sinMotivo = Math.max(0, d.bajas - conMotivo);
+    return { ...d, conMotivo, sinMotivo };
+  });
 
   return (
     <div className="card lg">
       <div className="minihead">
         <div>
-          <div className="card-eyebrow">Bajas mensuales y calidad del registro</div>
+          <div className="card-eyebrow">Bajas mensuales por calidad del registro</div>
           <div className="card-title">Evolución mensual</div>
         </div>
         {delta != null && (
@@ -192,46 +196,43 @@ function TrendCard({ trend, delta, prevLabel, latestLabel }: {
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 4, marginBottom: 8, fontSize: 11.5, color: "var(--ink-2)" }}>
         <span className="row-flex" style={{ gap: 6 }}>
           <span style={{ width: 12, height: 12, background: ORANGE, borderRadius: 2, display: "inline-block" }} />
-          <span><strong style={{ color: "var(--ink)" }}>Bajas</strong> (eje izq.) — cantidad de cuentas dadas de baja en el mes</span>
+          <span><strong style={{ color: "var(--ink)" }}>Con motivo registrado</strong></span>
         </span>
         <span className="row-flex" style={{ gap: 6 }}>
-          <span style={{ width: 16, height: 2, background: "#B5740F", display: "inline-block" }} />
-          <span><strong style={{ color: "var(--ink)" }}>% con motivo</strong> (eje der.) — % de esas bajas con motivo registrado</span>
+          <span style={{ width: 12, height: 12, background: SIN_COLOR, borderRadius: 2, display: "inline-block" }} />
+          <span><strong style={{ color: "var(--ink)" }}>Sin motivo</strong></span>
         </span>
+        <span className="muted" style={{ fontSize: 11 }}>La altura total de cada barra = bajas del mes</span>
       </div>
 
       <div className="chart-wrap" style={{ height: 320 }}>
         <ResponsiveContainer>
-          <ComposedChart data={trend} margin={{ top: 24, right: 16, left: -8, bottom: 0 }}>
-            <defs>
-              <linearGradient id="trendG" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={ORANGE} stopOpacity={0.25} />
-                <stop offset="100%" stopColor={ORANGE} stopOpacity={0.02} />
-              </linearGradient>
-            </defs>
+          <ComposedChart data={data} margin={{ top: 24, right: 16, left: -8, bottom: 0 }}>
             <CartesianGrid stroke="#E8E6DC" vertical={false} />
             <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
-            <YAxis yAxisId="L" tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} label={{ value: "Bajas", angle: -90, position: "insideLeft", offset: 15, style: { fontSize: 10, fill: "#6E6D66" } }} />
-            <YAxis yAxisId="R" orientation="right" domain={[rMin, rMax]} tick={{ fontSize: 11, fill: "#B5740F" }} axisLine={false} tickLine={false} unit="%" />
+            <YAxis tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
             <Tooltip
               contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid #E8E6DC" }}
-              formatter={(value: any, name: any) => {
-                if (name === "bajas") return [nfmt(Number(value)), "Bajas"];
-                if (name === "pctMotivo") return [value == null ? "—" : `${Number(value).toFixed(1)}%`, "% con motivo"];
-                return [value, name];
+              formatter={(value: any, name: any, item: any) => {
+                const total = item?.payload?.bajas ?? 0;
+                const pct = total ? (Number(value) / total) * 100 : 0;
+                const label = name === "conMotivo" ? "Con motivo" : name === "sinMotivo" ? "Sin motivo" : String(name);
+                return [`${nfmt(Number(value))} (${pct.toFixed(0)}%)`, label];
+              }}
+              labelFormatter={(label: any, payload: any) => {
+                const total = payload?.[0]?.payload?.bajas ?? 0;
+                return `${label} · Total: ${nfmt(total)} bajas`;
               }}
             />
-            <Area yAxisId="L" type="monotone" dataKey="bajas" stroke="none" fill="url(#trendG)" legendType="none" tooltipType="none" />
-            <Bar yAxisId="L" dataKey="bajas" radius={[6, 6, 0, 0]} barSize={28}>
-              {trend.map((_, i) => <Cell key={i} fill={ORANGE} />)}
-            </Bar>
-            <Line yAxisId="R" type="monotone" dataKey="pctMotivo" stroke="#B5740F" strokeWidth={2} dot={{ r: 3, fill: "#B5740F" }} connectNulls={false} />
+            <Bar dataKey="conMotivo" stackId="b" fill={ORANGE} radius={[0, 0, 0, 0]} barSize={28} />
+            <Bar dataKey="sinMotivo" stackId="b" fill={SIN_COLOR} radius={[6, 6, 0, 0]} barSize={28} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
     </div>
   );
 }
+
 
 
 function TierDonutCard({ tierDist, total }: { tierDist: { tier: string; count: number; pct: number; color: string }[]; total: number }) {
