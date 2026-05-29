@@ -143,8 +143,16 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
                 key={t.to}
                 to={t.to}
                 className={`tab-pill${active === t.to ? " active" : ""}`}
+                style={(t as any).beta ? { position: "relative" } : undefined}
               >
                 {t.label}
+                {(t as any).beta && (
+                  <span style={{
+                    marginLeft: 6, fontSize: 9, padding: "1px 5px", borderRadius: 4,
+                    background: "var(--orange)", color: "white", fontWeight: 700,
+                    letterSpacing: 0.5, verticalAlign: "middle",
+                  }}>BETA</span>
+                )}
               </Link>
             ))}
           </nav>
