@@ -40,6 +40,11 @@ function trendFromContacto(ultima: string | null): { trendDir: HealthAccount["tr
   return { trendDir: "flat", tendencia: "Estable" };
 }
 
+function normalizeNps(v: number | null | undefined): number | null {
+  if (v == null) return null;
+  return v > 10 ? v / 10 : v;
+}
+
 function npsGrupo(score: number | null): string {
   if (score == null) return "—";
   if (score >= 9) return "Promotor";
@@ -65,7 +70,7 @@ async function fetchScoredAccounts(period: string): Promise<ScoredAccount[]> {
   }
 
   return out.map((r, i) => {
-    const scored = scoreCliente(r);
+    const scored = scoreCliente({ ...r, nps_score: normalizeNps(r.nps_score) });
     const { trendDir, tendencia } = trendFromContacto(r.ultima_fecha_contacto);
     return {
       id: r.id_cuenta_dash ?? i,
@@ -77,8 +82,8 @@ async function fetchScoredAccounts(period: string): Promise<ScoredAccount[]> {
       tendencia,
       trendDir,
       flags: scored.activeFlags,
-      npsLtr: r.nps_score,
-      npsGrupo: npsGrupo(r.nps_score),
+      npsLtr: normalizeNps(r.nps_score),
+      npsGrupo: npsGrupo(normalizeNps(r.nps_score)),
       csPrio: scored.prioCS,
       scored,
     };
