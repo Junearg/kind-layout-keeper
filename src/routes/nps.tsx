@@ -360,12 +360,6 @@ function Nps() {
   );
 }
 
-function NpsBarCell({ fill }: { fill: string }) {
-  // Recharts requires Cell, but using a plain rect via fill on Bar's cell prop
-  // is awkward — we just reuse a simple span via dangerously-styled approach.
-  // Instead, return a Recharts <Cell> equivalent.
-  return <rect fill={fill} />;
-}
 
 function KpiCard({ label, value, pct, tone }: { label: string; value: string; pct: string; tone: "orange" | "ink" | "cream" }) {
   const cls = tone === "orange" ? "card orange lg" : tone === "ink" ? "card ink lg" : "card cream lg";
