@@ -77,8 +77,47 @@ function Tendencia() {
   const motivos = useMotivosMes();
   const resumen = useResumenMes();
   const mesActivo = useMesActivo();
+  const { data: insights6m } = useSupabaseChurnInsights(mesActivo);
+
+  // Motivos de baja (últimos 6 meses, excluyendo NPS)
+  const PALETTE = ["#6B7280", "#2563EB", "#D97706", "#F05A28", "#7C3AED", "#DB2777", "#0D9488", "#16A34A", "#9333EA", "#0EA5E9"];
+  const prioridadFor = (m: string): string => {
+    const t = m.toLowerCase();
+    if (/sin (motivo|respuesta)/.test(t)) return "CRÍTICA";
+    if (/cierre temporal|dej(ó|o) de usar|precio|mal servicio|falta/.test(t)) return "ALTA";
+    if (/eligi(ó|o) otro/.test(t)) return "Estrat.";
+    return "Media";
+  };
+  const motivosLive = useMemo(() => {
+    if (!insights6m) return null;
+    const filtered = insights6m.rows.filter((r) => !/nps/i.test(r.motivo));
+    const map = new Map<string, number>();
+    for (const r of filtered) map.set(r.motivo, (map.get(r.motivo) ?? 0) + 1);
+    const total = filtered.length || 1;
+    const sorted = [...map.entries()].sort((a, b) => b[1] - a[1]);
+    let palIdx = 0;
+    return sorted.map(([motivo, n]) => {
+      const brecha = /sin (motivo|respuesta)/i.test(motivo);
+      return {
+        motivo,
+        n,
+        pct: +((n / total) * 100).toFixed(1),
+        color: brecha ? "#DC2626" : PALETTE[palIdx++ % PALETTE.length]!,
+        brecha,
+        prioridad: prioridadFor(motivo),
+        accionable: "—",
+      };
+    });
+  }, [insights6m]);
+
+  const motivosDisplay = motivosLive ?? motivosBaja;
+  const totalCategorizadasDisplay = motivosDisplay.reduce((s, m) => s + m.n, 0);
+  const sinMotivoRow = motivosDisplay.find((m) => m.brecha) ?? motivosDisplay[0];
+  const pctSinMotivoDisplay = sinMotivoRow ? (sinMotivoRow.n / (totalCategorizadasDisplay || 1)) * 100 : 0;
+
   const sinMotivo = d.sinMotivo ?? motivosBaja[0];
   const hasData = !!resumen || (motivos !== null);
+
 
   // Tendencia rate-based: cada fila trae bajas, rate%, activeBase y banda min/max.
   const chartData = d.trendRate.points.map((p) => ({
