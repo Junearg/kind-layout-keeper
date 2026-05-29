@@ -32,24 +32,6 @@ function Resumen() {
   const mesActivo = useMesActivo();
   const { data: insights6m } = useSupabaseChurnInsights(mesActivo);
 
-  const motivos6m = useMemo(() => {
-    if (!insights6m) return null;
-    const filtered = insights6m.rows.filter((x) => !/nps/i.test(x.motivo));
-    const map = new Map<string, number>();
-    for (const x of filtered) map.set(x.motivo, (map.get(x.motivo) ?? 0) + 1);
-    const total = filtered.length || 1;
-    const sorted = [...map.entries()].sort((a, b) => b[1] - a[1]);
-    let palIdx = 0;
-    return sorted.map(([motivo, n]) => {
-      const brecha = /sin (motivo|respuesta)/i.test(motivo);
-      return {
-        motivo, n,
-        pct: +((n / total) * 100).toFixed(1),
-        color: brecha ? "#DC2626" : MOTIVO_PALETTE[palIdx++ % MOTIVO_PALETTE.length]!,
-        brecha,
-      };
-    });
-  }, [insights6m]);
 
   return (
     <Layout actions={
