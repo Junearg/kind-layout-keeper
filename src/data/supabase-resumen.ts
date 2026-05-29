@@ -81,6 +81,7 @@ export type ResumenData = {
   pctSinMotivo: number;
   totalBajasHist: number;
   criticalCount: number;
+  sinFechaHist: number; // Bloqueados reales sin fecha_baja — no asignables a un mes
   alertas: { tone: "red" | "amber"; titulo: string; link: string }[];
 };
 
@@ -150,13 +151,13 @@ async function fetchResumen(period: string): Promise<ResumenData> {
   }
   const bajasAll = Array.from(trendDedup.values())
     .filter((b) => !isOperationalChurn(b.motivo_baja));
+  // sinFechaHist: Bloqueados sin fecha_baja (bajas reales pero sin fecha asignable a un mes)
+  let sinFechaHist = 0;
   const byMonthAll = new Map<string, { bajas: number; conMotivo: number }>();
   for (const b of bajasAll) {
-    // Prioridad: fecha_baja real → si no, mes_exportacion más antiguo como proxy
-    const k = b.fecha_baja
-      ? monthKey(new Date(b.fecha_baja))
-      : b.mes_exportacion!;
-    if (k > period) continue; // no incluir fechas futuras al período
+    if (!b.fecha_baja) { sinFechaHist++; continue; } // real pero sin fecha → no asignable
+    const k = monthKey(new Date(b.fecha_baja));
+    if (k > period) continue;
     const slot = byMonthAll.get(k) ?? { bajas: 0, conMotivo: 0 };
     slot.bajas++;
     if (b.motivo_baja) slot.conMotivo++;
@@ -295,6 +296,7 @@ async function fetchResumen(period: string): Promise<ResumenData> {
     motivosBaja, pctSinMotivo,
     totalBajasHist: totalBajas - sinFecha,
     criticalCount,
+    sinFechaHist,
     alertas,
   };
 }
