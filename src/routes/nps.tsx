@@ -148,7 +148,7 @@ function Nps() {
 
         <div className="card lg">
           <div className="card-eyebrow">Mirror motivos</div>
-          <div className="card-title" style={{ marginBottom: 16 }}>Lo que aleja vs lo que enamora</div>
+          <div className="card-title" style={{ marginBottom: 16 }}>Lo que aleja vs lo que convence</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <MirrorCol
               title={`↓ Detractan (n=${npsData.detractores})`}
