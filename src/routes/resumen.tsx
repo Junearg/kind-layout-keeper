@@ -77,15 +77,6 @@ function Resumen() {
                 {r.monthDeltaPct >= 0 ? "↑" : "↓"} {pctFmt(r.monthDeltaPct)} vs {r.prevClosedLabel}
               </span>
             )}
-            {r.ytdClosed > 0 && (
-              <span className="callout" style={{ background: "rgba(255,255,255,0.18)" }}>
-                {nfmt(r.ytdClosed)} YTD
-              </span>
-            )}
-          </div>
-          <div className="mt-16" style={{ display: "flex", gap: 8, position: "relative", zIndex: 2 }}>
-            <Link to="/cola" className="btn" style={{ background: "white", color: "var(--orange-deep)" }}>Plan retención</Link>
-            <Link to="/tendencia" className="btn ghost" style={{ borderColor: "rgba(255,255,255,0.4)", color: "white" }}>Ver detalle</Link>
           </div>
         </div>
 
