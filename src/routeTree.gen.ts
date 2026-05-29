@@ -11,12 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TendenciaRouteImport } from './routes/tendencia'
 import { Route as ResumenRouteImport } from './routes/resumen'
-import { Route as NpsRouteImport } from './routes/nps'
 import { Route as LabsRouteImport } from './routes/labs'
 import { Route as KpisRouteImport } from './routes/kpis'
 import { Route as ImportarRouteImport } from './routes/importar'
 import { Route as HealthRouteImport } from './routes/health'
-import { Route as CsatRouteImport } from './routes/csat'
 import { Route as ContactosRouteImport } from './routes/contactos'
 import { Route as ColaRouteImport } from './routes/cola'
 import { Route as IndexRouteImport } from './routes/index'
@@ -30,11 +28,6 @@ const TendenciaRoute = TendenciaRouteImport.update({
 const ResumenRoute = ResumenRouteImport.update({
   id: '/resumen',
   path: '/resumen',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const NpsRoute = NpsRouteImport.update({
-  id: '/nps',
-  path: '/nps',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LabsRoute = LabsRouteImport.update({
@@ -55,11 +48,6 @@ const ImportarRoute = ImportarRouteImport.update({
 const HealthRoute = HealthRouteImport.update({
   id: '/health',
   path: '/health',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CsatRoute = CsatRouteImport.update({
-  id: '/csat',
-  path: '/csat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactosRoute = ContactosRouteImport.update({
@@ -87,12 +75,10 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/cola': typeof ColaRoute
   '/contactos': typeof ContactosRoute
-  '/csat': typeof CsatRoute
   '/health': typeof HealthRoute
   '/importar': typeof ImportarRoute
   '/kpis': typeof KpisRoute
   '/labs': typeof LabsRoute
-  '/nps': typeof NpsRoute
   '/resumen': typeof ResumenRoute
   '/tendencia': typeof TendenciaRoute
   '/api/chat': typeof ApiChatRoute
@@ -101,12 +87,10 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cola': typeof ColaRoute
   '/contactos': typeof ContactosRoute
-  '/csat': typeof CsatRoute
   '/health': typeof HealthRoute
   '/importar': typeof ImportarRoute
   '/kpis': typeof KpisRoute
   '/labs': typeof LabsRoute
-  '/nps': typeof NpsRoute
   '/resumen': typeof ResumenRoute
   '/tendencia': typeof TendenciaRoute
   '/api/chat': typeof ApiChatRoute
@@ -116,12 +100,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/cola': typeof ColaRoute
   '/contactos': typeof ContactosRoute
-  '/csat': typeof CsatRoute
   '/health': typeof HealthRoute
   '/importar': typeof ImportarRoute
   '/kpis': typeof KpisRoute
   '/labs': typeof LabsRoute
-  '/nps': typeof NpsRoute
   '/resumen': typeof ResumenRoute
   '/tendencia': typeof TendenciaRoute
   '/api/chat': typeof ApiChatRoute
@@ -132,12 +114,10 @@ export interface FileRouteTypes {
     | '/'
     | '/cola'
     | '/contactos'
-    | '/csat'
     | '/health'
     | '/importar'
     | '/kpis'
     | '/labs'
-    | '/nps'
     | '/resumen'
     | '/tendencia'
     | '/api/chat'
@@ -146,12 +126,10 @@ export interface FileRouteTypes {
     | '/'
     | '/cola'
     | '/contactos'
-    | '/csat'
     | '/health'
     | '/importar'
     | '/kpis'
     | '/labs'
-    | '/nps'
     | '/resumen'
     | '/tendencia'
     | '/api/chat'
@@ -160,12 +138,10 @@ export interface FileRouteTypes {
     | '/'
     | '/cola'
     | '/contactos'
-    | '/csat'
     | '/health'
     | '/importar'
     | '/kpis'
     | '/labs'
-    | '/nps'
     | '/resumen'
     | '/tendencia'
     | '/api/chat'
@@ -175,12 +151,10 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ColaRoute: typeof ColaRoute
   ContactosRoute: typeof ContactosRoute
-  CsatRoute: typeof CsatRoute
   HealthRoute: typeof HealthRoute
   ImportarRoute: typeof ImportarRoute
   KpisRoute: typeof KpisRoute
   LabsRoute: typeof LabsRoute
-  NpsRoute: typeof NpsRoute
   ResumenRoute: typeof ResumenRoute
   TendenciaRoute: typeof TendenciaRoute
   ApiChatRoute: typeof ApiChatRoute
@@ -200,13 +174,6 @@ declare module '@tanstack/react-router' {
       path: '/resumen'
       fullPath: '/resumen'
       preLoaderRoute: typeof ResumenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/nps': {
-      id: '/nps'
-      path: '/nps'
-      fullPath: '/nps'
-      preLoaderRoute: typeof NpsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/labs': {
@@ -235,13 +202,6 @@ declare module '@tanstack/react-router' {
       path: '/health'
       fullPath: '/health'
       preLoaderRoute: typeof HealthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/csat': {
-      id: '/csat'
-      path: '/csat'
-      fullPath: '/csat'
-      preLoaderRoute: typeof CsatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contactos': {
@@ -279,12 +239,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ColaRoute: ColaRoute,
   ContactosRoute: ContactosRoute,
-  CsatRoute: CsatRoute,
   HealthRoute: HealthRoute,
   ImportarRoute: ImportarRoute,
   KpisRoute: KpisRoute,
   LabsRoute: LabsRoute,
-  NpsRoute: NpsRoute,
   ResumenRoute: ResumenRoute,
   TendenciaRoute: TendenciaRoute,
   ApiChatRoute: ApiChatRoute,
@@ -292,3 +250,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
