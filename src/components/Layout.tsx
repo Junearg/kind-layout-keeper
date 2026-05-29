@@ -116,13 +116,9 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
     "/contactos": {
       crumbs: "Fudo Customer Center · Contact Churn",
       h1: <>Contact <span className="alt">Churn</span></>,
-      sub: "Frecuencia de contacto CS por cuenta · contactos por mes activo",
+      sub: "Frecuencia de contacto · NPS · CSAT consolidados por cuenta",
     },
-    "/csat": {
-      crumbs: "Fudo Customer Center · Voz del cliente",
-      h1: <>Customer <span className="alt">Satisfaction</span></>,
-      sub: "CSAT Onboarding y Customer Success · score 1-5 por cuenta",
-    },
+
 
     "/kpis": {
       crumbs: "Fudo Customer Center · Iniciativas",
