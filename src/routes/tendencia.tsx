@@ -68,6 +68,7 @@ async function exportBajasConMotivo(mesActivo: string): Promise<number> {
 }
 
 function Tendencia() {
+  const [exporting, setExporting] = useState(false);
   const { motivosBaja } = useDashboardData();
 
   const d = useDerived();
