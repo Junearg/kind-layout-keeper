@@ -14,9 +14,6 @@ export type SupabaseMetrics = {
   tierDist: { tier: TierKey; n: number; pct: number }[];
 };
 
-// Etapas que definen una baja real (fuente de verdad).
-const ETAPAS_BAJA = ["bajas", "bajas clientes"] as const;
-
 function endOfMonthISO(period: string): string {
   const y = Number(period.slice(0, 4));
   const m = Number(period.slice(5, 7));
@@ -95,7 +92,7 @@ async function fetchMetrics(period: string): Promise<SupabaseMetrics> {
       .from("clientes")
       .select("motivo_baja, pais")
       .eq("mes_exportacion", period)
-      .in("etapa", ETAPAS_BAJA),
+      .eq("estado_dash", "Bloqueado"),
     supabase
       .from("clientes")
       .select("nps_score")
