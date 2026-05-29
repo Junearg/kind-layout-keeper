@@ -148,7 +148,7 @@ function Nps() {
 
         <div className="card lg">
           <div className="card-eyebrow">Mirror motivos</div>
-          <div className="card-title" style={{ marginBottom: 16 }}>Lo que aleja vs lo que enamora</div>
+          <div className="card-title" style={{ marginBottom: 16 }}>Lo que aleja vs lo que convence</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <MirrorCol
               title={`↓ Detractan (n=${npsData.detractores})`}
@@ -183,7 +183,7 @@ function Nps() {
       <div className="card lg" style={{ background: "var(--ink)", color: "var(--paper)" }}>
         <div className="card-eyebrow" style={{ color: ORANGE }}>NPS Paradox</div>
         <div className="serif" style={{ fontSize: 30, lineHeight: 1.25, color: "#fff", marginTop: 8, marginBottom: 20 }}>
-          El producto enamora.
+          El producto convence.
           <span style={{ color: ORANGE }}> El modelo de precios, no siempre.</span>
         </div>
         <div className="bento cols-4">
