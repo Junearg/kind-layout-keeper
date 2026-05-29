@@ -259,6 +259,22 @@ function ContactosPage() {
               </div>
             )}
           </div>
+
+          {/* NPS */}
+          <div className="divider" style={{ marginTop: 28 }}>
+            <span className="kicker">Net Promoter Score</span>
+            <span className="alt">/ voz del cliente</span>
+            <span className="rule" />
+          </div>
+          <NpsSection />
+
+          {/* CSAT */}
+          <div className="divider" style={{ marginTop: 28 }}>
+            <span className="kicker">Customer Satisfaction</span>
+            <span className="alt">/ onboarding & customer success</span>
+            <span className="rule" />
+          </div>
+          <CsatSection />
         </>
       )}
     </Layout>
