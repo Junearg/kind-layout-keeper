@@ -76,7 +76,7 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
   const HELLO: Record<string, { crumbs: string; h1: ReactNode; sub: string }> = {
     "/resumen": {
       crumbs: `Fudo Customer Center · ${d.latestClosedFull || periodLabel}`,
-      h1: <>Fudo <span style={{ color: "var(--orange)" }}>Activity</span> Center</>,
+      h1: <>Fudo <span style={{ color: "var(--orange)" }}>Customer</span> Center</>,
 
       sub: `Análisis consolidado · ${periodLabel} · ${nfmt(d.activeAccounts)} cuentas activas`,
     },
