@@ -32,7 +32,66 @@ type ScoreRow = {
 // Valores exactos del campo etapa en la BD (con mayúscula inicial).
 const ETAPAS_BAJA = ["Bajas", "Bajas clientes"] as const;
 
-type BajaRow = { id: number; fecha_baja: string | null; motivo_baja: string | null; pais: string | null; mes_exportacion: string | null; etapa: string | null };
+type BajaRow = { id: number; fecha_baja: string | null; motivo_baja: string | null; motivo_metabase: string | null; pais: string | null; mes_exportacion: string | null; etapa: string | null };
+
+// ─── Normalización de motivos ────────────────────────────────────────────────
+// Fuente primaria: motivo_baja (col J). Fallback: motivo_metabase (col N).
+// Agrupa todos los valores de la BD en 8 categorías + Sin motivo.
+export type MotivoCat =
+  | "Precio"
+  | "Producto / Funcionalidades"
+  | "Cierre definitivo"
+  | "Cierre temporal"
+  | "Eligió otro sistema"
+  | "Servicio"
+  | "Problemas técnicos"
+  | "Sin motivo"
+  | "Otro";
+
+export function normalizarMotivo(
+  motivo: string | null | undefined,
+  motivoMetabase: string | null | undefined,
+): MotivoCat {
+  const m  = (motivo         ?? "").trim();
+  const mb = (motivoMetabase ?? "").trim().toUpperCase();
+
+  if (!m && !mb) return "Sin motivo";
+
+  // Precio
+  if (/^precio$/i.test(m)          || mb === "PRICE")          return "Precio";
+
+  // Producto / Funcionalidades
+  if (/falta de funcionalidad/i.test(m) || mb === "FUNCTIONALITIES") return "Producto / Funcionalidades";
+
+  // Cierre temporal  (incluye "contrató por evento" y "local no inaugurado")
+  if (/cierre temporal/i.test(m)   ||
+      /contrató por evento/i.test(m) ||
+      /local no inaugurado/i.test(m) ||
+      mb === "TEMPORAL_CLOSED")     return "Cierre temporal";
+
+  // Cierre definitivo
+  if (/cierre definitivo/i.test(m) ||
+      /negocio no gastronómico/i.test(m) ||
+      /venta de comercio/i.test(m) ||
+      mb === "CLOSED")              return "Cierre definitivo";
+
+  // Eligió otro sistema  (incluye "dejó de usar sistema")
+  if (/eligió otro sistema/i.test(m) ||
+      /dejó de usar sistema/i.test(m)) return "Eligió otro sistema";
+
+  // Servicio
+  if (/mal servicio/i.test(m)      || mb === "SERVICE")         return "Servicio";
+
+  // Problemas técnicos  (impresora, hardware, internet, integraciones)
+  if (/impresora|hardware|sin internet|problemas? técnicos?|problemas? con integraciones?/i.test(m))
+                                    return "Problemas técnicos";
+
+  // Sin motivo  (sin respuesta, vacío)
+  if (/sin respuesta/i.test(m))     return "Sin motivo";
+
+  // Todo lo demás: Otro motivo, Cuenta duplicada, Cuenta NO Activada, OTHER, etc.
+  return "Otro";
+}
 type NpsRow = { nps_score: number | null; pais: string | null };
 type CsatRow = { csat_cs_promedio: number | null; csat_onb_promedio: number | null };
 
@@ -108,12 +167,12 @@ async function fetchResumen(period: string): Promise<ResumenData> {
       .eq("estado_dash", "Activo")),
     pageAll<BajaRow>(() => supabase
       .from("clientes")
-      .select("id,fecha_baja,motivo_baja,pais,mes_exportacion,etapa")
+      .select("id,fecha_baja,motivo_baja,motivo_metabase,pais,mes_exportacion,etapa")
       .eq("mes_exportacion", period)
       .in("etapa", ETAPAS_BAJA)),
     pageAll<BajaRow>(() => supabase
       .from("clientes")
-      .select("id,fecha_baja,motivo_baja,pais,mes_exportacion,etapa")
+      .select("id,fecha_baja,motivo_baja,motivo_metabase,pais,mes_exportacion,etapa")
       .in("etapa", ETAPAS_BAJA)),
     pageAll<NpsRow>(() => supabase
       .from("clientes")
@@ -174,7 +233,7 @@ async function fetchResumen(period: string): Promise<ResumenData> {
     if (k > period) continue;
     const slot = byMonthAll.get(k) ?? { bajas: 0, conMotivo: 0 };
     slot.bajas++;
-    if (b.motivo_baja) slot.conMotivo++;
+    if (normalizarMotivo(b.motivo_baja, b.motivo_metabase) !== "Sin motivo") slot.conMotivo++;
     byMonthAll.set(k, slot);
   }
 
@@ -221,16 +280,16 @@ async function fetchResumen(period: string): Promise<ResumenData> {
     .filter(([k]) => Number(k.split("-")[0]) === latestYear)
     .reduce((s, [, v]) => s + v.bajas, 0);
 
-  // Motivos baja
+  // Motivos baja — agrupados en categorías normalizadas
   const motivoMap = new Map<string, number>();
   for (const b of bajas) {
-    const k = (b.motivo_baja ?? "Sin motivo").trim() || "Sin motivo";
-    motivoMap.set(k, (motivoMap.get(k) ?? 0) + 1);
+    const cat = normalizarMotivo(b.motivo_baja, b.motivo_metabase);
+    motivoMap.set(cat, (motivoMap.get(cat) ?? 0) + 1);
   }
   const motivosBaja = Array.from(motivoMap.entries())
     .map(([motivo, n]) => ({ motivo, n, pct: (n / (totalBajas || 1)) * 100 }))
     .sort((a, b) => b.n - a.n);
-  const sin = motivosBaja.find((m) => /sin motivo/i.test(m.motivo));
+  const sin = motivosBaja.find((m) => m.motivo === "Sin motivo");
   const pctSinMotivo = sin ? sin.pct : 0;
 
   // NPS
