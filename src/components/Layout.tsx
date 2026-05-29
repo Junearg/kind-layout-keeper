@@ -12,7 +12,7 @@ const TABS = [
   { to: "/resumen",   label: "Dashboard" },
   { to: "/tendencia", label: "Churn Rate" },
   { to: "/health",    label: "Health Score" },
-  { to: "/contactos", label: "Contact Rate" },
+  { to: "/contactos", label: "Contact Churn" },
   { to: "/nps",       label: "NPS" },
   { to: "/csat",      label: "CSAT" },
   { to: "/kpis",      label: "KPI´s" },
