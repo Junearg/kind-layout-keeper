@@ -451,7 +451,7 @@ function Tendencia() {
           </table>
           <div style={{ marginTop: 20, paddingTop: 18, borderTop: "1px solid var(--rule)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
             <div className="fs-12 muted">
-              {nfmt(totalCategorizadasDisplay)} bajas con motivo registrado · {sinMotivoRow.n.toLocaleString()} sin razón.
+              {nfmt(totalCategorizadasDisplay)} bajas con motivo registrado · {(sinMotivoRow?.n ?? 0).toLocaleString()} sin razón.
             </div>
             <button
               className="btn"
