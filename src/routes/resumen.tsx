@@ -33,7 +33,6 @@ function Resumen() {
           { name: "Tendencia bajas", rows: r.churnTrend },
           { name: "Distribución tiers", rows: r.tierDist.map((t) => ({ tier: t.tier, count: t.count, pct: t.pct })) },
           { name: "KPIs período", rows: [
-            { kpi: "NPS", valor: r.npsScore.toFixed(2) },
             { kpi: "CSAT", valor: r.csatAvg?.toFixed(2) ?? "—" },
             { kpi: "CVR", valor: `${r.cvr.toFixed(1)}%` },
             { kpi: "Cuentas activas", valor: r.activeAccounts },
@@ -52,7 +51,7 @@ function Resumen() {
       <>
 
       {/* Bento 3 cols */}
-      <div className="bento cols-3">
+      <div className="bento cols-2">
         {/* Bajas del mes */}
         <div className="card orange lg" style={{ minHeight: 280 }}>
           <div className="bubble-wrap"><div className="bubble" /></div>
@@ -81,29 +80,6 @@ function Resumen() {
             <Link to="/tendencia" className="btn ghost" style={{ borderColor: "rgba(255,255,255,0.4)", color: "white" }}>Ver detalle</Link>
           </div>
         </div>
-
-        {/* NPS por país */}
-        <div className="card lg">
-          <div className="card-head">
-            <div>
-              <div className="card-eyebrow">NPS por país</div>
-              <div className="card-title">{nfmt(r.npsResponses)} respuestas</div>
-            </div>
-            <div className="arrow-up">⌁</div>
-          </div>
-
-          {/* NPS por país */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 14 }}>
-            {r.npsByPais.length === 0 ? (
-              <div className="muted fs-12">Sin segmentación por país (n &lt; 10)</div>
-            ) : (
-              [...r.npsByPais].sort((a, b) => b.nps - a.nps).map((p) => (
-                <NpsPaisRow key={p.pais} pais={p.pais} nps={p.nps} n={p.n} />
-              ))
-            )}
-          </div>
-        </div>
-
 
         {/* Cuentas activas */}
         <div className="card lg">
@@ -153,26 +129,6 @@ function AlertBanner({ tone, text, to }: { tone: "red" | "amber"; text: string; 
     </Link>
   );
 }
-function NpsPaisRow({ pais, nps, n }: { pais: string; nps: number; n: number }) {
-  // Escala visual: -100 a 100 → 0 a 100% del ancho, con 50% como cero
-  const pct = Math.max(0, Math.min(100, (nps + 100) / 2));
-  const color = nps >= 50 ? "var(--green, #2f7d4f)" : nps >= 0 ? "var(--orange)" : "var(--red)";
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 70px", alignItems: "center", gap: 10, fontSize: 12 }}>
-      <span style={{ color: "var(--ink-2)" }}>{pais}</span>
-      <div style={{ position: "relative", height: 6, background: "var(--paper-2)", borderRadius: 99 }}>
-        <div style={{ position: "absolute", left: "50%", top: -2, width: 1, height: 10, background: "var(--rule-2)" }} />
-        <div style={{ position: "absolute", left: `${Math.min(50, pct)}%`, width: `${Math.abs(pct - 50)}%`, top: 0, bottom: 0, background: color, borderRadius: 99 }} />
-      </div>
-      <span className="mono" style={{ textAlign: "right" }}>
-        <span style={{ color: "var(--ink)", fontWeight: 500 }}>{nps.toFixed(1)}</span>
-        <span className="muted" style={{ marginLeft: 4, fontSize: 10 }}>n={n}</span>
-      </span>
-    </div>
-  );
-}
-
-
 function Q1Metric({ label, value, tone }: { label: string; value: string; tone: "orange" | "ink" | "cream" }) {
   const bg = tone === "orange" ? "var(--orange)" : tone === "ink" ? "var(--ink)" : "var(--paper-2)";
   const color = tone === "cream" ? "var(--ink)" : "white";
