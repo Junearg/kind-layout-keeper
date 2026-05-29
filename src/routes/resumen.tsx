@@ -276,3 +276,53 @@ function TierDonutCard({ tierDist, total }: { tierDist: { tier: string; count: n
     </div>
   );
 }
+
+type MotivoRow = { motivo: string; n: number; pct: number; color: string; brecha: boolean };
+
+function MotivosDonutCard({ motivos }: { motivos: MotivoRow[] | null }) {
+  if (!motivos) {
+    return (
+      <div className="card lg" style={{ display: "grid", placeItems: "center", minHeight: 320 }}>
+        <div className="muted fs-12">Cargando motivos…</div>
+      </div>
+    );
+  }
+  const total = motivos.reduce((s, m) => s + m.n, 0);
+  const sinMotivo = motivos.find((m) => m.brecha);
+  const pctSinMotivo = sinMotivo ? (sinMotivo.n / (total || 1)) * 100 : 0;
+  return (
+    <div className="card lg">
+      <div className="card-eyebrow">Distribución de motivos</div>
+      <div className="card-title serif" style={{ marginBottom: 12, fontStyle: "italic" }}>{nfmt(total)} bajas categorizadas</div>
+      <div className="chart-wrap" style={{ height: 380, position: "relative", background: "white" }}>
+        <ResponsiveContainer>
+          <PieChart>
+            <Pie
+              data={motivos}
+              dataKey="n"
+              nameKey="motivo"
+              cx="50%"
+              cy="50%"
+              innerRadius={95}
+              outerRadius={145}
+              paddingAngle={1}
+              stroke="white"
+              strokeWidth={2}
+            >
+              {motivos.map((m, i) => <Cell key={i} fill={m.color} />)}
+            </Pie>
+            <Tooltip
+              contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid #E8E6DC" }}
+              formatter={(v: any, _n: any, p: any) => [`${Number(v).toLocaleString()} · ${p?.payload?.pct}%`, p?.payload?.motivo]}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none" }}>
+          <div style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 40, color: "#DC2626", lineHeight: 1, letterSpacing: "-0.03em" }}>{pctSinMotivo.toFixed(1)}%</div>
+          <div className="serif" style={{ fontSize: 16, color: "#DC2626", marginTop: 6, fontStyle: "italic" }}>sin motivo</div>
+        </div>
+      </div>
+      <div className="muted fs-11" style={{ marginTop: 10 }}>Últimos 6 meses · excluye NPS</div>
+    </div>
+  );
+}
