@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-export type TierKey = "Promotor" | "Estable" | "En Observación" | "At Risk";
+export type TierKey = "Champion" | "Healthy" | "At Risk" | "Critical";
 
 export type SupabaseMetrics = {
   period: string;
@@ -66,10 +66,10 @@ function scoreCuenta(r: ScoreRow): number {
 }
 
 function tierFromScore(s: number): TierKey {
-  if (s >= 80) return "Promotor";
-  if (s >= 60) return "Estable";
-  if (s >= 40) return "En Observación";
-  return "At Risk";
+  if (s >= 80) return "Champion";
+  if (s >= 55) return "Healthy";
+  if (s >= 30) return "At Risk";
+  return "Critical";
 }
 
 async function fetchMetrics(period: string): Promise<SupabaseMetrics> {
@@ -131,7 +131,7 @@ async function fetchMetrics(period: string): Promise<SupabaseMetrics> {
 
   // Tier dist
   const rows = (scoreRes.data ?? []) as ScoreRow[];
-  const tierCount: Record<TierKey, number> = { Promotor: 0, Estable: 0, "En Observación": 0, "At Risk": 0 };
+  const tierCount: Record<TierKey, number> = { Champion: 0, Healthy: 0, "At Risk": 0, Critical: 0 };
   for (const r of rows) tierCount[tierFromScore(scoreCuenta(r))]++;
   const totalScored = rows.length || 1;
   const tierDist = (Object.keys(tierCount) as TierKey[]).map((tier) => ({
