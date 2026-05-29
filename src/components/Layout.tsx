@@ -120,6 +120,12 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
       sub: "Targets a 3 y 6 meses · roadmap de retención",
     },
 
+    "/labs": {
+      crumbs: "Fudo Customer Center · Labs",
+      h1: <>Labs · <span className="alt">Laboratorio de prevención</span></>,
+      sub: "Herramientas experimentales basadas en el historial de bajas. Los números son reales, las palancas son tuyas.",
+    },
+
     "/importar": {
       crumbs: "Fudo Customer Center · Datos",
       h1: <>Importar <span className="alt">cuentas</span></>,
