@@ -1,15 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo } from "react";
 import { Layout } from "@/components/Layout";
 
 import { ExportButton } from "@/components/ExportButton";
 import { usePeriod, periodLabel } from "@/contexts/PeriodContext";
 import { useSupabaseResumen } from "@/data/supabase-resumen";
+import { useSupabaseChurnInsights } from "@/data/supabase-churn-insights";
+import { useMesActivo } from "@/data/dataset-store";
 import { ORANGE } from "@/data/mockData";
 import {
   ResponsiveContainer, ComposedChart, Bar, Line, Area,
   XAxis, YAxis, Tooltip, CartesianGrid, Cell,
   PieChart, Pie,
 } from "recharts";
+
+const MOTIVO_PALETTE = ["#6B7280", "#2563EB", "#D97706", "#F05A28", "#7C3AED", "#DB2777", "#0D9488", "#16A34A", "#9333EA", "#0EA5E9"];
 
 export const Route = createFileRoute("/resumen")({
   head: () => ({ meta: [{ title: "Fudo Customer Center" }] }),
@@ -24,6 +29,27 @@ const tierClass = (t: string) => (t === "At Risk" ? "tier-AtRisk" : t);
 function Resumen() {
   const { selectedPeriod } = usePeriod();
   const { data: r, isLoading, error } = useSupabaseResumen(selectedPeriod);
+  const mesActivo = useMesActivo();
+  const { data: insights6m } = useSupabaseChurnInsights(mesActivo);
+
+  const motivos6m = useMemo(() => {
+    if (!insights6m) return null;
+    const filtered = insights6m.rows.filter((x) => !/nps/i.test(x.motivo));
+    const map = new Map<string, number>();
+    for (const x of filtered) map.set(x.motivo, (map.get(x.motivo) ?? 0) + 1);
+    const total = filtered.length || 1;
+    const sorted = [...map.entries()].sort((a, b) => b[1] - a[1]);
+    let palIdx = 0;
+    return sorted.map(([motivo, n]) => {
+      const brecha = /sin (motivo|respuesta)/i.test(motivo);
+      return {
+        motivo, n,
+        pct: +((n / total) * 100).toFixed(1),
+        color: brecha ? "#DC2626" : MOTIVO_PALETTE[palIdx++ % MOTIVO_PALETTE.length]!,
+        brecha,
+      };
+    });
+  }, [insights6m]);
 
   return (
     <Layout actions={
@@ -105,7 +131,7 @@ function Resumen() {
 
       <div className="bento cols-2">
         <TrendCard trend={r.churnTrend} delta={r.monthDeltaPct} prevLabel={r.prevClosedLabel} latestLabel={r.latestClosedLabel} />
-        <TierDonutCard tierDist={r.tierDist} total={r.activeAccounts} />
+        <MotivosDonutCard motivos={motivos6m} />
       </div>
       </>
       )}
@@ -247,6 +273,56 @@ function TierDonutCard({ tierDist, total }: { tierDist: { tier: string; count: n
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+type MotivoRow = { motivo: string; n: number; pct: number; color: string; brecha: boolean };
+
+function MotivosDonutCard({ motivos }: { motivos: MotivoRow[] | null }) {
+  if (!motivos) {
+    return (
+      <div className="card lg" style={{ display: "grid", placeItems: "center", minHeight: 320 }}>
+        <div className="muted fs-12">Cargando motivos…</div>
+      </div>
+    );
+  }
+  const total = motivos.reduce((s, m) => s + m.n, 0);
+  const sinMotivo = motivos.find((m) => m.brecha);
+  const pctSinMotivo = sinMotivo ? (sinMotivo.n / (total || 1)) * 100 : 0;
+  return (
+    <div className="card lg">
+      <div className="card-eyebrow">Distribución de motivos</div>
+      <div className="card-title serif" style={{ marginBottom: 12, fontStyle: "italic" }}>{nfmt(total)} bajas categorizadas</div>
+      <div className="chart-wrap" style={{ height: 380, position: "relative", background: "white" }}>
+        <ResponsiveContainer>
+          <PieChart>
+            <Pie
+              data={motivos}
+              dataKey="n"
+              nameKey="motivo"
+              cx="50%"
+              cy="50%"
+              innerRadius={95}
+              outerRadius={145}
+              paddingAngle={1}
+              stroke="white"
+              strokeWidth={2}
+            >
+              {motivos.map((m, i) => <Cell key={i} fill={m.color} />)}
+            </Pie>
+            <Tooltip
+              contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid #E8E6DC" }}
+              formatter={(v: any, _n: any, p: any) => [`${Number(v).toLocaleString()} · ${p?.payload?.pct}%`, p?.payload?.motivo]}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none" }}>
+          <div style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 40, color: "#DC2626", lineHeight: 1, letterSpacing: "-0.03em" }}>{pctSinMotivo.toFixed(1)}%</div>
+          <div className="serif" style={{ fontSize: 16, color: "#DC2626", marginTop: 6, fontStyle: "italic" }}>sin motivo</div>
+        </div>
+      </div>
+      <div className="muted fs-11" style={{ marginTop: 10 }}>Últimos 6 meses · excluye NPS</div>
     </div>
   );
 }
