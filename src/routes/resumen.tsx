@@ -1,15 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo } from "react";
 import { Layout } from "@/components/Layout";
 
 import { ExportButton } from "@/components/ExportButton";
 import { usePeriod, periodLabel } from "@/contexts/PeriodContext";
 import { useSupabaseResumen } from "@/data/supabase-resumen";
+import { useSupabaseChurnInsights } from "@/data/supabase-churn-insights";
+import { useMesActivo } from "@/data/dataset-store";
 import { ORANGE } from "@/data/mockData";
 import {
   ResponsiveContainer, ComposedChart, Bar, Line, Area,
   XAxis, YAxis, Tooltip, CartesianGrid, Cell,
   PieChart, Pie,
 } from "recharts";
+
+const MOTIVO_PALETTE = ["#6B7280", "#2563EB", "#D97706", "#F05A28", "#7C3AED", "#DB2777", "#0D9488", "#16A34A", "#9333EA", "#0EA5E9"];
 
 export const Route = createFileRoute("/resumen")({
   head: () => ({ meta: [{ title: "Fudo Customer Center" }] }),
