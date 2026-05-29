@@ -9,6 +9,9 @@ import { useDerived } from "@/data/derived";
 import { useMotivosMes, useResumenMes, useMesActivo } from "@/data/dataset-store";
 import { useSupabaseChurnInsights } from "@/data/supabase-churn-insights";
 import { SegmentacionChurn } from "@/components/SegmentacionChurn";
+import { useRetention } from "@/data/supabase-retention";
+import { useCountry } from "@/contexts/CountryContext";
+import { usePeriod } from "@/contexts/PeriodContext";
 import { mesLargo } from "@/data/schema";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -78,6 +81,9 @@ function Tendencia() {
   const resumen = useResumenMes();
   const mesActivo = useMesActivo();
   const { data: insights6m } = useSupabaseChurnInsights(mesActivo);
+  const { selectedPeriod } = usePeriod();
+  const { selectedPais } = useCountry();
+  const { data: ret } = useRetention(selectedPeriod, selectedPais);
 
   // Motivos de baja (últimos 6 meses, excluyendo NPS)
   const PALETTE = ["#6B7280", "#2563EB", "#D97706", "#F05A28", "#7C3AED", "#DB2777", "#0D9488", "#16A34A", "#9333EA", "#0EA5E9"];
@@ -435,6 +441,60 @@ function Tendencia() {
           {(sinMotivoRow?.n ?? 0).toLocaleString()} bajas sin razón registrada · export incluye id_hubspot para acciones directas.
         </div>
       </div>
+
+      {/* ── Actividad operativa ── */}
+      {ret && (
+        <>
+        <div className="divider">
+          <span className="kicker">Actividad</span>
+          <span className="alt">/ operativa · {selectedPais}</span>
+          <span className="rule" />
+        </div>
+
+        {/* Fila KPIs operativos */}
+        <div className="bento cols-4">
+          <div className="card">
+            <div className="card-eyebrow">Activas ≥10 ventas/mes</div>
+            <div className="bignum" style={{ fontSize: 36, marginTop: 8 }}>{nfmt(ret.activasConVentas)}</div>
+            <div className="fs-12 muted" style={{ marginTop: 6 }}>{ret.pctActivasConVentas.toFixed(1)}% de activas</div>
+          </div>
+          <div className="card">
+            <div className="card-eyebrow">Login &lt;7 días</div>
+            <div className="bignum" style={{ fontSize: 36, marginTop: 8 }}>{nfmt(ret.loginMenos7)}</div>
+            <div className="fs-12 muted" style={{ marginTop: 6 }}>{ret.pctLoginMenos7.toFixed(1)}% de activas</div>
+          </div>
+          <div className="card">
+            <div className="card-eyebrow">A Recuperar</div>
+            <div className="bignum" style={{ fontSize: 36, marginTop: 8 }}>{nfmt(ret.aRecuperar)}</div>
+            <div className="fs-12 muted" style={{ marginTop: 6 }}>Engagement + Onboarding</div>
+            <div className="fs-12 muted">{nfmt(ret.aRecuperarConVentas)} con ≥10 ventas</div>
+          </div>
+          <div className="card">
+            <div className="card-eyebrow">MPCs mes pasado</div>
+            <div className="bignum" style={{ fontSize: 36, marginTop: 8 }}>{nfmt(ret.mpcsMesPasado)}</div>
+            <div className="fs-12 muted" style={{ marginTop: 6 }}>base para cálculo de churn</div>
+          </div>
+        </div>
+
+        {/* Login distribución */}
+        <div className="card lg" style={{ marginTop: 16 }}>
+          <div className="card-eyebrow">Distribución por último login</div>
+          <div className="card-title" style={{ marginBottom: 16 }}>Actividad reciente de cuentas activas</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {ret.loginDist.map((l) => (
+              <div key={l.label} style={{ display: "grid", gridTemplateColumns: "160px 1fr 60px 50px", alignItems: "center", gap: 12, fontSize: 12 }}>
+                <span style={{ color: "var(--ink-2)" }}>{l.label}</span>
+                <div style={{ height: 8, background: "var(--paper-2)", borderRadius: 99, overflow: "hidden" }}>
+                  <div style={{ width: `${l.pct}%`, height: "100%", background: "var(--orange)", borderRadius: 99 }} />
+                </div>
+                <span className="mono" style={{ textAlign: "right", color: "var(--ink)" }}>{nfmt(l.n)}</span>
+                <span className="mono muted" style={{ textAlign: "right" }}>{l.pct.toFixed(1)}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        </>
+      )}
       </>
       )}
     </Layout>

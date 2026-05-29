@@ -6,6 +6,8 @@ import { ExportButton } from "@/components/ExportButton";
 import { usePeriod, periodLabel } from "@/contexts/PeriodContext";
 import { useSupabaseResumen } from "@/data/supabase-resumen";
 import { useSupabaseChurnInsights } from "@/data/supabase-churn-insights";
+import { useRetention } from "@/data/supabase-retention";
+import { useCountry } from "@/contexts/CountryContext";
 import { useMesActivo } from "@/data/dataset-store";
 import { ORANGE } from "@/data/mockData";
 import {
@@ -31,6 +33,8 @@ function Resumen() {
   const { data: r, isLoading, error } = useSupabaseResumen(selectedPeriod);
   const mesActivo = useMesActivo();
   const { data: insights6m } = useSupabaseChurnInsights(mesActivo);
+  const { selectedPais } = useCountry();
+  const { data: ret } = useRetention(selectedPeriod, selectedPais);
 
 
   return (
@@ -109,6 +113,78 @@ function Resumen() {
         <TrendCard trend={r.churnTrend} delta={r.monthDeltaPct} prevLabel={r.prevClosedLabel} latestLabel={r.latestClosedLabel} />
         <MotivosDonutCard rows={insights6m?.rows ?? null} />
       </div>
+
+      {/* Retención vs Plan */}
+      {ret && (
+        <>
+        <div className="divider">
+          <span className="kicker">Retención</span>
+          <span className="alt">/ vs plan · {selectedPais}</span>
+          <span className="rule" />
+        </div>
+        <div className="bento cols-3">
+
+          {/* Churn Neto vs Plan */}
+          <div className="card lg" style={{
+            borderLeft: `4px solid ${
+              ret.proyectadoVsPlan == null ? "var(--rule)" :
+              Math.abs(ret.proyectadoVsPlan) <= 5 ? "var(--orange)" :
+              ret.proyectadoVsPlan > 5 ? "var(--red)" : "#2f7d4f"
+            }`
+          }}>
+            <div className="card-eyebrow">Churn Neto vs Plan</div>
+            <div className="bignum" style={{ fontSize: 52, marginTop: 8 }}>
+              {ret.churnNeto.toFixed(1)}%
+            </div>
+            <div className="fs-12 muted" style={{ marginTop: 6 }}>
+              churn neto actual · plan {ret.churnPlan != null ? `${ret.churnPlan.toFixed(1)}%` : "—"}
+            </div>
+            {ret.proyectadoVsPlan != null && (
+              <div style={{ marginTop: 10 }}>
+                <span className={`tag ${Math.abs(ret.proyectadoVsPlan) <= 5 ? "orange" : ret.proyectadoVsPlan > 5 ? "red" : "blue"}`}>
+                  {ret.proyectadoVsPlan >= 0 ? "+" : ""}{ret.proyectadoVsPlan.toFixed(1)}% vs plan
+                </span>
+              </div>
+            )}
+            <div className="fs-12 muted" style={{ marginTop: 8 }}>
+              churn bruto: <strong>{ret.churnBruto.toFixed(1)}%</strong>
+            </div>
+          </div>
+
+          {/* # Recuperar on target */}
+          <div className="card lg" style={{ borderLeft: "4px solid var(--amber)" }}>
+            <div className="card-eyebrow"># Recuperar on target</div>
+            <div className="bignum" style={{ fontSize: 52, marginTop: 8 }}>
+              {ret.nRecuperar != null ? nfmt(ret.nRecuperar) : "—"}
+            </div>
+            <div className="fs-12 muted" style={{ marginTop: 6 }}>
+              cuentas extra para cumplir el plan
+            </div>
+            <div className="fs-12 muted" style={{ marginTop: 8 }}>
+              meta MPCs: <strong>{ret.mpcsMeta != null ? nfmt(ret.mpcsMeta) : "—"}</strong>
+              <span style={{ marginLeft: 8 }}>actual: <strong>{nfmt(ret.activasHoy)}</strong></span>
+            </div>
+          </div>
+
+          {/* A Recuperar */}
+          <div className="card lg">
+            <div className="card-eyebrow">A Recuperar</div>
+            <div className="bignum" style={{ fontSize: 52, marginTop: 8 }}>
+              {nfmt(ret.aRecuperar)}
+            </div>
+            <div className="fs-12 muted" style={{ marginTop: 6 }}>
+              cuentas en Engagement / Onboarding
+            </div>
+            <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <span className="callout" style={{ background: "var(--paper-2)", color: "var(--ink-2)" }}>
+                {nfmt(ret.aRecuperarConVentas)} con ≥10 ventas/mes
+              </span>
+            </div>
+          </div>
+
+        </div>
+        </>
+      )}
       </>
       )}
     </Layout>
