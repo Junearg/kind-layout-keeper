@@ -186,7 +186,9 @@ async function fetchResumen(period: string): Promise<ResumenData> {
       proyectado: false,
     };
   });
-  const bajasMesActual = byMonthAll.get(latest)?.bajas ?? bajas.length;
+  // Solo contamos Bloqueados con fecha_baja en el mes del período.
+  // Activos con fecha_baja NO son bajas reales y nunca llegan aquí (filtrado por estado_dash).
+  const bajasMesActual = byMonthAll.get(latest)?.bajas ?? 0;
   const bajasMesPrev = prev ? (byMonthAll.get(prev)?.bajas ?? 0) : 0;
   const monthDeltaPct = bajasMesPrev ? ((bajasMesActual - bajasMesPrev) / bajasMesPrev) * 100 : null;
 
