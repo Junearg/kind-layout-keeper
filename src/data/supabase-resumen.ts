@@ -138,18 +138,19 @@ async function fetchResumen(period: string): Promise<ResumenData> {
     tier, count: tierCount[tier], pct: (tierCount[tier] / totalAct) * 100, color: TIER_COLORS[tier],
   }));
 
-  // --- Trend histórico: dedup por cliente (cuenta cada baja una sola vez en su mes de fecha_baja)
-  // Dedup: por cada cliente, quedarse con el snapshot más antiguo (primera vez como Bloqueado)
+  // --- Trend histórico: dedup por cliente y agrupar por fecha_baja real (no por mes_exportacion).
   const trendDedup = new Map<number, BajaRow>();
   for (const b of bajasAllRaw) {
-    if (!b.id || !b.mes_exportacion) continue;
-    const existing = trendDedup.get(b.id);
-    if (!existing || b.mes_exportacion < existing.mes_exportacion!) trendDedup.set(b.id, b);
+    if (!b.id) continue;
+    if (!trendDedup.has(b.id)) trendDedup.set(b.id, b);
   }
-  const bajasAll = Array.from(trendDedup.values());
+  const bajasAll = Array.from(trendDedup.values())
+    .filter((b) => !isOperationalChurn(b.motivo_baja));
   const byMonthAll = new Map<string, { bajas: number; conMotivo: number }>();
   for (const b of bajasAll) {
-    const k = b.mes_exportacion!;
+    if (!b.fecha_baja) continue;
+    const k = monthKey(new Date(b.fecha_baja));
+    if (k > period) continue;
     const slot = byMonthAll.get(k) ?? { bajas: 0, conMotivo: 0 };
     slot.bajas++;
     if (b.motivo_baja) slot.conMotivo++;
@@ -185,7 +186,7 @@ async function fetchResumen(period: string): Promise<ResumenData> {
       proyectado: false,
     };
   });
-  const bajasMesActual = byMonthAll.get(latest)?.bajas ?? 0;
+  const bajasMesActual = byMonthAll.get(latest)?.bajas ?? bajas.length;
   const bajasMesPrev = prev ? (byMonthAll.get(prev)?.bajas ?? 0) : 0;
   const monthDeltaPct = bajasMesPrev ? ((bajasMesActual - bajasMesPrev) / bajasMesPrev) * 100 : null;
 
