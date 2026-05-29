@@ -270,7 +270,7 @@ async function fetchResumen(period: string): Promise<ResumenData> {
   // Alertas
   const alertas: ResumenData["alertas"] = [];
   if (npsBest && npsWorst && npsGap >= 15) {
-    alertas.push({ tone: "amber", titulo: `${npsWorst.pais} NPS ${npsWorst.nps.toFixed(2)} — gap ${npsGap.toFixed(1)} pts vs ${npsBest.pais}`, link: "/nps" });
+    alertas.push({ tone: "amber", titulo: `${npsWorst.pais} NPS ${npsWorst.nps.toFixed(2)} — gap ${npsGap.toFixed(1)} pts vs ${npsBest.pais}`, link: "/contactos" });
   }
   if (pctSinMotivo >= 30) {
     alertas.push({ tone: "amber", titulo: `${pctSinMotivo.toFixed(1)}% de bajas sin motivo (${sin?.n ?? 0} cuentas)`, link: "/kpis" });

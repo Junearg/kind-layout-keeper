@@ -13,8 +13,6 @@ const TABS = [
   { to: "/tendencia", label: "Churn Rate" },
   { to: "/health",    label: "Health Score" },
   { to: "/contactos", label: "Contact Churn" },
-  { to: "/nps",       label: "NPS" },
-  { to: "/csat",      label: "CSAT" },
   { to: "/kpis",      label: "KPI´s" },
   { to: "/labs",      label: "⚗ Labs", beta: true },
 ] as const;
@@ -105,11 +103,6 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
         ? `Bajas, motivos y proyección · ${d.closedMonthsLabel.split(" · ")[1] ?? ""} cerrados + ${d.totalProjected > 0 ? "proyección" : "sin proyección"}`
         : "Bajas, motivos y proyección",
     },
-    "/nps": {
-      crumbs: "Fudo Customer Center · Voz del cliente",
-      h1: <>Net Promoter <span className="alt">Score</span></>,
-      sub: `${nfmt(d.npsResponses)} respuestas · LATAM · ${periodLabel}`,
-    },
     "/health": {
       crumbs: "Fudo Customer Center · Health Score",
       h1: <>Salud de la <span className="alt">base</span></>,
@@ -123,13 +116,9 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
     "/contactos": {
       crumbs: "Fudo Customer Center · Contact Churn",
       h1: <>Contact <span className="alt">Churn</span></>,
-      sub: "Frecuencia de contacto CS por cuenta · contactos por mes activo",
+      sub: "Frecuencia de contacto · NPS · CSAT consolidados por cuenta",
     },
-    "/csat": {
-      crumbs: "Fudo Customer Center · Voz del cliente",
-      h1: <>Customer <span className="alt">Satisfaction</span></>,
-      sub: "CSAT Onboarding y Customer Success · score 1-5 por cuenta",
-    },
+
 
     "/kpis": {
       crumbs: "Fudo Customer Center · Iniciativas",

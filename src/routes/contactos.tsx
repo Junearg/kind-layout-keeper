@@ -5,6 +5,8 @@ import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
 import { usePeriod } from "@/contexts/PeriodContext";
 import { supabase } from "@/integrations/supabase/client";
+import { NpsSection } from "@/components/NpsSection";
+import { CsatSection } from "@/components/CsatSection";
 
 export const Route = createFileRoute("/contactos")({
   head: () => ({ meta: [{ title: "Contact Churn · Fudo Customer Center" }] }),
@@ -257,6 +259,22 @@ function ContactosPage() {
               </div>
             )}
           </div>
+
+          {/* NPS */}
+          <div className="divider" style={{ marginTop: 28 }}>
+            <span className="kicker">Net Promoter Score</span>
+            <span className="alt">/ voz del cliente</span>
+            <span className="rule" />
+          </div>
+          <NpsSection />
+
+          {/* CSAT */}
+          <div className="divider" style={{ marginTop: 28 }}>
+            <span className="kicker">Customer Satisfaction</span>
+            <span className="alt">/ onboarding & customer success</span>
+            <span className="rule" />
+          </div>
+          <CsatSection />
         </>
       )}
     </Layout>

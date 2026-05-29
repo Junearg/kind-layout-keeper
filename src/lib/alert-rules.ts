@@ -34,7 +34,7 @@ export function computeAlertas(ds: DashboardDataset, mes: string): Alerta[] {
       out.push({
         tone: "red",
         titulo: `${worst.pais} NPS ${worst.nps_score.toFixed(2)} — gap ${gap} pts vs ${best.pais}`,
-        link: "/nps",
+        link: "/contactos",
       });
     }
   }

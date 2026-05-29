@@ -1,26 +1,18 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Layout } from "@/components/Layout";
-import { ExportButton } from "@/components/ExportButton";
-import { EmptyPeriod } from "@/components/EmptyPeriod";
 import { ORANGE } from "@/data/mockData";
 import { useDashboardData } from "@/data/liveData";
 import { useDerived } from "@/data/derived";
 import { useNpsMes, useMesActivo } from "@/data/dataset-store";
 import { mesLargo } from "@/data/schema";
+import { EmptyPeriod } from "@/components/EmptyPeriod";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip,
   CartesianGrid, ComposedChart, Line, LabelList,
 } from "recharts";
 
-export const Route = createFileRoute("/nps")({
-  head: () => ({ meta: [{ title: "NPS & CSAT · Churn Hub" }] }),
-  component: Nps,
-});
-
 const nfmt = (n: number) => Math.round(n).toLocaleString("es-AR");
 const pctFmt = (n: number) => `${n.toFixed(1)}%`;
 
-function Nps() {
+export function NpsSection() {
   const { npsPais, motivosDetraccion, motivosPromocion, csatMensual } = useDashboardData();
   const d = useDerived();
   const npsMes = useNpsMes();
@@ -36,23 +28,10 @@ function Nps() {
       ? `"${d.detraccionTop.motivo}" lidera la detracción mientras "${d.promocionTop.motivo}" lidera la promoción.`
       : "Sin paradoja detectada en motivos.";
 
+  if (!npsMes) return <EmptyPeriod section="NPS & CSAT" mes={mesLargo(mesActivo)} />;
+
   return (
-    <Layout actions={
-      <ExportButton
-        filename="nps-csat.xlsx"
-        sheets={[
-          { name: "NPS por país", rows: npsPais },
-          { name: "Motivos detracción", rows: motivosDetraccion },
-          { name: "Motivos promoción", rows: motivosPromocion },
-          { name: "CSAT mensual", rows: csatMensual },
-        ]}
-      />
-    }>
-      {!npsMes ? (
-        <EmptyPeriod section="NPS & CSAT" mes={mesLargo(mesActivo)} />
-      ) : (
-      <>
-      {/* Fila 1 — KPIs */}
+    <>
       <div className="bento cols-4">
         <div className="card lg" style={{ borderLeft: `4px solid ${npsTone.color}` }}>
           <div className="card-eyebrow">NPS Global</div>
@@ -70,7 +49,6 @@ function Nps() {
         <span className="rule" />
       </div>
 
-      {/* Fila 2 — 60/40 */}
       <div className="bento cols-2">
         <div className="card lg">
           <div className="card-eyebrow">NPS por país</div>
@@ -117,18 +95,8 @@ function Nps() {
           <div className="card-eyebrow">Mirror motivos</div>
           <div className="card-title" style={{ marginBottom: 16 }}>Lo que aleja vs lo que enamora</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <MirrorCol
-              title="↓ Detractan"
-              data={motivosDetraccion}
-              bg="rgba(179,38,30,0.04)"
-              color="var(--red)"
-            />
-            <MirrorCol
-              title="↑ Promocionan"
-              data={motivosPromocion}
-              bg="rgba(240,90,40,0.04)"
-              color={ORANGE}
-            />
+            <MirrorCol title="↓ Detractan" data={motivosDetraccion} bg="rgba(179,38,30,0.04)" color="var(--red)" />
+            <MirrorCol title="↑ Promocionan" data={motivosPromocion} bg="rgba(240,90,40,0.04)" color={ORANGE} />
           </div>
           <div style={{
             marginTop: 16, padding: "14px 16px", background: "var(--ink)",
@@ -146,7 +114,6 @@ function Nps() {
         <span className="rule" />
       </div>
 
-      {/* Paradoja card */}
       <div className="card lg">
         <div className="minihead">
           <div>
@@ -219,9 +186,7 @@ function Nps() {
           />
         </div>
       </div>
-      </>
-      )}
-    </Layout>
+    </>
   );
 }
 
@@ -237,10 +202,7 @@ function KpiCard({ label, value, pct, tone }: { label: string; value: string; pc
 }
 
 function MirrorCol({ title, data, bg, color }: {
-  title: string;
-  data: { motivo: string; n: number; pct: number }[];
-  bg: string;
-  color: string;
+  title: string; data: { motivo: string; n: number; pct: number }[]; bg: string; color: string;
 }) {
   const max = Math.max(...data.map((d) => d.pct));
   return (
