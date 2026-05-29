@@ -77,6 +77,11 @@ function Resumen() {
                 {r.monthDeltaPct >= 0 ? "↑" : "↓"} {pctFmt(r.monthDeltaPct)} vs {r.prevClosedLabel}
               </span>
             )}
+            {r.sinFechaHist > 0 && (
+              <span className="callout" style={{ background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.85)", fontSize: 11 }}>
+                + {nfmt(r.sinFechaHist)} sin fecha registrada
+              </span>
+            )}
           </div>
         </div>
 
