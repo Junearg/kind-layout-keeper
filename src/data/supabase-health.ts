@@ -31,6 +31,12 @@ type Row = {
 
 export type ScoredAccount = HealthAccount & { scored: ScoredCliente };
 
+/** Normaliza NPS guardado como 0-100 (factor ×10) a escala 0-10. */
+function normalizeNps(v: number | null | undefined): number | null {
+  if (v == null) return null;
+  return v > 10 ? v / 10 : v;
+}
+
 function trendFromContacto(ultima: string | null): { trendDir: HealthAccount["trendDir"]; tendencia: string } {
   if (!ultima) return { trendDir: "flat", tendencia: "Sin señal" };
   const days = (Date.now() - new Date(ultima).getTime()) / 86_400_000;
@@ -39,8 +45,6 @@ function trendFromContacto(ultima: string | null): { trendDir: HealthAccount["tr
   if (days < 15) return { trendDir: "up", tendencia: "Activa reciente" };
   return { trendDir: "flat", tendencia: "Estable" };
 }
-
-import { normalizeNps } from "@/data/supabase-resumen";
 
 function npsGrupo(score: number | null): string {
   if (score == null) return "—";
@@ -67,7 +71,8 @@ async function fetchScoredAccounts(period: string): Promise<ScoredAccount[]> {
   }
 
   return out.map((r, i) => {
-    const scored = scoreCliente({ ...r, nps_score: normalizeNps(r.nps_score) });
+    const npsNorm = normalizeNps(r.nps_score);
+    const scored = scoreCliente({ ...r, nps_score: npsNorm });
     const { trendDir, tendencia } = trendFromContacto(r.ultima_fecha_contacto);
     return {
       id: r.id_cuenta_dash ?? i,
@@ -79,8 +84,8 @@ async function fetchScoredAccounts(period: string): Promise<ScoredAccount[]> {
       tendencia,
       trendDir,
       flags: scored.activeFlags,
-      npsLtr: normalizeNps(r.nps_score),
-      npsGrupo: npsGrupo(normalizeNps(r.nps_score)),
+      npsLtr: npsNorm,
+      npsGrupo: npsGrupo(npsNorm),
       csPrio: scored.prioCS,
       scored,
     };

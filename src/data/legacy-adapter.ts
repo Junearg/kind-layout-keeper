@@ -128,9 +128,16 @@ export function toLegacy(ds: DashboardDataset, mesActivo: string): LegacyDashboa
     estado: i.estado === "en curso" ? "en_progreso" : i.estado, descripcion: i.descripcion,
   })) as LegacyDashboardShape["iniciativas"];
 
-  // ── derivables no presentes en el schema canónico (placeholders desde seed por ahora) ──
-  const cvrSeed = seedFallback.cvrNeto as LegacyDashboardShape["cvrNeto"];
-  const csatSeed = seedFallback.csatMensual as LegacyDashboardShape["csatMensual"];
+  // ── CSAT y CVR desde resumen_mensual real; fallback al seed si no hay datos ──
+  const csatReal = ds.resumen_mensual
+    .filter((r) => r.csat_promedio != null)
+    .map((r) => ({ mes: r.mes, avg: r.csat_promedio, conversaciones: 0, churnMes: r.bajas_reales }));
+  const csatSeed = (csatReal.length ? csatReal : seedFallback.csatMensual) as LegacyDashboardShape["csatMensual"];
+
+  const cvrReal = ds.resumen_mensual
+    .filter((r) => r.cvr_neto_bajas_pct != null)
+    .map((r) => ({ mes: r.mes, cvr: r.cvr_neto_bajas_pct }));
+  const cvrSeed = (cvrReal.length ? cvrReal : seedFallback.cvrNeto) as LegacyDashboardShape["cvrNeto"];
 
   return {
     churnTrend,

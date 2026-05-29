@@ -26,7 +26,7 @@ type ScoreRow = {
   estado_dash: string | null; pais: string | null;
 };
 
-type BajaRow = { fecha_baja: string | null; motivo_baja: string | null; pais: string | null };
+type BajaRow = { id: number; fecha_baja: string | null; motivo_baja: string | null; pais: string | null; mes_exportacion: string | null };
 type NpsRow = { nps_score: number | null; pais: string | null };
 type CsatRow = { csat_cs_promedio: number | null; csat_onb_promedio: number | null };
 
@@ -43,12 +43,10 @@ async function pageAll<T>(builder: () => any): Promise<T[]> {
   return out;
 }
 
-export const NPS_DB_SCALE = 10; // La DB guarda NPS en escala 0-100 (factor ×10)
-
 /** Normaliza NPS guardado como 0-100 (factor x10) a 0-10. */
-export function normalizeNps(v: number | null | undefined): number | null {
+function normalizeNps(v: number | null | undefined): number | null {
   if (v == null) return null;
-  return v > NPS_DB_SCALE ? v / NPS_DB_SCALE : v;
+  return v > 10 ? v / 10 : v;
 }
 /** Normaliza CSAT guardado como 0-500 (x100) a 0-5. */
 function normalizeCsat(v: number | null | undefined): number | null {
@@ -95,40 +93,21 @@ function monthLabel(key: string): string {
 }
 
 async function fetchResumen(period: string): Promise<ResumenData> {
-  const [activos, bajasRaw, bajasTrendRaw, nps, csat] = await Promise.all([
+  const [activos, bajasRaw, bajasAllRaw, nps, csat] = await Promise.all([
     pageAll<ScoreRow>(() => supabase
       .from("clientes")
       .select("productos,usuarios,v_salon,v_delivery,v_mostrador,cant_contactos,nps_score,motivo_baja,motivo_metabase,estado_dash,pais")
       .eq("mes_exportacion", period)
       .eq("estado_dash", "Activo")),
-    pageAll<BajaRow>(() => {
-      const [y, m] = period.split("-").map(Number);
-      const from = `${period}-01`;
-      const toDate = new Date(y!, m!, 1); // first day of next month
-      const to = toDate.toISOString().slice(0, 10);
-      return supabase
-        .from("clientes")
-        .select("fecha_baja,motivo_baja,pais")
-        .eq("mes_exportacion", period)
-        .eq("estado_dash", "Bloqueado")
-        .gte("fecha_baja", from)
-        .lt("fecha_baja", to);
-    }),
-    // Trend de últimos 12 meses (incluye el período seleccionado)
-    pageAll<BajaRow>(() => {
-      const [y, m] = period.split("-").map(Number);
-      const fromDate = new Date(y!, (m! - 1) - 11, 1); // 12 meses atrás (inicio)
-      const from = fromDate.toISOString().slice(0, 10);
-      const toDate = new Date(y!, m!, 1); // primer día del mes siguiente al período
-      const to = toDate.toISOString().slice(0, 10);
-      return supabase
-        .from("clientes")
-        .select("fecha_baja,motivo_baja,pais")
-        .eq("mes_exportacion", period)
-        .eq("estado_dash", "Bloqueado")
-        .gte("fecha_baja", from)
-        .lt("fecha_baja", to);
-    }),
+    pageAll<BajaRow>(() => supabase
+      .from("clientes")
+      .select("id,fecha_baja,motivo_baja,pais,mes_exportacion")
+      .eq("mes_exportacion", period)
+      .eq("estado_dash", "Bloqueado")),
+    pageAll<BajaRow>(() => supabase
+      .from("clientes")
+      .select("id,fecha_baja,motivo_baja,pais,mes_exportacion")
+      .eq("estado_dash", "Bloqueado")),
     pageAll<NpsRow>(() => supabase
       .from("clientes")
       .select("nps_score,pais")
@@ -140,7 +119,6 @@ async function fetchResumen(period: string): Promise<ResumenData> {
       .eq("mes_exportacion", period)
       .or("csat_cs_promedio.not.is.null,csat_onb_promedio.not.is.null")),
   ]);
-
 
   // Excluir churn operacional (cambios de método/frecuencia de pago) de TODO
   // conteo, trend, motivos, YTD, CVR y proyecciones derivadas.
@@ -160,7 +138,25 @@ async function fetchResumen(period: string): Promise<ResumenData> {
     tier, count: tierCount[tier], pct: (tierCount[tier] / totalAct) * 100, color: TIER_COLORS[tier],
   }));
 
-  // --- Trend de bajas por mes (fecha_baja)
+  // --- Trend histórico: dedup por cliente (cuenta cada baja una sola vez en su mes de fecha_baja)
+  // Dedup: por cada cliente, quedarse con el snapshot más antiguo (primera vez como Bloqueado)
+  const trendDedup = new Map<number, BajaRow>();
+  for (const b of bajasAllRaw) {
+    if (!b.id || !b.mes_exportacion) continue;
+    const existing = trendDedup.get(b.id);
+    if (!existing || b.mes_exportacion < existing.mes_exportacion!) trendDedup.set(b.id, b);
+  }
+  const bajasAll = Array.from(trendDedup.values());
+  const byMonthAll = new Map<string, { bajas: number; conMotivo: number }>();
+  for (const b of bajasAll) {
+    const k = b.mes_exportacion!;
+    const slot = byMonthAll.get(k) ?? { bajas: 0, conMotivo: 0 };
+    slot.bajas++;
+    if (b.motivo_baja) slot.conMotivo++;
+    byMonthAll.set(k, slot);
+  }
+
+  // --- Métricas del período actual (byMonth = solo mes seleccionado)
   const byMonth = new Map<string, { bajas: number; conMotivo: number }>();
   let sinFecha = 0, totalBajas = 0;
   for (const b of bajas) {
@@ -172,54 +168,31 @@ async function fetchResumen(period: string): Promise<ResumenData> {
     if (b.motivo_baja) slot.conMotivo++;
     byMonth.set(k, slot);
   }
-  // Bucket separado para el trend de 12 meses (no afecta YTD/motivos del mes actual)
-  const bajasTrend = bajasTrendRaw.filter((b) => !isOperationalChurn(b.motivo_baja));
-  const byMonthTrend = new Map<string, { bajas: number; conMotivo: number }>();
-  for (const b of bajasTrend) {
-    if (!b.fecha_baja) continue;
-    const k = monthKey(new Date(b.fecha_baja));
-    const slot = byMonthTrend.get(k) ?? { bajas: 0, conMotivo: 0 };
-    slot.bajas++;
-    if (b.motivo_baja) slot.conMotivo++;
-    byMonthTrend.set(k, slot);
-  }
-  // Mes cerrado = el período seleccionado (snapshot)
+  const sortedKeys = Array.from(byMonthAll.keys()).sort();
   const latest = period;
-  // Mes anterior al período
   const prev = (() => {
     const [y, m] = period.split("-").map(Number);
-    if (!y || !m) return undefined;
+    if (!y || !m) return sortedKeys[sortedKeys.length - 2];
     const py = m === 1 ? y - 1 : y;
     const pm = m === 1 ? 12 : m - 1;
     return `${py}-${String(pm).padStart(2, "0")}`;
   })();
-  // Trend: últimos 12 meses hasta el período (inclusive), generando todos los buckets
-  const last12Keys: string[] = (() => {
-    const [y, m] = period.split("-").map(Number);
-    const arr: string[] = [];
-    for (let i = 11; i >= 0; i--) {
-      const d = new Date(y!, (m! - 1) - i, 1);
-      arr.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
-    }
-    return arr;
-  })();
-  const churnTrend = last12Keys.map((k) => {
-    const s = byMonthTrend.get(k) ?? { bajas: 0, conMotivo: 0 };
+  const churnTrend = sortedKeys.map((k) => {
+    const s = byMonthAll.get(k)!;
     return {
       key: k, mes: monthLabel(k), bajas: s.bajas,
       pctMotivo: s.bajas ? (s.conMotivo / s.bajas) * 100 : null,
       proyectado: false,
     };
   });
-  const bajasMesActual = byMonth.get(latest)?.bajas ?? 0;
-  const bajasMesPrev = prev ? (byMonthTrend.get(prev)?.bajas ?? 0) : 0;
-
+  const bajasMesActual = byMonthAll.get(latest)?.bajas ?? 0;
+  const bajasMesPrev = prev ? (byMonthAll.get(prev)?.bajas ?? 0) : 0;
   const monthDeltaPct = bajasMesPrev ? ((bajasMesActual - bajasMesPrev) / bajasMesPrev) * 100 : null;
 
 
   // YTD (año del latest)
   const latestYear = latest ? Number(latest.split("-")[0]) : new Date().getUTCFullYear();
-  const ytdClosed = Array.from(byMonth.entries())
+  const ytdClosed = Array.from(byMonthAll.entries())
     .filter(([k]) => Number(k.split("-")[0]) === latestYear)
     .reduce((s, [, v]) => s + v.bajas, 0);
 
@@ -265,7 +238,7 @@ async function fetchResumen(period: string): Promise<ResumenData> {
   const npsBest = npsByPais[npsByPais.length - 1] ?? null;
   const npsGap = npsBest && npsWorst ? npsBest.nps - npsWorst.nps : 0;
 
-  // CSAT — promedio por fila (cliente), no por campo
+  // CSAT — promediamos cs y onb por cliente antes de agregar (1 valor por cliente)
   const csatVals: number[] = [];
   for (const r of csat) {
     const a = normalizeCsat(r.csat_cs_promedio);

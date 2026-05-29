@@ -42,9 +42,15 @@ function clamp(n: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, n));
 }
 
+function normalizeNps(v: number | null): number | null {
+  if (v == null) return null;
+  return v > 10 ? v / 10 : v;
+}
+
 function scoreCuenta(r: ScoreRow): number {
-  // NPS: -100..100 → 0..100
-  const nps = r.nps_score == null ? 50 : clamp(((r.nps_score - 0) / 10) * 100);
+  // NPS normalizado a 0-10, luego escalado a 0-100
+  const npsNorm = normalizeNps(r.nps_score);
+  const nps = npsNorm == null ? 50 : clamp((npsNorm / 10) * 100);
   // CSAT prom (0..5) → 0..100
   const csatVals = [r.csat_cs_promedio, r.csat_onb_promedio].filter((v): v is number => v != null);
   const csat = csatVals.length ? clamp((csatVals.reduce((a, b) => a + b, 0) / csatVals.length / 5) * 100) : 50;
