@@ -10,7 +10,7 @@ import { mesLargo } from "@/data/schema";
 import { useSupabaseNps, type NpsMotivoRow } from "@/data/supabase-nps";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip,
-  CartesianGrid, ComposedChart, Line, LabelList,
+  CartesianGrid, ComposedChart, Line, LabelList, Cell,
 } from "recharts";
 
 export const Route = createFileRoute("/nps")({
