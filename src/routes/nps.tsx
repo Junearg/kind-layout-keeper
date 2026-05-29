@@ -183,7 +183,7 @@ function Nps() {
       <div className="card lg" style={{ background: "var(--ink)", color: "var(--paper)" }}>
         <div className="card-eyebrow" style={{ color: ORANGE }}>NPS Paradox</div>
         <div className="serif" style={{ fontSize: 30, lineHeight: 1.25, color: "#fff", marginTop: 8, marginBottom: 20 }}>
-          El producto enamora.
+          El producto convence.
           <span style={{ color: ORANGE }}> El modelo de precios, no siempre.</span>
         </div>
         <div className="bento cols-4">
