@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
 
 import { ExportButton } from "@/components/ExportButton";
@@ -32,24 +32,6 @@ function Resumen() {
   const mesActivo = useMesActivo();
   const { data: insights6m } = useSupabaseChurnInsights(mesActivo);
 
-  const motivos6m = useMemo(() => {
-    if (!insights6m) return null;
-    const filtered = insights6m.rows.filter((x) => !/nps/i.test(x.motivo));
-    const map = new Map<string, number>();
-    for (const x of filtered) map.set(x.motivo, (map.get(x.motivo) ?? 0) + 1);
-    const total = filtered.length || 1;
-    const sorted = [...map.entries()].sort((a, b) => b[1] - a[1]);
-    let palIdx = 0;
-    return sorted.map(([motivo, n]) => {
-      const brecha = /sin (motivo|respuesta)/i.test(motivo);
-      return {
-        motivo, n,
-        pct: +((n / total) * 100).toFixed(1),
-        color: brecha ? "#DC2626" : MOTIVO_PALETTE[palIdx++ % MOTIVO_PALETTE.length]!,
-        brecha,
-      };
-    });
-  }, [insights6m]);
 
   return (
     <Layout actions={
@@ -131,7 +113,7 @@ function Resumen() {
 
       <div className="bento cols-2">
         <TrendCard trend={r.churnTrend} delta={r.monthDeltaPct} prevLabel={r.prevClosedLabel} latestLabel={r.latestClosedLabel} />
-        <MotivosDonutCard motivos={motivos6m} />
+        <MotivosDonutCard rows={insights6m?.rows ?? null} />
       </div>
       </>
       )}
@@ -277,9 +259,54 @@ function TierDonutCard({ tierDist, total }: { tierDist: { tier: string; count: n
   );
 }
 
-type MotivoRow = { motivo: string; n: number; pct: number; color: string; brecha: boolean };
+type ChurnRowLite = { motivo: string; fechaBaja: string | null };
 
-function MotivosDonutCard({ motivos }: { motivos: MotivoRow[] | null }) {
+function MotivosDonutCard({ rows }: { rows: ChurnRowLite[] | null }) {
+  const [from, setFrom] = useState<string>("");
+  const [to, setTo] = useState<string>("");
+
+  // Default range = min/max fechaBaja en rows
+  const bounds = useMemo(() => {
+    if (!rows || rows.length === 0) return null;
+    let min = "9999-12-31", max = "0000-01-01";
+    for (const r of rows) {
+      if (!r.fechaBaja) continue;
+      const d = r.fechaBaja.slice(0, 10);
+      if (d < min) min = d;
+      if (d > max) max = d;
+    }
+    return { min, max };
+  }, [rows]);
+
+  const fromEff = from || bounds?.min || "";
+  const toEff = to || bounds?.max || "";
+
+  const motivos = useMemo(() => {
+    if (!rows) return null;
+    const filtered = rows.filter((x) => {
+      if (/nps/i.test(x.motivo)) return false;
+      if (!x.fechaBaja) return false;
+      const d = x.fechaBaja.slice(0, 10);
+      if (fromEff && d < fromEff) return false;
+      if (toEff && d > toEff) return false;
+      return true;
+    });
+    const map = new Map<string, number>();
+    for (const x of filtered) map.set(x.motivo, (map.get(x.motivo) ?? 0) + 1);
+    const total = filtered.length || 1;
+    const sorted = [...map.entries()].sort((a, b) => b[1] - a[1]);
+    let palIdx = 0;
+    return sorted.map(([motivo, n]) => {
+      const brecha = /sin (motivo|respuesta)/i.test(motivo);
+      return {
+        motivo, n,
+        pct: +((n / total) * 100).toFixed(1),
+        color: brecha ? "#DC2626" : MOTIVO_PALETTE[palIdx++ % MOTIVO_PALETTE.length]!,
+        brecha,
+      };
+    });
+  }, [rows, fromEff, toEff]);
+
   if (!motivos) {
     return (
       <div className="card lg" style={{ display: "grid", placeItems: "center", minHeight: 320 }}>
@@ -290,10 +317,29 @@ function MotivosDonutCard({ motivos }: { motivos: MotivoRow[] | null }) {
   const total = motivos.reduce((s, m) => s + m.n, 0);
   const sinMotivo = motivos.find((m) => m.brecha);
   const pctSinMotivo = sinMotivo ? (sinMotivo.n / (total || 1)) * 100 : 0;
+
+  const inputStyle: React.CSSProperties = {
+    fontSize: 12, padding: "6px 8px", border: "1px solid var(--rule)",
+    borderRadius: 8, background: "white", color: "var(--ink)", fontFamily: "inherit",
+  };
+
   return (
     <div className="card lg">
-      <div className="card-eyebrow">Distribución de motivos</div>
-      <div className="card-title serif" style={{ marginBottom: 12, fontStyle: "italic" }}>{nfmt(total)} bajas categorizadas</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+        <div>
+          <div className="card-eyebrow">Distribución de motivos</div>
+          <div className="card-title serif" style={{ fontStyle: "italic" }}>{nfmt(total)} bajas categorizadas</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <span className="muted fs-11">Desde</span>
+          <input type="date" value={fromEff} min={bounds?.min} max={bounds?.max} onChange={(e) => setFrom(e.target.value)} style={inputStyle} />
+          <span className="muted fs-11">Hasta</span>
+          <input type="date" value={toEff} min={bounds?.min} max={bounds?.max} onChange={(e) => setTo(e.target.value)} style={inputStyle} />
+          {(from || to) && (
+            <button onClick={() => { setFrom(""); setTo(""); }} style={{ ...inputStyle, cursor: "pointer" }}>Limpiar</button>
+          )}
+        </div>
+      </div>
       <div className="chart-wrap" style={{ height: 380, position: "relative", background: "white" }}>
         <ResponsiveContainer>
           <PieChart>
@@ -322,7 +368,6 @@ function MotivosDonutCard({ motivos }: { motivos: MotivoRow[] | null }) {
           <div className="serif" style={{ fontSize: 16, color: "#DC2626", marginTop: 6, fontStyle: "italic" }}>sin motivo</div>
         </div>
       </div>
-      <div className="muted fs-11" style={{ marginTop: 10 }}>Últimos 6 meses · excluye NPS</div>
     </div>
   );
 }
