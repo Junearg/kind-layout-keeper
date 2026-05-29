@@ -418,10 +418,21 @@ function Tendencia() {
           </table>
           <div style={{ marginTop: 20, paddingTop: 18, borderTop: "1px solid var(--rule)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
             <div className="fs-12 muted">
-              {sinMotivo.n.toLocaleString()} cuentas dadas de baja sin razón registrada.
+              {nfmt(d.totalCategorizadas)} bajas con motivo registrado · {sinMotivo.n.toLocaleString()} sin razón.
             </div>
-            <button className="btn" onClick={exportEmptyCsv}>
-              Exportar {sinMotivo.n.toLocaleString()} cuentas sin motivo →
+            <button
+              className="btn"
+              disabled={exporting}
+              onClick={async () => {
+                try {
+                  setExporting(true);
+                  await exportBajasConMotivo(mesActivo);
+                } finally {
+                  setExporting(false);
+                }
+              }}
+            >
+              {exporting ? "Exportando…" : `Exportar ${nfmt(d.totalCategorizadas)} bajas con motivo →`}
             </button>
           </div>
         </div>
