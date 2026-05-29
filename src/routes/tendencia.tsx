@@ -17,8 +17,18 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   ResponsiveContainer, ComposedChart, BarChart, Bar, Area, LabelList,
   XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, ErrorBar, Cell,
+  Line, ReferenceLine, Legend,
 } from "recharts";
 import { MOTIVO_CATS, MOTIVO_COLORS, AREA_ESTRATEGICA } from "@/lib/motivo-normalizer";
+import { PLANES } from "@/data/supabase-trend";
+import { useSnapshot } from "@/data/supabase-snapshot";
+import { mesCorto } from "@/data/schema";
+
+const PLAN_COLORS: Record<string, string> = {
+  "Inicial":   "#2563EB",
+  "Avanzado":  "#D97706",
+  "Pro":       "#7C3AED",
+};
 
 
 
@@ -84,6 +94,20 @@ function Tendencia() {
   const { selectedPeriod } = usePeriod();
   const { selectedPais } = useCountry();
   const { data: ret } = useRetention(selectedPeriod, selectedPais);
+  const { data: snapshotRows, isLoading: snapshotLoading } = useSnapshot(selectedPeriod, selectedPais);
+
+  // Marcador "hoy" en el gráfico
+  const hoyLabel = mesCorto(new Date().toISOString().slice(0, 7));
+
+  // Estado de búsqueda del snapshot
+  const [snapshotQ, setSnapshotQ] = useState("");
+  const [snapshotPlan, setSnapshotPlan] = useState<string>("Todos");
+  const snapshotFiltered = (snapshotRows ?? []).filter((r) => {
+    const qOk = !snapshotQ || [r.nombre, r.pais, r.id_hubspot, r.motivoCat, r.ejecutivo]
+      .some(v => v.toLowerCase().includes(snapshotQ.toLowerCase()));
+    const planOk = snapshotPlan === "Todos" || r.plan === snapshotPlan;
+    return qOk && planOk;
+  });
 
   // Motivos de baja (últimos 6 meses, excluyendo NPS)
   const PALETTE = ["#6B7280", "#2563EB", "#D97706", "#F05A28", "#7C3AED", "#DB2777", "#0D9488", "#16A34A", "#9333EA", "#0EA5E9"];
@@ -290,37 +314,61 @@ function Tendencia() {
       {/* Segmentación */}
       <SegmentacionChurn />
 
-      {/* Gráfico SUPERIOR — Churn Rate % por mes (métrica primaria) */}
+      {/* Gráfico SUPERIOR — Churn Rate % por mes + líneas por plan (métrica primaria) */}
       <div className="card lg">
         <div className="minihead">
           <div>
-            <div className="card-eyebrow">Evolución del Churn Rate mensual</div>
+            <div className="card-eyebrow">Evolución del Churn Rate mensual · por plan</div>
             <div className="card-title">Porcentaje de bajas sobre base activa · últimos 12 meses</div>
           </div>
           {d.seriesGrowthLabel && <span className="callout orange">↑ {d.seriesGrowthLabel}</span>}
         </div>
-        <div className="chart-wrap" style={{ height: 300, position: "relative" }}>
+        <div className="chart-wrap" style={{ height: 320, position: "relative" }}>
           <ResponsiveContainer>
-            <ComposedChart data={chartData} margin={{ top: 32, right: 24, left: 0, bottom: 8 }}>
+            <ComposedChart
+              data={chartData.filter(p => !p.proyectado).map(p => ({
+                mes: p.mes,
+                rate: p.rate,
+                bajas: p.bajas,
+                activeBase: p.activeBase,
+                ...Object.fromEntries(
+                  PLANES.map(pl => [`rate_${pl}`, (p as any).planRates?.[pl] ?? null])
+                ),
+              }))}
+              margin={{ top: 32, right: 24, left: 0, bottom: 8 }}
+            >
               <CartesianGrid stroke="#E8E6DC" vertical={false} />
               <XAxis dataKey="mes" tick={{ fontSize: 12, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} unit="%" />
               <Tooltip
                 contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid #E8E6DC" }}
-                formatter={(value: any, _name: any, item: any) => {
+                formatter={(value: any, name: any, item: any) => {
                   const row = item?.payload ?? {};
-                  return [`${Number(value).toFixed(2)}%  (${nfmt(row.bajas)} bajas · base ${nfmt(row.activeBase)})`, row.proyectado ? "proyección" : "churn rate"];
+                  if (name === "rate") return [`${Number(value).toFixed(2)}% (${nfmt(row.bajas)} bajas)`, "Total"];
+                  const plan = String(name).replace("rate_", "");
+                  return [`${Number(value).toFixed(2)}%`, plan];
                 }}
               />
-              {forecastX.length > 0 && (
-                <ReferenceArea x1={forecastX[0]} x2={forecastX[forecastX.length - 1]} fill="#0B0B0A" fillOpacity={0.04} label={{ value: "Forecast WMA", position: "insideTop", fill: "#6E6D66", fontSize: 11 }} />
-              )}
-              <Bar dataKey="rate" radius={[6, 6, 0, 0]} barSize={36}>
-                {chartData.map((dd, i) => (
-                  <Cell key={i} fill={dd.proyectado ? "#FFB089" : ORANGE} fillOpacity={dd.proyectado ? 0.7 : 1} />
-                ))}
+              <Legend formatter={(v) => v === "rate" ? "Total" : v.replace("rate_", "")} />
+              {/* Marcador "hoy" */}
+              <ReferenceLine x={hoyLabel} stroke="var(--orange)" strokeDasharray="4 3" label={{ value: "hoy", position: "top", fill: "var(--orange)", fontSize: 11 }} />
+              {/* Barras totales */}
+              <Bar dataKey="rate" radius={[4, 4, 0, 0]} barSize={28} fill={ORANGE} fillOpacity={0.35}>
                 <LabelList dataKey="rate" position="top" style={{ fontSize: 10, fill: "#0B0B0A", fontWeight: 500 }} formatter={(v: any) => `${Number(v).toFixed(1)}%`} />
               </Bar>
+              {/* Líneas por plan */}
+              {PLANES.map(plan => (
+                <Line
+                  key={plan}
+                  type="monotone"
+                  dataKey={`rate_${plan}`}
+                  stroke={PLAN_COLORS[plan]}
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: PLAN_COLORS[plan] }}
+                  connectNulls
+                  name={`rate_${plan}`}
+                />
+              ))}
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -440,6 +488,82 @@ function Tendencia() {
         <div className="fs-12 muted" style={{ marginTop: 14 }}>
           {(sinMotivoRow?.n ?? 0).toLocaleString()} bajas sin razón registrada · export incluye id_hubspot para acciones directas.
         </div>
+      </div>
+
+      {/* ── Snapshot de cuentas dadas de baja ── */}
+      <div className="divider">
+        <span className="kicker">Snapshot</span>
+        <span className="alt">/ cuentas dadas de baja · {selectedPais}</span>
+        <span className="sub">{snapshotRows ? `${nfmt(snapshotRows.length)} cuentas` : ""}</span>
+        <span className="rule" />
+      </div>
+
+      <div className="card lg">
+        <div className="minihead" style={{ marginBottom: 14 }}>
+          <div>
+            <div className="card-eyebrow">Detalle por cuenta</div>
+            <div className="card-title">Todas las bajas del período · filtrable</div>
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <select
+              value={snapshotPlan}
+              onChange={e => setSnapshotPlan(e.target.value)}
+              style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid var(--rule-2)", background: "var(--paper)", fontSize: 12.5, fontFamily: "inherit" }}
+            >
+              <option value="Todos">Todos los planes</option>
+              {PLANES.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+            <input
+              value={snapshotQ}
+              onChange={e => setSnapshotQ(e.target.value)}
+              placeholder="Buscar nombre, país, motivo…"
+              style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rule-2)", background: "var(--paper)", fontSize: 12.5, fontFamily: "inherit", width: 220 }}
+            />
+          </div>
+        </div>
+        {snapshotLoading ? (
+          <div className="fs-12 muted">Cargando cuentas…</div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>ID HubSpot</th>
+                  <th>País</th>
+                  <th>Plan</th>
+                  <th>Fecha baja</th>
+                  <th style={{ textAlign: "right" }}>Días</th>
+                  <th>Motivo</th>
+                  <th>Ejecutivo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {snapshotFiltered.slice(0, 200).map((r, i) => (
+                  <tr key={`${r.id_hubspot}-${i}`}>
+                    <td className="strong">{r.nombre}</td>
+                    <td className="mono fs-11" style={{ color: "var(--ink-3)" }}>{r.id_hubspot}</td>
+                    <td>{r.pais}</td>
+                    <td><span className="tag outline">{r.plan}</span></td>
+                    <td className="mono">{r.fecha_baja ?? "—"}</td>
+                    <td className="mono" style={{ textAlign: "right", color: r.diasDesdeBaja != null && r.diasDesdeBaja > 30 ? "var(--red)" : "var(--ink-2)" }}>
+                      {r.diasDesdeBaja != null ? r.diasDesdeBaja : "—"}
+                    </td>
+                    <td>
+                      <span className="fs-11" style={{ color: "var(--ink-2)" }}>{r.motivoCat}</span>
+                    </td>
+                    <td className="fs-11 muted">{r.ejecutivo}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {snapshotFiltered.length > 200 && (
+              <div className="fs-12 muted" style={{ marginTop: 10, textAlign: "center" }}>
+                Mostrando 200 de {nfmt(snapshotFiltered.length)} — exportá para ver todas
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Actividad operativa ── */}

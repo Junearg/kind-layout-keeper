@@ -12,6 +12,9 @@ const OPERATIONAL_MOTIVOS = new Set(["CHANGE_METHOD", "CHANGE_FREQUENCY"]);
 const ETAPAS_BAJA = ["Bajas", "Bajas clientes"] as const;
 const WMA_WEIGHTS = [0.5, 0.3, 0.2] as const;
 
+export const PLANES = ["Inicial", "Avanzado", "Pro"] as const;
+export type Plan = (typeof PLANES)[number];
+
 export type TrendRatePoint = {
   mes: string;
   key: string;
@@ -25,6 +28,8 @@ export type TrendRatePoint = {
   rateMax?: number;
   bajasError?: [number, number];
   motivoBreakdown?: Partial<Record<MotivoCat, number>>;
+  planBreakdown?: Partial<Record<Plan, number>>;   // bajas por plan
+  planRates?: Partial<Record<Plan, number>>;        // tasa % por plan
 };
 
 export type TrendRate = {
@@ -86,10 +91,11 @@ async function fetchTrendRate(mesActivo: string): Promise<TrendRate> {
     submotivo_baja: string | null;
     motivo_metabase: string | null;
     comentarios_metabase: string | null;
+    plan: string | null;
   };
   const bajasRaw = await pageAll<BajaRow>(() => supabase
     .from("clientes")
-    .select("fecha_baja,motivo_baja,submotivo_baja,motivo_metabase,comentarios_metabase")
+    .select("fecha_baja,motivo_baja,submotivo_baja,motivo_metabase,comentarios_metabase,plan")
     .eq("mes_exportacion", mesActivo)
     .in("etapa", ETAPAS_BAJA));
 
@@ -98,19 +104,40 @@ async function fetchTrendRate(mesActivo: string): Promise<TrendRate> {
     (b) => !(b.motivo_baja && OPERATIONAL_MOTIVOS.has(b.motivo_baja.trim().toUpperCase())),
   );
 
-  // 2. Agrupar por mes calendario de fecha_baja + breakdown por motivo.
+  // 2. Agrupar por mes calendario + breakdown por motivo y por plan.
   const byMonth = new Map<string, number>();
   const byMonthMotivo = new Map<string, Partial<Record<MotivoCat, number>>>();
+  const byMonthPlan   = new Map<string, Partial<Record<Plan, number>>>();
   for (const b of bajas) {
     if (!b.fecha_baja) continue;
     const k = monthKey(new Date(b.fecha_baja));
     if (k > mesActivo) continue;
     byMonth.set(k, (byMonth.get(k) ?? 0) + 1);
+    // motivo
     const cat = normalizarMotivo(b.motivo_baja, b.submotivo_baja, b.motivo_metabase, b.comentarios_metabase);
     const mb = byMonthMotivo.get(k) ?? {};
     mb[cat] = (mb[cat] ?? 0) + 1;
     byMonthMotivo.set(k, mb);
+    // plan
+    const plan = (b.plan ?? "") as Plan;
+    if (PLANES.includes(plan)) {
+      const pb = byMonthPlan.get(k) ?? {};
+      pb[plan] = (pb[plan] ?? 0) + 1;
+      byMonthPlan.set(k, pb);
+    }
   }
+
+  // Activas por plan del snapshot actual (denominador para tasas por plan)
+  const activasPorPlan: Partial<Record<Plan, number>> = {};
+  await Promise.all(PLANES.map(async (plan) => {
+    const { count } = await supabase
+      .from("clientes")
+      .select("*", { count: "exact", head: true })
+      .eq("mes_exportacion", mesActivo)
+      .eq("estado_dash", "Activo")
+      .eq("plan", plan);
+    activasPorPlan[plan] = count ?? 0;
+  }));
   // Últimos 12 meses con bajas registradas (ascendente).
   const closedKeys = Array.from(byMonth.keys()).sort().slice(-12);
   if (closedKeys.length === 0) return emptyTrend();
@@ -167,6 +194,14 @@ async function fetchTrendRate(mesActivo: string): Promise<TrendRate> {
     const bajasMes = byMonth.get(k) ?? 0;
     const activeBase = activeBaseByKey.get(k) ?? 0;
     const rate = activeBase > 0 ? (bajasMes / activeBase) * 100 : 0;
+    // Tasas por plan: bajas_plan / activas_plan_snapshot_actual (aproximación)
+    const pb = byMonthPlan.get(k) ?? {};
+    const planRates: Partial<Record<Plan, number>> = {};
+    for (const plan of PLANES) {
+      const b = pb[plan] ?? 0;
+      const a = activasPorPlan[plan] ?? 0;
+      planRates[plan] = a > 0 ? (b / a) * 100 : 0;
+    }
     return {
       mes: mesCorto(k),
       key: k,
@@ -175,6 +210,8 @@ async function fetchTrendRate(mesActivo: string): Promise<TrendRate> {
       rate,
       proyectado: false,
       motivoBreakdown: byMonthMotivo.get(k) ?? {},
+      planBreakdown: pb,
+      planRates,
     };
   });
 
