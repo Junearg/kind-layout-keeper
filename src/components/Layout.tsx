@@ -206,18 +206,20 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
 
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 12 }}>
-            {active !== "/importar" && (
-              <Link
-                to="/importar"
-                className="btn ghost"
-                style={{ gap: 8, display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 180 }}
-              >
-                <span style={{ fontSize: 13 }}>↑</span> Importar
-              </Link>
-            )}
-
-            {actions}
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              {active !== "/importar" && (
+                <Link
+                  to="/importar"
+                  className="btn ghost"
+                  style={{ gap: 8, display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 140 }}
+                >
+                  <span style={{ fontSize: 13 }}>↑</span> Importar
+                </Link>
+              )}
+              {actions}
+            </div>
             {active !== "/importar" && <PeriodSelector />}
+
 
 
             <div className="stamp">
