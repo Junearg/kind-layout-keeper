@@ -82,7 +82,7 @@ function Resumen() {
           </div>
         </div>
 
-        {/* NPS por país + general */}
+        {/* NPS por país */}
         <div className="card lg">
           <div className="card-head">
             <div>
@@ -90,22 +90,6 @@ function Resumen() {
               <div className="card-title">{nfmt(r.npsResponses)} respuestas</div>
             </div>
             <div className="arrow-up">⌁</div>
-          </div>
-
-          {/* NPS general */}
-          <div style={{
-            display: "grid", gridTemplateColumns: "auto 1fr", gap: 14,
-            alignItems: "center", marginTop: 18,
-            padding: "14px 14px", borderRadius: 14,
-            background: "var(--orange)", color: "white",
-          }}>
-            <div>
-              <div className="fs-11" style={{ opacity: 0.8 }}>NPS GENERAL</div>
-              <div className="mono" style={{ fontSize: 28, fontWeight: 500, lineHeight: 1 }}>
-                {r.npsScore.toFixed(1)}
-              </div>
-            </div>
-
           </div>
 
           {/* NPS por país */}
