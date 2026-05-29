@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
 import { EmptyPeriod } from "@/components/EmptyPeriod";
@@ -8,6 +9,7 @@ import { useDerived } from "@/data/derived";
 import { useMotivosMes, useResumenMes, useMesActivo } from "@/data/dataset-store";
 import { SegmentacionChurn } from "@/components/SegmentacionChurn";
 import { mesLargo } from "@/data/schema";
+import { supabase } from "@/integrations/supabase/client";
 import {
   ResponsiveContainer, ComposedChart, Bar, Area, LabelList,
   XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, ErrorBar,
@@ -22,19 +24,51 @@ export const Route = createFileRoute("/tendencia")({
 const nfmt = (n: number) => n.toLocaleString("es-AR");
 const pctfmt = (n: number, d = 2) => `${n.toFixed(d)}%`;
 
+const CSV_HEADERS = [
+  "id_cuenta_dash", "nombre", "pais", "plan", "ejecutivo",
+  "fecha_baja", "motivo_baja", "submotivo_baja",
+] as const;
 
-function exportEmptyCsv() {
-  const headers = ["dash_id", "pais", "plan", "fecha_baja", "responsable_asignacion"];
-  const blob = new Blob([headers.join(",") + "\n"], { type: "text/csv;charset=utf-8;" });
+function csvEscape(v: unknown): string {
+  if (v == null) return "";
+  const s = String(v);
+  return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+async function exportBajasConMotivo(mesActivo: string): Promise<number> {
+  const PAGE = 1000;
+  const rows: any[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from("clientes")
+      .select(CSV_HEADERS.join(","))
+      .eq("mes_exportacion", mesActivo)
+      .eq("estado_dash", "Bloqueado")
+      .not("motivo_baja", "is", null)
+      .not("fecha_baja", "is", null)
+      .order("fecha_baja", { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (error) throw error;
+    const batch = data ?? [];
+    rows.push(...batch);
+    if (batch.length < PAGE) break;
+  }
+  const lines = [CSV_HEADERS.join(",")];
+  for (const r of rows) {
+    lines.push(CSV_HEADERS.map((h) => csvEscape((r as any)[h])).join(","));
+  }
+  const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "cuentas_sin_motivo.csv";
+  a.download = `bajas_con_motivo_${mesActivo}.csv`;
   a.click();
   URL.revokeObjectURL(url);
+  return rows.length;
 }
 
 function Tendencia() {
+  const [exporting, setExporting] = useState(false);
   const { motivosBaja } = useDashboardData();
 
   const d = useDerived();
@@ -385,10 +419,21 @@ function Tendencia() {
           </table>
           <div style={{ marginTop: 20, paddingTop: 18, borderTop: "1px solid var(--rule)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
             <div className="fs-12 muted">
-              {sinMotivo.n.toLocaleString()} cuentas dadas de baja sin razón registrada.
+              {nfmt(d.totalCategorizadas)} bajas con motivo registrado · {sinMotivo.n.toLocaleString()} sin razón.
             </div>
-            <button className="btn" onClick={exportEmptyCsv}>
-              Exportar {sinMotivo.n.toLocaleString()} cuentas sin motivo →
+            <button
+              className="btn"
+              disabled={exporting}
+              onClick={async () => {
+                try {
+                  setExporting(true);
+                  await exportBajasConMotivo(mesActivo);
+                } finally {
+                  setExporting(false);
+                }
+              }}
+            >
+              {exporting ? "Exportando…" : `Exportar ${nfmt(d.totalCategorizadas)} bajas con motivo →`}
             </button>
           </div>
         </div>
