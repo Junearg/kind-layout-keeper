@@ -5,6 +5,8 @@ import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
 import { usePeriod } from "@/contexts/PeriodContext";
 import { supabase } from "@/integrations/supabase/client";
+import { NpsSection } from "@/components/NpsSection";
+import { CsatSection } from "@/components/CsatSection";
 
 export const Route = createFileRoute("/contactos")({
   head: () => ({ meta: [{ title: "Contact Churn · Fudo Customer Center" }] }),
