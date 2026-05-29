@@ -6,6 +6,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { mesCorto } from "./schema";
+import { normalizarMotivo, type MotivoCat } from "@/lib/motivo-normalizer";
 
 const OPERATIONAL_MOTIVOS = new Set(["CHANGE_METHOD", "CHANGE_FREQUENCY"]);
 const ETAPAS_BAJA = ["Bajas", "Bajas clientes"] as const;
@@ -23,6 +24,7 @@ export type TrendRatePoint = {
   rateMin?: number;
   rateMax?: number;
   bajasError?: [number, number];
+  motivoBreakdown?: Partial<Record<MotivoCat, number>>;
 };
 
 export type TrendRate = {
@@ -78,10 +80,16 @@ async function fetchTrendRate(mesActivo: string): Promise<TrendRate> {
   if (!mesActivo) return emptyTrend();
 
   // 1. Todas las bajas reales: etapa IN ("Bajas", "Bajas clientes").
-  type BajaRow = { fecha_baja: string | null; motivo_baja: string | null };
+  type BajaRow = {
+    fecha_baja: string | null;
+    motivo_baja: string | null;
+    submotivo_baja: string | null;
+    motivo_metabase: string | null;
+    comentarios_metabase: string | null;
+  };
   const bajasRaw = await pageAll<BajaRow>(() => supabase
     .from("clientes")
-    .select("fecha_baja,motivo_baja")
+    .select("fecha_baja,motivo_baja,submotivo_baja,motivo_metabase,comentarios_metabase")
     .eq("mes_exportacion", mesActivo)
     .in("etapa", ETAPAS_BAJA));
 
@@ -90,16 +98,21 @@ async function fetchTrendRate(mesActivo: string): Promise<TrendRate> {
     (b) => !(b.motivo_baja && OPERATIONAL_MOTIVOS.has(b.motivo_baja.trim().toUpperCase())),
   );
 
-  // 2. Agrupar por mes calendario de fecha_baja, hasta el mes activo.
+  // 2. Agrupar por mes calendario de fecha_baja + breakdown por motivo.
   const byMonth = new Map<string, number>();
+  const byMonthMotivo = new Map<string, Partial<Record<MotivoCat, number>>>();
   for (const b of bajas) {
     if (!b.fecha_baja) continue;
     const k = monthKey(new Date(b.fecha_baja));
     if (k > mesActivo) continue;
     byMonth.set(k, (byMonth.get(k) ?? 0) + 1);
+    const cat = normalizarMotivo(b.motivo_baja, b.submotivo_baja, b.motivo_metabase, b.comentarios_metabase);
+    const mb = byMonthMotivo.get(k) ?? {};
+    mb[cat] = (mb[cat] ?? 0) + 1;
+    byMonthMotivo.set(k, mb);
   }
-  // Últimos 6 meses con bajas registradas (ascendente).
-  const closedKeys = Array.from(byMonth.keys()).sort().slice(-6);
+  // Últimos 12 meses con bajas registradas (ascendente).
+  const closedKeys = Array.from(byMonth.keys()).sort().slice(-12);
   if (closedKeys.length === 0) return emptyTrend();
 
   // 3. Cuentas activas (estado_dash=Activo) en CADA snapshot mes_exportacion
@@ -161,6 +174,7 @@ async function fetchTrendRate(mesActivo: string): Promise<TrendRate> {
       activeBase,
       rate,
       proyectado: false,
+      motivoBreakdown: byMonthMotivo.get(k) ?? {},
     };
   });
 

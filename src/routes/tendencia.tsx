@@ -12,10 +12,10 @@ import { SegmentacionChurn } from "@/components/SegmentacionChurn";
 import { mesLargo } from "@/data/schema";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  ResponsiveContainer, ComposedChart, Bar, Area, LabelList,
-  XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, ErrorBar,
-  PieChart, Pie, Cell,
+  ResponsiveContainer, ComposedChart, BarChart, Bar, Area, LabelList,
+  XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, ErrorBar, Cell,
 } from "recharts";
+import { MOTIVO_CATS, MOTIVO_COLORS, AREA_ESTRATEGICA } from "@/lib/motivo-normalizer";
 
 
 
@@ -27,8 +27,8 @@ const nfmt = (n: number) => n.toLocaleString("es-AR");
 const pctfmt = (n: number, d = 2) => `${n.toFixed(d)}%`;
 
 const CSV_HEADERS = [
-  "id_cuenta_dash", "nombre", "pais", "plan", "ejecutivo",
-  "fecha_baja", "motivo_baja", "submotivo_baja",
+  "id_hubspot", "id_cuenta_dash", "nombre", "pais", "plan", "ejecutivo",
+  "fecha_baja", "motivo_baja", "submotivo_baja", "comentarios_metabase",
 ] as const;
 
 function csvEscape(v: unknown): string {
@@ -284,75 +284,36 @@ function Tendencia() {
       {/* Segmentación */}
       <SegmentacionChurn />
 
-      {/* Fila 2 — Chart grande */}
+      {/* Gráfico SUPERIOR — Churn Rate % por mes (métrica primaria) */}
       <div className="card lg">
         <div className="minihead">
           <div>
-            <div className="card-eyebrow">Bajas mensuales + proyección rate-based</div>
-            <div className="card-title">
-              {d.firstClosed && d.latestClosed
-                ? `De ${nfmt(d.firstClosed.bajas)} a ${nfmt(chartData[chartData.length - 1]?.bajas ?? d.latestClosed.bajas)} en ${chartData.length} meses`
-                : "Bajas mensuales"}
-            </div>
+            <div className="card-eyebrow">Evolución del Churn Rate mensual</div>
+            <div className="card-title">Porcentaje de bajas sobre base activa · últimos 12 meses</div>
           </div>
           {d.seriesGrowthLabel && <span className="callout orange">↑ {d.seriesGrowthLabel}</span>}
         </div>
-        <div className="chart-wrap" style={{ height: 360, position: "relative" }}>
+        <div className="chart-wrap" style={{ height: 300, position: "relative" }}>
           <ResponsiveContainer>
-            <ComposedChart data={chartData} margin={{ top: 36, right: 24, left: 0, bottom: 8 }}>
-              <defs>
-                <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={ORANGE} stopOpacity={0.25} />
-                  <stop offset="100%" stopColor={ORANGE} stopOpacity={0} />
-                </linearGradient>
-              </defs>
+            <ComposedChart data={chartData} margin={{ top: 32, right: 24, left: 0, bottom: 8 }}>
               <CartesianGrid stroke="#E8E6DC" vertical={false} />
               <XAxis dataKey="mes" tick={{ fontSize: 12, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} unit="%" />
               <Tooltip
                 contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid #E8E6DC" }}
-                formatter={(value: any, name: any, item: any) => {
+                formatter={(value: any, _name: any, item: any) => {
                   const row = item?.payload ?? {};
-                  if (name === "bajas") {
-                    const rate = typeof row.rate === "number" ? ` (${row.rate.toFixed(2)}%)` : "";
-                    const band = row.proyectado && row.bajasMin != null && row.bajasMax != null
-                      ? ` · banda ${nfmt(row.bajasMin)}–${nfmt(row.bajasMax)}`
-                      : "";
-                    return [`${nfmt(Number(value))}${rate}${band}`, row.proyectado ? "proyección" : "bajas"];
-                  }
-                  if (name === "rangoY") return [null, null] as any;
-                  return [value, name];
+                  return [`${Number(value).toFixed(2)}%  (${nfmt(row.bajas)} bajas · base ${nfmt(row.activeBase)})`, row.proyectado ? "proyección" : "churn rate"];
                 }}
               />
               {forecastX.length > 0 && (
                 <ReferenceArea x1={forecastX[0]} x2={forecastX[forecastX.length - 1]} fill="#0B0B0A" fillOpacity={0.04} label={{ value: "Forecast WMA", position: "insideTop", fill: "#6E6D66", fontSize: 11 }} />
               )}
-              <Area type="monotone" dataKey="bajas" stroke="none" fill="url(#areaFill)" />
-              {/* Banda de confianza (sólo proyectados) */}
-              <Area
-                type="monotone"
-                dataKey="rangoY"
-                stroke="none"
-                fill={ORANGE}
-                fillOpacity={0.12}
-                isAnimationActive={false}
-                connectNulls={false}
-              />
-              <Bar dataKey="bajas" radius={[6, 6, 0, 0]} barSize={42}>
+              <Bar dataKey="rate" radius={[6, 6, 0, 0]} barSize={36}>
                 {chartData.map((dd, i) => (
-                  <Cell
-                    key={i}
-                    fill={dd.proyectado ? "#FFB089" : ORANGE}
-                    fillOpacity={dd.proyectado ? 0.7 : 1}
-                  />
+                  <Cell key={i} fill={dd.proyectado ? "#FFB089" : ORANGE} fillOpacity={dd.proyectado ? 0.7 : 1} />
                 ))}
-                <ErrorBar dataKey="bajasError" width={6} strokeWidth={1.5} stroke="#7A3A12" direction="y" />
-                <LabelList
-                  dataKey="bajas"
-                  position="top"
-                  style={{ fontSize: 11, fill: "#0B0B0A", fontWeight: 500 }}
-                  formatter={(v: any) => Number(v).toLocaleString()}
-                />
+                <LabelList dataKey="rate" position="top" style={{ fontSize: 10, fill: "#0B0B0A", fontWeight: 500 }} formatter={(v: any) => `${Number(v).toFixed(1)}%`} />
               </Bar>
             </ComposedChart>
           </ResponsiveContainer>
@@ -364,6 +325,45 @@ function Tendencia() {
         )}
       </div>
 
+      {/* Gráfico INFERIOR — Bajas absolutas por motivo (referencia) */}
+      <div className="card lg" style={{ marginTop: 16 }}>
+        <div className="minihead">
+          <div>
+            <div className="card-eyebrow">Bajas mensuales por motivo · valores nominales</div>
+            <div className="card-title">Referencia — desglose por categoría de causa</div>
+          </div>
+        </div>
+        <div className="chart-wrap" style={{ height: 280, position: "relative" }}>
+          <ResponsiveContainer>
+            <BarChart
+              data={chartData.filter(p => !p.proyectado).map(p => ({
+                mes: p.mes,
+                ...((p as any).motivoBreakdown ?? {}),
+                _total: p.bajas,
+              }))}
+              margin={{ top: 16, right: 24, left: 0, bottom: 8 }}
+            >
+              <CartesianGrid stroke="#E8E6DC" vertical={false} />
+              <XAxis dataKey="mes" tick={{ fontSize: 12, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid #E8E6DC" }} />
+              {MOTIVO_CATS.map((cat) => (
+                <Bar key={cat} dataKey={cat} stackId="motivo" fill={MOTIVO_COLORS[cat]} radius={MOTIVO_CATS.indexOf(cat) === MOTIVO_CATS.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        {/* Leyenda de colores */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 16px", marginTop: 12 }}>
+          {MOTIVO_CATS.map((cat) => (
+            <span key={cat} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--ink-2)" }}>
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: MOTIVO_COLORS[cat], flexShrink: 0 }} />
+              {cat}
+            </span>
+          ))}
+        </div>
+      </div>
+
 
       {/* Divider */}
       <div className="divider">
@@ -373,101 +373,66 @@ function Tendencia() {
         <span className="rule" />
       </div>
 
-      {/* Fila 3 — Donut + Tabla */}
-      <div className="bento equal-2">
-        {/* Donut */}
-        <div className="card lg">
-          <div className="card-eyebrow">Distribución de motivos</div>
-          <div className="card-title" style={{ marginBottom: 12 }}>{nfmt(totalCategorizadasDisplay)} bajas categorizadas</div>
-          <div className="chart-wrap" style={{ height: 480, position: "relative", background: "white" }}>
-            <ResponsiveContainer>
-              <PieChart>
-                <Pie
-                  data={motivosDisplay}
-                  dataKey="n"
-                  nameKey="motivo"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={110}
-                  outerRadius={170}
-                  paddingAngle={1}
-                  stroke="white"
-                  strokeWidth={2}
-                >
-                  {motivosDisplay.map((m, i) => (
-                    <Cell key={i} fill={m.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid #E8E6DC" }}
-                  formatter={(v: any, _n: any, p: any) => [`${Number(v).toLocaleString()} · ${p?.payload?.pct}%`, p?.payload?.motivo]}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none" }}>
-              <div style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 44, color: "#DC2626", lineHeight: 1, letterSpacing: "-0.03em" }}>{pctSinMotivoDisplay.toFixed(1)}%</div>
-              <div className="serif" style={{ fontSize: 18, color: "#DC2626", marginTop: 6 }}>sin motivo</div>
-            </div>
+      {/* Tabla full-width con área estratégica */}
+      <div className="card lg">
+        <div className="minihead">
+          <div>
+            <div className="card-eyebrow">Detalle por motivo</div>
+            <div className="card-title">{nfmt(totalCategorizadasDisplay)} bajas categorizadas · brecha atribución {pctSinMotivoDisplay.toFixed(1)}%</div>
           </div>
+          <button
+            className="btn"
+            disabled={exporting}
+            onClick={async () => {
+              try {
+                setExporting(true);
+                await exportBajasConMotivo(mesActivo);
+              } finally {
+                setExporting(false);
+              }
+            }}
+          >
+            {exporting ? "Exportando…" : "Exportar bajas con ID →"}
+          </button>
         </div>
-
-
-
-        {/* Tabla */}
-        <div className="card lg">
-          <div className="card-eyebrow">Detalle por motivo</div>
-          <div className="card-title" style={{ marginBottom: 16 }}>Atribución y prioridad</div>
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>Motivo</th>
-                <th style={{ textAlign: "right" }}>n</th>
-                <th style={{ textAlign: "right" }}>%</th>
-                <th>Prioridad</th>
-              </tr>
-            </thead>
-            <tbody>
-              {motivosDisplay.map((m) => {
-                const prioTag =
-                  m.prioridad === "CRÍTICA" ? "red" :
-                  m.prioridad === "ALTA" ? "orange" :
-                  m.prioridad === "Media" ? "amber" : "blue";
-                return (
-                  <tr key={m.motivo} className={m.brecha ? "row-alert" : ""}>
-                    <td className="strong" style={{ color: m.brecha ? "#DC2626" : undefined }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span className="tier-dot" style={{ background: m.color }} />
-                        {m.motivo}
-                        {m.brecha && <span className="tag red" style={{ marginLeft: 4 }}>BRECHA CRÍTICA</span>}
-                      </div>
-                    </td>
-                    <td className="mono strong" style={{ textAlign: "right" }}>{m.n.toLocaleString()}</td>
-                    <td className="mono" style={{ textAlign: "right", color: m.brecha ? "#DC2626" : undefined }}>{m.pct}%</td>
-                    <td><span className={`tag ${prioTag}`}>{m.prioridad}</span></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <div style={{ marginTop: 20, paddingTop: 18, borderTop: "1px solid var(--rule)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-            <div className="fs-12 muted">
-              {nfmt(totalCategorizadasDisplay)} bajas con motivo registrado · {(sinMotivoRow?.n ?? 0).toLocaleString()} sin razón.
-            </div>
-            <button
-              className="btn"
-              disabled={exporting}
-              onClick={async () => {
-                try {
-                  setExporting(true);
-                  await exportBajasConMotivo(mesActivo);
-                } finally {
-                  setExporting(false);
-                }
-              }}
-            >
-              {exporting ? "Exportando…" : `Exportar ${nfmt(totalCategorizadasDisplay)} bajas con motivo →`}
-            </button>
-          </div>
+        <table className="tbl" style={{ marginTop: 16 }}>
+          <thead>
+            <tr>
+              <th>Motivo</th>
+              <th>Área estratégica</th>
+              <th style={{ textAlign: "right" }}>n</th>
+              <th style={{ textAlign: "right" }}>%</th>
+              <th>Prioridad</th>
+            </tr>
+          </thead>
+          <tbody>
+            {motivosDisplay.map((m) => {
+              const area = AREA_ESTRATEGICA[m.motivo as keyof typeof AREA_ESTRATEGICA] ?? "Sin clasificar";
+              const color = MOTIVO_COLORS[m.motivo as keyof typeof MOTIVO_COLORS] ?? m.color;
+              const prioTag =
+                m.prioridad === "CRÍTICA" ? "red" :
+                m.prioridad === "ALTA" ? "orange" :
+                m.prioridad === "Media" ? "amber" : "blue";
+              return (
+                <tr key={m.motivo} className={m.brecha ? "row-alert" : ""}>
+                  <td className="strong" style={{ color: m.brecha ? "#DC2626" : undefined }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span className="tier-dot" style={{ background: color }} />
+                      {m.motivo}
+                      {m.brecha && <span className="tag red" style={{ marginLeft: 4 }}>BRECHA CRÍTICA</span>}
+                    </div>
+                  </td>
+                  <td className="fs-12" style={{ color: "var(--ink-3)" }}>{area}</td>
+                  <td className="mono strong" style={{ textAlign: "right" }}>{m.n.toLocaleString()}</td>
+                  <td className="mono" style={{ textAlign: "right", color: m.brecha ? "#DC2626" : undefined }}>{m.pct}%</td>
+                  <td><span className={`tag ${prioTag}`}>{m.prioridad}</span></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        <div className="fs-12 muted" style={{ marginTop: 14 }}>
+          {(sinMotivoRow?.n ?? 0).toLocaleString()} bajas sin razón registrada · export incluye id_hubspot para acciones directas.
         </div>
       </div>
       </>

@@ -1,6 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { scoreCliente, type Tier } from "@/lib/healthScore";
+import { normalizarMotivo, type MotivoCat } from "@/lib/motivo-normalizer";
+export type { MotivoCat };
+export { normalizarMotivo };
 
 // Rebuild trigger — forces fresh bundle on deploy
 
@@ -44,83 +47,6 @@ type BajaRow = {
   etapa: string | null;
 };
 
-// ─── Normalización de motivos ────────────────────────────────────────────────
-// Prioridad: J (motivo_baja) → K (submotivo_baja) → N (motivo_metabase) → O (comentarios, keywords)
-// Si K y O están vacíos se respeta lo de J+N sin forzar nada.
-export type MotivoCat =
-  | "Precio"
-  | "Producto / Funcionalidades"
-  | "Cierre definitivo"
-  | "Cierre temporal"
-  | "Eligió otro sistema"
-  | "Servicio"
-  | "Problemas técnicos"
-  | "Sin motivo"
-  | "Otro";
-
-function matchCat(text: string): MotivoCat | null {
-  const t = text.trim();
-  if (!t) return null;
-  const u = t.toUpperCase();
-
-  if (/^precio$/i.test(t)           || u === "PRICE")           return "Precio";
-  if (/falta de funcionalidad/i.test(t) || u === "FUNCTIONALITIES") return "Producto / Funcionalidades";
-  if (/cierre temporal/i.test(t)    || /contrató por evento/i.test(t) ||
-      /local no inaugurado/i.test(t) || u === "TEMPORAL_CLOSED") return "Cierre temporal";
-  if (/cierre definitivo/i.test(t)  || /negocio no gastronómico/i.test(t) ||
-      /venta de comercio/i.test(t)  || u === "CLOSED")           return "Cierre definitivo";
-  if (/eligió otro sistema/i.test(t) || /dejó de usar sistema/i.test(t)) return "Eligió otro sistema";
-  if (/mal servicio/i.test(t)       || u === "SERVICE")          return "Servicio";
-  if (/impresora|hardware|sin internet|problem[ao]s?\s+técnic|integraci/i.test(t)) return "Problemas técnicos";
-  if (/sin respuesta/i.test(t)      || u === "OTHER")            return "Sin motivo";
-  if (u === "CLOSED")                                             return "Cierre definitivo";
-  return null;
-}
-
-/** Interpreta texto libre de comentarios buscando palabras clave. */
-function matchComentario(texto: string): MotivoCat | null {
-  const t = texto.toLowerCase();
-  if (/\bpreci[o]?\b|caro|costoso|mensualidad|muy\s+alto|cobr[oa]|tarifa/i.test(t))      return "Precio";
-  if (/funci[oó]n|funcionalidad|feature|m[oó]dulo|no\s+tiene|le\s+falta|necesita/i.test(t)) return "Producto / Funcionalidades";
-  if (/cerr[oó]\s+(el\s+)?local|cerr[oó]\s+(el\s+)?negocio|vendi[oó]|quiebra|quebr[oó]|no\s+abr[ei]|no\s+sigui[oó]/i.test(t)) return "Cierre definitivo";
-  if (/temporal|event[o]?|temporad|vacacion|reform|remodelac|mudanz|no\s+(está\s+)?inaug/i.test(t)) return "Cierre temporal";
-  if (/otro\s+sistema|cambi[oó]\s+de\s+(sistema|software)|migraron|se\s+fue\s+a|compe(t|tenci)/i.test(t)) return "Eligió otro sistema";
-  if (/atenci[oó]n|soporte|servicio|mal\s+trato|no\s+respond|demora|lento/i.test(t))      return "Servicio";
-  if (/impresora|hardware|internet|integraci[oó]n|técnico|no\s+funciona|falla|error\s+de\s+sistem/i.test(t)) return "Problemas técnicos";
-  return null;
-}
-
-export function normalizarMotivo(
-  motivo: string | null | undefined,
-  submotivo: string | null | undefined,
-  motivoMetabase: string | null | undefined,
-  comentarios: string | null | undefined,
-): MotivoCat {
-  // J: motivo HB
-  const catJ = motivo?.trim() ? matchCat(motivo.trim()) : null;
-  if (catJ && catJ !== "Sin motivo" && catJ !== "Otro") return catJ;
-
-  // K: submotivo (solo si tiene valor)
-  const catK = submotivo?.trim() ? matchCat(submotivo.trim()) : null;
-  if (catK && catK !== "Sin motivo" && catK !== "Otro") return catK;
-
-  // N: motivo metabase
-  const catN = motivoMetabase?.trim() ? matchCat(motivoMetabase.trim()) : null;
-  if (catN && catN !== "Sin motivo" && catN !== "Otro") return catN;
-
-  // O: comentarios libre → keyword matching
-  const catO = comentarios?.trim() ? matchComentario(comentarios.trim()) : null;
-  if (catO) return catO;
-
-  // Fallback a J/K/N aunque sean Otro o Sin motivo
-  if (catJ) return catJ;
-  if (catK) return catK;
-  if (catN) return catN;
-
-  // Sin ningún dato útil
-  const hayTexto = !!(motivo?.trim() || submotivo?.trim() || motivoMetabase?.trim() || comentarios?.trim());
-  return hayTexto ? "Otro" : "Sin motivo";
-}
 type NpsRow = { nps_score: number | null; pais: string | null };
 type CsatRow = { csat_cs_promedio: number | null; csat_onb_promedio: number | null };
 
