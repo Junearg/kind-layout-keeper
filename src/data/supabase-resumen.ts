@@ -263,13 +263,13 @@ async function fetchResumen(period: string): Promise<ResumenData> {
   const npsBest = npsByPais[npsByPais.length - 1] ?? null;
   const npsGap = npsBest && npsWorst ? npsBest.nps - npsWorst.nps : 0;
 
-  // CSAT
+  // CSAT — promedio por fila (cliente), no por campo
   const csatVals: number[] = [];
   for (const r of csat) {
     const a = normalizeCsat(r.csat_cs_promedio);
     const b = normalizeCsat(r.csat_onb_promedio);
-    if (a != null) csatVals.push(a);
-    if (b != null) csatVals.push(b);
+    const vals = [a, b].filter((v): v is number => v != null);
+    if (vals.length) csatVals.push(vals.reduce((s, v) => s + v, 0) / vals.length);
   }
   const csatAvg = csatVals.length ? csatVals.reduce((a, b) => a + b, 0) / csatVals.length : null;
 
