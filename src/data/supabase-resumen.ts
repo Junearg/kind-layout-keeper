@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { scoreCliente, type Tier } from "@/lib/healthScore";
 
+// Rebuild trigger — forces fresh bundle on deploy
+
 const TIER_COLORS: Record<Tier, string> = {
   Champion: "#F05A28",
   Healthy: "#1E5DBF",
