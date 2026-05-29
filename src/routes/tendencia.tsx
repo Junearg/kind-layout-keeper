@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
 import { EmptyPeriod } from "@/components/EmptyPeriod";
@@ -7,6 +7,7 @@ import { ORANGE } from "@/data/mockData";
 import { useDashboardData } from "@/data/liveData";
 import { useDerived } from "@/data/derived";
 import { useMotivosMes, useResumenMes, useMesActivo } from "@/data/dataset-store";
+import { useSupabaseChurnInsights } from "@/data/supabase-churn-insights";
 import { SegmentacionChurn } from "@/components/SegmentacionChurn";
 import { mesLargo } from "@/data/schema";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +16,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, ErrorBar,
   PieChart, Pie, Cell,
 } from "recharts";
+
 
 
 export const Route = createFileRoute("/tendencia")({
