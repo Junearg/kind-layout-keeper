@@ -8,6 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { mesCorto } from "./schema";
 
 const OPERATIONAL_MOTIVOS = new Set(["CHANGE_METHOD", "CHANGE_FREQUENCY"]);
+// Etapas que definen una baja real (fuente de verdad).
+const ETAPAS_BAJA = ["bajas", "bajas clientes"] as const;
 const WMA_WEIGHTS = [0.5, 0.3, 0.2] as const;
 
 export type TrendRatePoint = {
@@ -76,13 +78,13 @@ function stdDev(values: number[]): number {
 async function fetchTrendRate(mesActivo: string): Promise<TrendRate> {
   if (!mesActivo) return emptyTrend();
 
-  // 1. Todas las bajas del snapshot activo (estado_dash = Bloqueado).
+  // 1. Todas las bajas reales: etapa IN ("bajas", "bajas clientes").
   type BajaRow = { fecha_baja: string | null; motivo_baja: string | null };
   const bajasRaw = await pageAll<BajaRow>(() => supabase
     .from("clientes")
     .select("fecha_baja,motivo_baja")
     .eq("mes_exportacion", mesActivo)
-    .eq("estado_dash", "Bloqueado"));
+    .in("etapa", ETAPAS_BAJA));
 
   // Filtro: excluir motivos operacionales (no son churn real de cliente).
   const bajas = bajasRaw.filter(
