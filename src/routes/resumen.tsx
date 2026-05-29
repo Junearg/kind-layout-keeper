@@ -33,7 +33,6 @@ function Resumen() {
           { name: "Tendencia bajas", rows: r.churnTrend },
           { name: "Distribución tiers", rows: r.tierDist.map((t) => ({ tier: t.tier, count: t.count, pct: t.pct })) },
           { name: "KPIs período", rows: [
-            { kpi: "NPS", valor: r.npsScore.toFixed(2) },
             { kpi: "CSAT", valor: r.csatAvg?.toFixed(2) ?? "—" },
             { kpi: "CVR", valor: `${r.cvr.toFixed(1)}%` },
             { kpi: "Cuentas activas", valor: r.activeAccounts },
@@ -52,7 +51,7 @@ function Resumen() {
       <>
 
       {/* Bento 3 cols */}
-      <div className="bento cols-3">
+      <div className="bento cols-2">
         {/* Bajas del mes */}
         <div className="card orange lg" style={{ minHeight: 280 }}>
           <div className="bubble-wrap"><div className="bubble" /></div>
@@ -81,29 +80,6 @@ function Resumen() {
             <Link to="/tendencia" className="btn ghost" style={{ borderColor: "rgba(255,255,255,0.4)", color: "white" }}>Ver detalle</Link>
           </div>
         </div>
-
-        {/* NPS por país */}
-        <div className="card lg">
-          <div className="card-head">
-            <div>
-              <div className="card-eyebrow">NPS por país</div>
-              <div className="card-title">{nfmt(r.npsResponses)} respuestas</div>
-            </div>
-            <div className="arrow-up">⌁</div>
-          </div>
-
-          {/* NPS por país */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 14 }}>
-            {r.npsByPais.length === 0 ? (
-              <div className="muted fs-12">Sin segmentación por país (n &lt; 10)</div>
-            ) : (
-              [...r.npsByPais].sort((a, b) => b.nps - a.nps).map((p) => (
-                <NpsPaisRow key={p.pais} pais={p.pais} nps={p.nps} n={p.n} />
-              ))
-            )}
-          </div>
-        </div>
-
 
         {/* Cuentas activas */}
         <div className="card lg">
