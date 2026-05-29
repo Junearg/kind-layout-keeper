@@ -77,12 +77,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Fudo Customer Center" },
-      { name: "description", content: "Análisis editorial de churn, NPS y health score para Customer Success de Fudo." },
+      { name: "description", content: "This application analyzes customer churn, NPS, and health scores with dynamic segmentation and reporting." },
       { name: "author", content: "Fudo Customer Center" },
       { property: "og:title", content: "Fudo Customer Center" },
-      { property: "og:description", content: "Análisis editorial de churn, NPS y health score." },
+      { property: "og:description", content: "This application analyzes customer churn, NPS, and health scores with dynamic segmentation and reporting." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "Fudo Customer Center" },
+      { name: "twitter:description", content: "This application analyzes customer churn, NPS, and health scores with dynamic segmentation and reporting." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/d09fad44-f124-43f7-bf01-a15362664636/id-preview-5eca9a87--d64679b0-e703-49b1-8c2a-ee94e8e40179.lovable.app-1780079187577.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/d09fad44-f124-43f7-bf01-a15362664636/id-preview-5eca9a87--d64679b0-e703-49b1-8c2a-ee94e8e40179.lovable.app-1780079187577.png" },
     ],
     links: [
       {
