@@ -32,11 +32,21 @@ type ScoreRow = {
 // Valores exactos del campo etapa en la BD (con mayúscula inicial).
 const ETAPAS_BAJA = ["Bajas", "Bajas clientes"] as const;
 
-type BajaRow = { id: number; fecha_baja: string | null; motivo_baja: string | null; motivo_metabase: string | null; pais: string | null; mes_exportacion: string | null; etapa: string | null };
+type BajaRow = {
+  id: number;
+  fecha_baja: string | null;
+  motivo_baja: string | null;
+  submotivo_baja: string | null;
+  motivo_metabase: string | null;
+  comentarios_metabase: string | null;
+  pais: string | null;
+  mes_exportacion: string | null;
+  etapa: string | null;
+};
 
 // ─── Normalización de motivos ────────────────────────────────────────────────
-// Fuente primaria: motivo_baja (col J). Fallback: motivo_metabase (col N).
-// Agrupa todos los valores de la BD en 8 categorías + Sin motivo.
+// Prioridad: J (motivo_baja) → K (submotivo_baja) → N (motivo_metabase) → O (comentarios, keywords)
+// Si K y O están vacíos se respeta lo de J+N sin forzar nada.
 export type MotivoCat =
   | "Precio"
   | "Producto / Funcionalidades"
@@ -48,49 +58,68 @@ export type MotivoCat =
   | "Sin motivo"
   | "Otro";
 
+function matchCat(text: string): MotivoCat | null {
+  const t = text.trim();
+  if (!t) return null;
+  const u = t.toUpperCase();
+
+  if (/^precio$/i.test(t)           || u === "PRICE")           return "Precio";
+  if (/falta de funcionalidad/i.test(t) || u === "FUNCTIONALITIES") return "Producto / Funcionalidades";
+  if (/cierre temporal/i.test(t)    || /contrató por evento/i.test(t) ||
+      /local no inaugurado/i.test(t) || u === "TEMPORAL_CLOSED") return "Cierre temporal";
+  if (/cierre definitivo/i.test(t)  || /negocio no gastronómico/i.test(t) ||
+      /venta de comercio/i.test(t)  || u === "CLOSED")           return "Cierre definitivo";
+  if (/eligió otro sistema/i.test(t) || /dejó de usar sistema/i.test(t)) return "Eligió otro sistema";
+  if (/mal servicio/i.test(t)       || u === "SERVICE")          return "Servicio";
+  if (/impresora|hardware|sin internet|problem[ao]s?\s+técnic|integraci/i.test(t)) return "Problemas técnicos";
+  if (/sin respuesta/i.test(t)      || u === "OTHER")            return "Sin motivo";
+  if (u === "CLOSED")                                             return "Cierre definitivo";
+  return null;
+}
+
+/** Interpreta texto libre de comentarios buscando palabras clave. */
+function matchComentario(texto: string): MotivoCat | null {
+  const t = texto.toLowerCase();
+  if (/\bpreci[o]?\b|caro|costoso|mensualidad|muy\s+alto|cobr[oa]|tarifa/i.test(t))      return "Precio";
+  if (/funci[oó]n|funcionalidad|feature|m[oó]dulo|no\s+tiene|le\s+falta|necesita/i.test(t)) return "Producto / Funcionalidades";
+  if (/cerr[oó]\s+(el\s+)?local|cerr[oó]\s+(el\s+)?negocio|vendi[oó]|quiebra|quebr[oó]|no\s+abr[ei]|no\s+sigui[oó]/i.test(t)) return "Cierre definitivo";
+  if (/temporal|event[o]?|temporad|vacacion|reform|remodelac|mudanz|no\s+(está\s+)?inaug/i.test(t)) return "Cierre temporal";
+  if (/otro\s+sistema|cambi[oó]\s+de\s+(sistema|software)|migraron|se\s+fue\s+a|compe(t|tenci)/i.test(t)) return "Eligió otro sistema";
+  if (/atenci[oó]n|soporte|servicio|mal\s+trato|no\s+respond|demora|lento/i.test(t))      return "Servicio";
+  if (/impresora|hardware|internet|integraci[oó]n|técnico|no\s+funciona|falla|error\s+de\s+sistem/i.test(t)) return "Problemas técnicos";
+  return null;
+}
+
 export function normalizarMotivo(
   motivo: string | null | undefined,
+  submotivo: string | null | undefined,
   motivoMetabase: string | null | undefined,
+  comentarios: string | null | undefined,
 ): MotivoCat {
-  const m  = (motivo         ?? "").trim();
-  const mb = (motivoMetabase ?? "").trim().toUpperCase();
+  // J: motivo HB
+  const catJ = motivo?.trim() ? matchCat(motivo.trim()) : null;
+  if (catJ && catJ !== "Sin motivo" && catJ !== "Otro") return catJ;
 
-  if (!m && !mb) return "Sin motivo";
+  // K: submotivo (solo si tiene valor)
+  const catK = submotivo?.trim() ? matchCat(submotivo.trim()) : null;
+  if (catK && catK !== "Sin motivo" && catK !== "Otro") return catK;
 
-  // Precio
-  if (/^precio$/i.test(m)          || mb === "PRICE")          return "Precio";
+  // N: motivo metabase
+  const catN = motivoMetabase?.trim() ? matchCat(motivoMetabase.trim()) : null;
+  if (catN && catN !== "Sin motivo" && catN !== "Otro") return catN;
 
-  // Producto / Funcionalidades
-  if (/falta de funcionalidad/i.test(m) || mb === "FUNCTIONALITIES") return "Producto / Funcionalidades";
+  // O: comentarios libre → keyword matching
+  const catO = comentarios?.trim() ? matchComentario(comentarios.trim()) : null;
+  if (catO) return catO;
 
-  // Cierre temporal  (incluye "contrató por evento" y "local no inaugurado")
-  if (/cierre temporal/i.test(m)   ||
-      /contrató por evento/i.test(m) ||
-      /local no inaugurado/i.test(m) ||
-      mb === "TEMPORAL_CLOSED")     return "Cierre temporal";
+  // Fallback a J/K/N aunque sean Otro o Sin motivo
+  if (catJ) return catJ;
+  if (catK) return catK;
+  if (catN) return catN;
 
-  // Cierre definitivo
-  if (/cierre definitivo/i.test(m) ||
-      /negocio no gastronómico/i.test(m) ||
-      /venta de comercio/i.test(m) ||
-      mb === "CLOSED")              return "Cierre definitivo";
-
-  // Eligió otro sistema  (incluye "dejó de usar sistema")
-  if (/eligió otro sistema/i.test(m) ||
-      /dejó de usar sistema/i.test(m)) return "Eligió otro sistema";
-
-  // Servicio
-  if (/mal servicio/i.test(m)      || mb === "SERVICE")         return "Servicio";
-
-  // Problemas técnicos  (impresora, hardware, internet, integraciones)
-  if (/impresora|hardware|sin internet|problemas? técnicos?|problemas? con integraciones?/i.test(m))
-                                    return "Problemas técnicos";
-
-  // Sin motivo  (sin respuesta, vacío)
-  if (/sin respuesta/i.test(m))     return "Sin motivo";
-
-  // Todo lo demás: Otro motivo, Cuenta duplicada, Cuenta NO Activada, OTHER, etc.
-  return "Otro";
+  // Sin ningún dato útil
+  const hayTexto = !!(motivo?.trim() || submotivo?.trim() || motivoMetabase?.trim() || comentarios?.trim());
+  return hayTexto ? "Otro" : "Sin motivo";
 }
 type NpsRow = { nps_score: number | null; pais: string | null };
 type CsatRow = { csat_cs_promedio: number | null; csat_onb_promedio: number | null };
@@ -167,12 +196,12 @@ async function fetchResumen(period: string): Promise<ResumenData> {
       .eq("estado_dash", "Activo")),
     pageAll<BajaRow>(() => supabase
       .from("clientes")
-      .select("id,fecha_baja,motivo_baja,motivo_metabase,pais,mes_exportacion,etapa")
+      .select("id,fecha_baja,motivo_baja,submotivo_baja,motivo_metabase,comentarios_metabase,pais,mes_exportacion,etapa")
       .eq("mes_exportacion", period)
       .in("etapa", ETAPAS_BAJA)),
     pageAll<BajaRow>(() => supabase
       .from("clientes")
-      .select("id,fecha_baja,motivo_baja,motivo_metabase,pais,mes_exportacion,etapa")
+      .select("id,fecha_baja,motivo_baja,submotivo_baja,motivo_metabase,comentarios_metabase,pais,mes_exportacion,etapa")
       .in("etapa", ETAPAS_BAJA)),
     pageAll<NpsRow>(() => supabase
       .from("clientes")
@@ -233,7 +262,7 @@ async function fetchResumen(period: string): Promise<ResumenData> {
     if (k > period) continue;
     const slot = byMonthAll.get(k) ?? { bajas: 0, conMotivo: 0 };
     slot.bajas++;
-    if (normalizarMotivo(b.motivo_baja, b.motivo_metabase) !== "Sin motivo") slot.conMotivo++;
+    if (normalizarMotivo(b.motivo_baja, b.submotivo_baja, b.motivo_metabase, b.comentarios_metabase) !== "Sin motivo") slot.conMotivo++;
     byMonthAll.set(k, slot);
   }
 
@@ -283,7 +312,7 @@ async function fetchResumen(period: string): Promise<ResumenData> {
   // Motivos baja — agrupados en categorías normalizadas
   const motivoMap = new Map<string, number>();
   for (const b of bajas) {
-    const cat = normalizarMotivo(b.motivo_baja, b.motivo_metabase);
+    const cat = normalizarMotivo(b.motivo_baja, b.submotivo_baja, b.motivo_metabase, b.comentarios_metabase);
     motivoMap.set(cat, (motivoMap.get(cat) ?? 0) + 1);
   }
   const motivosBaja = Array.from(motivoMap.entries())
