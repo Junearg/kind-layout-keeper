@@ -26,7 +26,10 @@ type ScoreRow = {
   estado_dash: string | null; pais: string | null;
 };
 
-type BajaRow = { id: number; fecha_baja: string | null; motivo_baja: string | null; pais: string | null; mes_exportacion: string | null };
+// Valores exactos del campo etapa en la BD (con mayúscula inicial).
+const ETAPAS_BAJA = ["Bajas", "Bajas clientes"] as const;
+
+type BajaRow = { id: number; fecha_baja: string | null; motivo_baja: string | null; pais: string | null; mes_exportacion: string | null; etapa: string | null };
 type NpsRow = { nps_score: number | null; pais: string | null };
 type CsatRow = { csat_cs_promedio: number | null; csat_onb_promedio: number | null };
 
@@ -102,13 +105,13 @@ async function fetchResumen(period: string): Promise<ResumenData> {
       .eq("estado_dash", "Activo")),
     pageAll<BajaRow>(() => supabase
       .from("clientes")
-      .select("id,fecha_baja,motivo_baja,pais,mes_exportacion")
+      .select("id,fecha_baja,motivo_baja,pais,mes_exportacion,etapa")
       .eq("mes_exportacion", period)
-      .eq("estado_dash", "Bloqueado")),
+      .in("etapa", ETAPAS_BAJA)),
     pageAll<BajaRow>(() => supabase
       .from("clientes")
-      .select("id,fecha_baja,motivo_baja,pais,mes_exportacion")
-      .eq("estado_dash", "Bloqueado")),
+      .select("id,fecha_baja,motivo_baja,pais,mes_exportacion,etapa")
+      .in("etapa", ETAPAS_BAJA)),
     pageAll<NpsRow>(() => supabase
       .from("clientes")
       .select("nps_score,pais")

@@ -14,6 +14,8 @@ export type SupabaseMetrics = {
   tierDist: { tier: TierKey; n: number; pct: number }[];
 };
 
+const ETAPAS_BAJA = ["Bajas", "Bajas clientes"] as const;
+
 function endOfMonthISO(period: string): string {
   const y = Number(period.slice(0, 4));
   const m = Number(period.slice(5, 7));
@@ -92,7 +94,7 @@ async function fetchMetrics(period: string): Promise<SupabaseMetrics> {
       .from("clientes")
       .select("motivo_baja, pais")
       .eq("mes_exportacion", period)
-      .eq("estado_dash", "Bloqueado"),
+      .in("etapa", ETAPAS_BAJA),
     supabase
       .from("clientes")
       .select("nps_score")
