@@ -27,6 +27,23 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
   const d = useDerived();
   const { healthAccounts } = useDashboardData();
 
+  // BUG 4 — Sync bidireccional entre PeriodContext (Supabase) y dataset-store (mes activo)
+  const { selectedPeriod, availablePeriods, setSelectedPeriod } = usePeriod();
+  const mesActivoStore = useMesActivo();
+  const mesesStore = useMesesDisponibles();
+  useEffect(() => {
+    if (selectedPeriod && selectedPeriod !== mesActivoStore && mesesStore.includes(selectedPeriod)) {
+      setMesActivo(selectedPeriod);
+    } else if (
+      mesActivoStore &&
+      mesActivoStore !== selectedPeriod &&
+      availablePeriods.includes(mesActivoStore)
+    ) {
+      setSelectedPeriod(mesActivoStore);
+    }
+  }, [selectedPeriod, mesActivoStore, availablePeriods, mesesStore, setSelectedPeriod]);
+
+
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
