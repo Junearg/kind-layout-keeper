@@ -178,7 +178,7 @@ function TrendCard({ trend, delta, prevLabel, latestLabel }: {
     <div className="card lg">
       <div className="minihead">
         <div>
-          <div className="card-eyebrow">Bajas vs % registrado con motivo</div>
+          <div className="card-eyebrow">Bajas mensuales y calidad del registro</div>
           <div className="card-title">Evolución mensual</div>
         </div>
         {delta != null && (
@@ -187,6 +187,19 @@ function TrendCard({ trend, delta, prevLabel, latestLabel }: {
           </span>
         )}
       </div>
+
+      {/* Leyenda explicativa */}
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 4, marginBottom: 8, fontSize: 11.5, color: "var(--ink-2)" }}>
+        <span className="row-flex" style={{ gap: 6 }}>
+          <span style={{ width: 12, height: 12, background: ORANGE, borderRadius: 2, display: "inline-block" }} />
+          <span><strong style={{ color: "var(--ink)" }}>Bajas</strong> (eje izq.) — cantidad de cuentas dadas de baja en el mes</span>
+        </span>
+        <span className="row-flex" style={{ gap: 6 }}>
+          <span style={{ width: 16, height: 2, background: "#B5740F", display: "inline-block" }} />
+          <span><strong style={{ color: "var(--ink)" }}>% con motivo</strong> (eje der.) — % de esas bajas con motivo registrado</span>
+        </span>
+      </div>
+
       <div className="chart-wrap" style={{ height: 320 }}>
         <ResponsiveContainer>
           <ComposedChart data={trend} margin={{ top: 24, right: 16, left: -8, bottom: 0 }}>
@@ -198,10 +211,17 @@ function TrendCard({ trend, delta, prevLabel, latestLabel }: {
             </defs>
             <CartesianGrid stroke="#E8E6DC" vertical={false} />
             <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
-            <YAxis yAxisId="L" tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
+            <YAxis yAxisId="L" tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} label={{ value: "Bajas", angle: -90, position: "insideLeft", offset: 15, style: { fontSize: 10, fill: "#6E6D66" } }} />
             <YAxis yAxisId="R" orientation="right" domain={[rMin, rMax]} tick={{ fontSize: 11, fill: "#B5740F" }} axisLine={false} tickLine={false} unit="%" />
-            <Tooltip contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid #E8E6DC" }} />
-            <Area yAxisId="L" type="monotone" dataKey="bajas" stroke="none" fill="url(#trendG)" />
+            <Tooltip
+              contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid #E8E6DC" }}
+              formatter={(value: any, name: any) => {
+                if (name === "bajas") return [nfmt(Number(value)), "Bajas"];
+                if (name === "pctMotivo") return [value == null ? "—" : `${Number(value).toFixed(1)}%`, "% con motivo"];
+                return [value, name];
+              }}
+            />
+            <Area yAxisId="L" type="monotone" dataKey="bajas" stroke="none" fill="url(#trendG)" legendType="none" tooltipType="none" />
             <Bar yAxisId="L" dataKey="bajas" radius={[6, 6, 0, 0]} barSize={28}>
               {trend.map((_, i) => <Cell key={i} fill={ORANGE} />)}
             </Bar>
@@ -212,6 +232,7 @@ function TrendCard({ trend, delta, prevLabel, latestLabel }: {
     </div>
   );
 }
+
 
 function TierDonutCard({ tierDist, total }: { tierDist: { tier: string; count: number; pct: number; color: string }[]; total: number }) {
   return (
