@@ -12,7 +12,7 @@ const TABS = [
   { to: "/resumen",   label: "Dashboard" },
   { to: "/tendencia", label: "Churn Rate" },
   { to: "/health",    label: "Health Score" },
-  { to: "/contactos", label: "Contact Rate" },
+  { to: "/contactos", label: "Contact Churn" },
   { to: "/nps",       label: "NPS" },
   { to: "/csat",      label: "CSAT" },
   { to: "/kpis",      label: "KPI´s" },
@@ -103,8 +103,8 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
       sub: "Priorización CS · cuentas en riesgo ordenadas por urgencia",
     },
     "/contactos": {
-      crumbs: "Fudo Customer Center · Contactos",
-      h1: <>Contact <span className="alt">rate</span></>,
+      crumbs: "Fudo Customer Center · Contact Churn",
+      h1: <>Contact <span className="alt">Churn</span></>,
       sub: "Frecuencia de contacto CS por cuenta · contactos por mes activo",
     },
     "/csat": {
