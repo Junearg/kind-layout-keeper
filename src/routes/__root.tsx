@@ -13,6 +13,7 @@ import { ChatWidget } from "@/components/ChatWidget";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { LoginScreen } from "@/components/LoginScreen";
 import { PeriodProvider } from "@/contexts/PeriodContext";
+import { CountryProvider } from "@/contexts/CountryContext";
 
 function NotFoundComponent() {
   return (
@@ -123,8 +124,10 @@ function RootComponent() {
       <AuthProvider>
         <AuthGate>
           <PeriodProvider>
-            <Outlet />
-            <ChatWidget />
+            <CountryProvider>
+              <Outlet />
+              <ChatWidget />
+            </CountryProvider>
           </PeriodProvider>
         </AuthGate>
       </AuthProvider>

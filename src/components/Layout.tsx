@@ -6,6 +6,7 @@ import { useMesActivo, useMesesDisponibles, setMesActivo } from "@/data/dataset-
 import { mesLargo } from "@/data/schema";
 import { useAuth } from "@/lib/auth-context";
 import { usePeriod, periodLabel } from "@/contexts/PeriodContext";
+import { useCountry, PAISES } from "@/contexts/CountryContext";
 
 const TABS = [
 
@@ -240,8 +241,7 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
               {actions}
             </div>
             {active !== "/importar" && <PeriodSelector />}
-
-
+            {active !== "/importar" && <CountrySelector />}
 
             <div className="stamp">
               última actualización<br />
@@ -400,3 +400,26 @@ function PeriodSelector() {
   );
 }
 
+function CountrySelector() {
+  const { selectedPais, setSelectedPais } = useCountry();
+  return (
+    <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <span className="fs-11" style={{ color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+        País
+      </span>
+      <select
+        value={selectedPais}
+        onChange={(e) => setSelectedPais(e.target.value as any)}
+        style={{
+          padding: "6px 10px", borderRadius: 8, border: "1px solid var(--rule-2)",
+          background: "var(--paper)", fontSize: 12.5, color: "var(--ink)",
+          fontFamily: "inherit", cursor: "pointer",
+        }}
+      >
+        {PAISES.map((p) => (
+          <option key={p} value={p}>{p}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
