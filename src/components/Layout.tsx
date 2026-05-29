@@ -16,6 +16,7 @@ const TABS = [
   { to: "/nps",       label: "NPS" },
   { to: "/csat",      label: "CSAT" },
   { to: "/kpis",      label: "KPI´s" },
+  { to: "/labs",      label: "⚗ Labs", beta: true },
 ] as const;
 
 
