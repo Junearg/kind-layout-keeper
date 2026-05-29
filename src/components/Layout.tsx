@@ -16,6 +16,7 @@ const TABS = [
   { to: "/nps",       label: "NPS" },
   { to: "/csat",      label: "CSAT" },
   { to: "/kpis",      label: "KPI´s" },
+  { to: "/labs",      label: "⚗ Labs", beta: true },
 ] as const;
 
 
@@ -119,6 +120,12 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
       sub: "Targets a 3 y 6 meses · roadmap de retención",
     },
 
+    "/labs": {
+      crumbs: "Fudo Customer Center · Labs",
+      h1: <>Labs · <span className="alt">Laboratorio de prevención</span></>,
+      sub: "Herramientas experimentales basadas en el historial de bajas. Los números son reales, las palancas son tuyas.",
+    },
+
     "/importar": {
       crumbs: "Fudo Customer Center · Datos",
       h1: <>Importar <span className="alt">cuentas</span></>,
@@ -142,8 +149,16 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
                 key={t.to}
                 to={t.to}
                 className={`tab-pill${active === t.to ? " active" : ""}`}
+                style={(t as any).beta ? { position: "relative" } : undefined}
               >
                 {t.label}
+                {(t as any).beta && (
+                  <span style={{
+                    marginLeft: 6, fontSize: 9, padding: "1px 5px", borderRadius: 4,
+                    background: "var(--orange)", color: "white", fontWeight: 700,
+                    letterSpacing: 0.5, verticalAlign: "middle",
+                  }}>BETA</span>
+                )}
               </Link>
             ))}
           </nav>
