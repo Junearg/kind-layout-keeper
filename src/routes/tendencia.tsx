@@ -180,7 +180,7 @@ function Tendencia() {
         filename="tendencia-churn.xlsx"
         sheets={[
           { name: "Tendencia mensual", rows: chartData },
-          { name: "Motivos de baja", rows: motivosBaja },
+          { name: "Motivos de baja", rows: motivosDisplay },
         ]}
       />
     }>
@@ -369,7 +369,7 @@ function Tendencia() {
       <div className="divider">
         <span className="kicker">Motivos</span>
         <span className="alt">· de baja</span>
-        <span className="sub">brecha de atribución {d.pctSinMotivo.toFixed(1)}%</span>
+        <span className="sub">brecha de atribución {pctSinMotivoDisplay.toFixed(1)}%</span>
         <span className="rule" />
       </div>
 
@@ -378,12 +378,12 @@ function Tendencia() {
         {/* Donut */}
         <div className="card lg">
           <div className="card-eyebrow">Distribución de motivos</div>
-          <div className="card-title" style={{ marginBottom: 12 }}>{nfmt(d.totalCategorizadas)} bajas categorizadas</div>
+          <div className="card-title" style={{ marginBottom: 12 }}>{nfmt(totalCategorizadasDisplay)} bajas categorizadas</div>
           <div className="chart-wrap" style={{ height: 480, position: "relative", background: "white" }}>
             <ResponsiveContainer>
               <PieChart>
                 <Pie
-                  data={motivosBaja}
+                  data={motivosDisplay}
                   dataKey="n"
                   nameKey="motivo"
                   cx="50%"
@@ -394,7 +394,7 @@ function Tendencia() {
                   stroke="white"
                   strokeWidth={2}
                 >
-                  {motivosBaja.map((m, i) => (
+                  {motivosDisplay.map((m, i) => (
                     <Cell key={i} fill={m.color} />
                   ))}
                 </Pie>
@@ -405,7 +405,7 @@ function Tendencia() {
               </PieChart>
             </ResponsiveContainer>
             <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none" }}>
-              <div style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 44, color: "#DC2626", lineHeight: 1, letterSpacing: "-0.03em" }}>{d.pctSinMotivo.toFixed(1)}%</div>
+              <div style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 44, color: "#DC2626", lineHeight: 1, letterSpacing: "-0.03em" }}>{pctSinMotivoDisplay.toFixed(1)}%</div>
               <div className="serif" style={{ fontSize: 18, color: "#DC2626", marginTop: 6 }}>sin motivo</div>
             </div>
           </div>
@@ -427,7 +427,7 @@ function Tendencia() {
               </tr>
             </thead>
             <tbody>
-              {motivosBaja.map((m) => {
+              {motivosDisplay.map((m) => {
                 const prioTag =
                   m.prioridad === "CRÍTICA" ? "red" :
                   m.prioridad === "ALTA" ? "orange" :
@@ -451,7 +451,7 @@ function Tendencia() {
           </table>
           <div style={{ marginTop: 20, paddingTop: 18, borderTop: "1px solid var(--rule)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
             <div className="fs-12 muted">
-              {nfmt(d.totalCategorizadas)} bajas con motivo registrado · {sinMotivo.n.toLocaleString()} sin razón.
+              {nfmt(totalCategorizadasDisplay)} bajas con motivo registrado · {sinMotivoRow.n.toLocaleString()} sin razón.
             </div>
             <button
               className="btn"
@@ -465,7 +465,7 @@ function Tendencia() {
                 }
               }}
             >
-              {exporting ? "Exportando…" : `Exportar ${nfmt(d.totalCategorizadas)} bajas con motivo →`}
+              {exporting ? "Exportando…" : `Exportar ${nfmt(totalCategorizadasDisplay)} bajas con motivo →`}
             </button>
           </div>
         </div>
