@@ -103,11 +103,6 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
         ? `Bajas, motivos y proyección · ${d.closedMonthsLabel.split(" · ")[1] ?? ""} cerrados + ${d.totalProjected > 0 ? "proyección" : "sin proyección"}`
         : "Bajas, motivos y proyección",
     },
-    "/nps": {
-      crumbs: "Fudo Customer Center · Voz del cliente",
-      h1: <>Net Promoter <span className="alt">Score</span></>,
-      sub: `${nfmt(d.npsResponses)} respuestas · LATAM · ${periodLabel}`,
-    },
     "/health": {
       crumbs: "Fudo Customer Center · Health Score",
       h1: <>Salud de la <span className="alt">base</span></>,
