@@ -202,6 +202,8 @@ function Tendencia() {
             </span>
           </div>
         </div>
+      </div>
+
 
 
       {/* Segmentación */}
