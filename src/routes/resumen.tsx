@@ -61,7 +61,7 @@ function Resumen() {
       {/* Bento 3 cols */}
       <div className="bento cols-2">
         {/* Bajas del mes */}
-        <div className="card orange lg" style={{ minHeight: 280 }}>
+        <div className="card orange lg" style={{ minHeight: 200 }}>
           <div className="bubble-wrap"><div className="bubble" /></div>
           <div className="card-head">
             <div>
@@ -70,7 +70,7 @@ function Resumen() {
             </div>
             <div className="arrow-up">↗</div>
           </div>
-          <div className="bignum" style={{ fontSize: 72 }}>{nfmt(r.bajasMesActual)}</div>
+          <div className="bignum" style={{ fontSize: 56 }}>{nfmt(r.bajasMesActual)}</div>
           <div className="mt-12" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {r.monthDeltaPct != null && (
               <span className="callout">
