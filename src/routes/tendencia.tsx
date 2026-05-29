@@ -6,6 +6,7 @@ import { ORANGE } from "@/data/mockData";
 import { useDashboardData } from "@/data/liveData";
 import { useDerived } from "@/data/derived";
 import { useMotivosMes, useResumenMes, useMesActivo } from "@/data/dataset-store";
+import { SegmentacionChurn } from "@/components/SegmentacionChurn";
 import { mesLargo } from "@/data/schema";
 import {
   ResponsiveContainer, ComposedChart, Bar, Area, LabelList,
