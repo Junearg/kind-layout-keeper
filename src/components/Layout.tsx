@@ -13,8 +13,6 @@ const TABS = [
   { to: "/tendencia", label: "Churn Rate" },
   { to: "/health",    label: "Health Score" },
   { to: "/contactos", label: "Contact Churn" },
-  { to: "/nps",       label: "NPS" },
-  { to: "/csat",      label: "CSAT" },
   { to: "/kpis",      label: "KPI´s" },
   { to: "/labs",      label: "⚗ Labs", beta: true },
 ] as const;
