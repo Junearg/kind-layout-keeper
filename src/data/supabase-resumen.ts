@@ -19,6 +19,7 @@ function isOperationalChurn(motivo: string | null | undefined): boolean {
 }
 
 type ScoreRow = {
+  id_hubspot: string | null;
   productos: number | null; usuarios: number | null;
   v_salon: number | null; v_delivery: number | null; v_mostrador: number | null;
   cant_contactos: number | null; nps_score: number | null;
@@ -100,7 +101,7 @@ async function fetchResumen(period: string): Promise<ResumenData> {
   const [activos, bajasRaw, bajasAllRaw, nps, csat] = await Promise.all([
     pageAll<ScoreRow>(() => supabase
       .from("clientes")
-      .select("productos,usuarios,v_salon,v_delivery,v_mostrador,cant_contactos,nps_score,motivo_baja,motivo_metabase,estado_dash,pais")
+      .select("id_hubspot,productos,usuarios,v_salon,v_delivery,v_mostrador,cant_contactos,nps_score,motivo_baja,motivo_metabase,estado_dash,pais")
       .eq("mes_exportacion", period)
       .eq("estado_dash", "Activo")),
     pageAll<BajaRow>(() => supabase
@@ -129,15 +130,23 @@ async function fetchResumen(period: string): Promise<ResumenData> {
   const bajas = bajasRaw.filter((b) => !isOperationalChurn(b.motivo_baja));
 
 
-  // --- Tier dist (de activos)
-  const tierCount: Record<Tier, number> = { Champion: 0, Healthy: 0, "At Risk": 0, Critical: 0 };
+  // --- Dedup por id_hubspot: cada ID HubSpot es 1 cliente único.
+  // id_cuenta_dash puede tener duplicados, id_hubspot no.
+  const activosDedup = new Map<string, ScoreRow>();
   for (const r of activos) {
-    // Normalizar nps_score (puede estar escalado x10)
+    const key = r.id_hubspot ?? `_no_hub_${activosDedup.size}`;
+    if (!activosDedup.has(key)) activosDedup.set(key, r);
+  }
+  const activosUnicos = Array.from(activosDedup.values());
+
+  // --- Tier dist (de activos únicos por HubSpot ID)
+  const tierCount: Record<Tier, number> = { Champion: 0, Healthy: 0, "At Risk": 0, Critical: 0 };
+  for (const r of activosUnicos) {
     const cli = { ...r, nps_score: normalizeNps(r.nps_score) };
     const { tier } = scoreCliente(cli);
     tierCount[tier]++;
   }
-  const totalAct = activos.length || 1;
+  const totalAct = activosUnicos.length || 1;
   const tierDist = (["Champion","Healthy","At Risk","Critical"] as Tier[]).map((tier) => ({
     tier, count: tierCount[tier], pct: (tierCount[tier] / totalAct) * 100, color: TIER_COLORS[tier],
   }));
@@ -262,8 +271,8 @@ async function fetchResumen(period: string): Promise<ResumenData> {
   }
   const csatAvg = csatVals.length ? csatVals.reduce((a, b) => a + b, 0) / csatVals.length : null;
 
-  // CVR mes actual
-  const cvr = activos.length ? (bajasMesActual / (activos.length + bajasMesActual)) * 100 : 0;
+  // CVR mes actual — usa activos únicos por HubSpot ID
+  const cvr = activosUnicos.length ? (bajasMesActual / (activosUnicos.length + bajasMesActual)) * 100 : 0;
 
   const criticalCount = tierCount.Critical;
 
@@ -284,7 +293,7 @@ async function fetchResumen(period: string): Promise<ResumenData> {
 
   return {
     period,
-    activeAccounts: activos.length,
+    activeAccounts: activosUnicos.length,
     bajasMesActual, bajasMesPrev, monthDeltaPct,
     ytdClosed,
     latestClosedLabel: latest ? monthLabel(latest) : "—",
