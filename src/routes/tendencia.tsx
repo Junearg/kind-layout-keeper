@@ -120,12 +120,20 @@ function Tendencia() {
   // Estado de búsqueda del snapshot
   const [snapshotQ, setSnapshotQ] = useState("");
   const [snapshotPlan, setSnapshotPlan] = useState<string>("Todos");
+  const [snapshotPage, setSnapshotPage] = useState(1);
   const snapshotFiltered = (snapshotRows ?? []).filter((r) => {
     const qOk = !snapshotQ || [r.nombre, r.pais, r.id_hubspot, r.motivoCat, r.ejecutivo]
       .some(v => v.toLowerCase().includes(snapshotQ.toLowerCase()));
     const planOk = snapshotPlan === "Todos" || r.plan === snapshotPlan;
     return qOk && planOk;
   });
+  const SNAPSHOT_PAGE_SIZE = 10;
+  const snapshotTotalPages = Math.max(1, Math.ceil(snapshotFiltered.length / SNAPSHOT_PAGE_SIZE));
+  const snapshotCurrentPage = Math.min(snapshotPage, snapshotTotalPages);
+  const snapshotPageRows = snapshotFiltered.slice(
+    (snapshotCurrentPage - 1) * SNAPSHOT_PAGE_SIZE,
+    snapshotCurrentPage * SNAPSHOT_PAGE_SIZE
+  );
 
   // Motivos de baja (últimos 6 meses) — agrupados por categoría normalizada
   const prioridadFor = (cat: string): string => {
@@ -589,7 +597,7 @@ function Tendencia() {
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <select
               value={snapshotPlan}
-              onChange={e => setSnapshotPlan(e.target.value)}
+              onChange={e => { setSnapshotPlan(e.target.value); setSnapshotPage(1); }}
               style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid var(--rule-2)", background: "var(--paper)", fontSize: 12.5, fontFamily: "inherit" }}
             >
               <option value="Todos">Todos los planes</option>
@@ -597,7 +605,7 @@ function Tendencia() {
             </select>
             <input
               value={snapshotQ}
-              onChange={e => setSnapshotQ(e.target.value)}
+              onChange={e => { setSnapshotQ(e.target.value); setSnapshotPage(1); }}
               placeholder="Buscar nombre, país, motivo…"
               style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rule-2)", background: "var(--paper)", fontSize: 12.5, fontFamily: "inherit", width: 220 }}
             />
@@ -621,7 +629,7 @@ function Tendencia() {
                 </tr>
               </thead>
               <tbody>
-                {snapshotFiltered.slice(0, 200).map((r, i) => (
+                {snapshotPageRows.map((r, i) => (
                   <tr key={`${r.id_hubspot}-${i}`}>
                     <td className="strong">{r.nombre}</td>
                     <td className="mono fs-11" style={{ color: "var(--ink-3)" }}>{r.id_hubspot}</td>
@@ -639,11 +647,32 @@ function Tendencia() {
                 ))}
               </tbody>
             </table>
-            {snapshotFiltered.length > 200 && (
-              <div className="fs-12 muted" style={{ marginTop: 10, textAlign: "center" }}>
-                Mostrando 200 de {nfmt(snapshotFiltered.length)} — exportá para ver todas
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, gap: 12, flexWrap: "wrap" }}>
+              <div className="fs-12 muted">
+                {snapshotFiltered.length === 0
+                  ? "Sin resultados"
+                  : `Mostrando ${(snapshotCurrentPage - 1) * SNAPSHOT_PAGE_SIZE + 1}–${Math.min(snapshotCurrentPage * SNAPSHOT_PAGE_SIZE, snapshotFiltered.length)} de ${nfmt(snapshotFiltered.length)}`}
               </div>
-            )}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <button
+                  onClick={() => setSnapshotPage(p => Math.max(1, p - 1))}
+                  disabled={snapshotCurrentPage <= 1}
+                  style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid var(--rule-2)", background: "var(--paper)", fontSize: 12, cursor: snapshotCurrentPage <= 1 ? "not-allowed" : "pointer", opacity: snapshotCurrentPage <= 1 ? 0.5 : 1 }}
+                >
+                  ← Anterior
+                </button>
+                <span className="fs-12 mono" style={{ color: "var(--ink-2)" }}>
+                  Hoja {snapshotCurrentPage} / {snapshotTotalPages}
+                </span>
+                <button
+                  onClick={() => setSnapshotPage(p => Math.min(snapshotTotalPages, p + 1))}
+                  disabled={snapshotCurrentPage >= snapshotTotalPages}
+                  style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid var(--rule-2)", background: "var(--paper)", fontSize: 12, cursor: snapshotCurrentPage >= snapshotTotalPages ? "not-allowed" : "pointer", opacity: snapshotCurrentPage >= snapshotTotalPages ? 0.5 : 1 }}
+                >
+                  Siguiente →
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
