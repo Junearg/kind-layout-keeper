@@ -9,6 +9,8 @@ import { useSupabaseChurnInsights } from "@/data/supabase-churn-insights";
 import { useRetention } from "@/data/supabase-retention";
 import { useCountry } from "@/contexts/CountryContext";
 import { useMesActivo } from "@/data/dataset-store";
+import { useKpisDiarios, useKpiDelta, listFechasDiarias, type KpiDiario } from "@/data/supabase-kpis-diarios";
+import { useQuery } from "@tanstack/react-query";
 import { ORANGE } from "@/data/mockData";
 import { mesCorto } from "@/data/schema";
 import { normalizarMotivo, MOTIVO_CATS, MOTIVO_COLORS } from "@/lib/motivo-normalizer";
@@ -116,6 +118,9 @@ function Resumen() {
           <TierMiniBars tierDist={r.tierDist} />
         </div>
       </div>
+
+      {/* Snapshot diario */}
+      <DailySection pais={selectedPais} />
 
       {/* Tendencia */}
       <div className="divider">
@@ -461,5 +466,141 @@ function MotivosStackedCard({ rows }: { rows: ChurnRowLite[] | null }) {
         ))}
       </div>
     </div>
+  );
+}
+
+// ─── Snapshot Diario ────────────────────────────────────────────────────────
+function DailySection({ pais }: { pais: import("@/contexts/CountryContext").Pais }) {
+  // Última fecha diaria disponible
+  const { data: fechas } = useQuery({
+    queryKey: ["fechas-diarias"],
+    queryFn: listFechasDiarias,
+    staleTime: 300_000,
+  });
+  const fechaHoy = fechas?.[0] ?? "";
+  const { data: delta, isLoading } = useKpiDelta(fechaHoy, pais);
+  const { data: serie } = useKpisDiarios(pais, 30);
+
+  if (!fechaHoy) return null;
+  if (isLoading || !delta) {
+    return (
+      <div className="card" style={{ padding: 16, marginTop: 16 }}>
+        <div className="card-eyebrow">Snapshot diario</div>
+        <div className="fs-12 muted" style={{ marginTop: 8 }}>Cargando datos diarios…</div>
+      </div>
+    );
+  }
+
+  const { hoy, ayer: _ayer, delta: d } = delta;
+  const nfmt2 = (n: number) => n.toLocaleString("es-AR");
+  const sign = (n: number, invert = false) => {
+    const bad = invert ? n > 0 : n < 0;
+    return { prefix: n >= 0 ? "+" : "", color: bad ? "var(--red)" : n === 0 ? "var(--ink-3)" : "var(--green, #16A34A)" };
+  };
+
+  const cards: { label: string; value: string; delta: number; invert?: boolean; sub?: string }[] = [
+    { label: "Activas", value: nfmt2(hoy.activas), delta: d.activas, sub: `% ret. ${hoy.pctRetenido.toFixed(2)}%` },
+    { label: "Pago Pendiente", value: nfmt2(hoy.pagoPendiente), delta: d.pagoPendiente, invert: true },
+    { label: "Bajas Confirmadas", value: nfmt2(hoy.bajas), delta: d.bajas, invert: true },
+    { label: "A Recuperar", value: nfmt2(hoy.aRecuperar), delta: d.aRecuperar, invert: true,
+      sub: `Onb ${hoy.onboarding} · Eng ${hoy.engagement}` },
+    { label: "Sin ventas", value: nfmt2(hoy.sinVentas), delta: d.sinVentas, invert: true,
+      sub: `Con ventas: ${nfmt2(hoy.activasConVentas)}` },
+  ];
+
+  return (
+    <>
+      <div className="divider" style={{ marginTop: 24 }}>
+        <span className="kicker">Snapshot</span>
+        <span className="alt">/ diario · {fechaHoy}</span>
+        <span className="sub">vs ayer</span>
+        <span className="rule" />
+      </div>
+
+      {/* KPI cards */}
+      <div className="bento cols-5" style={{ marginBottom: 16 }}>
+        {cards.map((c) => {
+          const { prefix, color } = sign(c.delta, c.invert);
+          return (
+            <div key={c.label} className="card" style={{ padding: 16 }}>
+              <div className="card-eyebrow" style={{ fontSize: 10.5 }}>{c.label}</div>
+              <div className="mono" style={{ fontSize: 26, fontWeight: 600, marginTop: 6, lineHeight: 1.1 }}>
+                {c.value}
+              </div>
+              {c.delta !== 0 && (
+                <div style={{ fontSize: 11, marginTop: 6, color, fontWeight: 500 }}>
+                  {prefix}{nfmt2(c.delta)} vs ayer
+                </div>
+              )}
+              {c.delta === 0 && (
+                <div style={{ fontSize: 11, marginTop: 6, color: "var(--ink-3)" }}>
+                  sin cambio
+                </div>
+              )}
+              {c.sub && <div className="fs-11 muted" style={{ marginTop: 4 }}>{c.sub}</div>}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Gráfico de evolución 30 días */}
+      {serie && serie.length > 1 && (
+        <div className="bento cols-2">
+          {/* Absolutos: Activas + Pago Pendiente + A Recuperar */}
+          <div className="card lg">
+            <div className="card-eyebrow">Evolución absoluta · últimos 30 días</div>
+            <div style={{ height: 240, marginTop: 12 }}>
+              <ResponsiveContainer>
+                <ComposedChart data={serie} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                  <CartesianGrid stroke="#E8E6DC" vertical={false} />
+                  <XAxis dataKey="fecha" tick={{ fontSize: 10, fill: "#6E6D66" }} axisLine={false} tickLine={false}
+                    tickFormatter={(v) => mesCorto(v.slice(0, 7)) + " " + v.slice(8, 10)} interval="preserveStartEnd" />
+                  <YAxis tick={{ fontSize: 10, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #E8E6DC" }}
+                    labelFormatter={(v) => v} />
+                  <Line type="monotone" dataKey="activas" stroke="#2563EB" strokeWidth={2} dot={false} name="Activas" />
+                  <Line type="monotone" dataKey="pagoPendiente" stroke="#D97706" strokeWidth={1.5} dot={false} name="Pago Pendiente" strokeDasharray="4 2" />
+                  <Line type="monotone" dataKey="aRecuperar" stroke="#7C3AED" strokeWidth={1.5} dot={false} name="A Recuperar" />
+                  <Bar dataKey="bajas" fill="#F05A28" fillOpacity={0.6} barSize={6} radius={[2,2,0,0]} name="Bajas" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+            <div style={{ display: "flex", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
+              {[["#2563EB","Activas"],["#D97706","Pago Pendiente"],["#7C3AED","A Recuperar"],["#F05A28","Bajas"]].map(([c, l]) => (
+                <span key={l} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--ink-3)" }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 2, background: c }} /> {l}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* % Retenido + Churn Neto */}
+          <div className="card lg">
+            <div className="card-eyebrow">Tasa diaria · últimos 30 días</div>
+            <div style={{ height: 240, marginTop: 12 }}>
+              <ResponsiveContainer>
+                <ComposedChart data={serie} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                  <CartesianGrid stroke="#E8E6DC" vertical={false} />
+                  <XAxis dataKey="fecha" tick={{ fontSize: 10, fill: "#6E6D66" }} axisLine={false} tickLine={false}
+                    tickFormatter={(v) => mesCorto(v.slice(0, 7)) + " " + v.slice(8, 10)} interval="preserveStartEnd" />
+                  <YAxis tick={{ fontSize: 10, fill: "#6E6D66" }} axisLine={false} tickLine={false} unit="%" />
+                  <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #E8E6DC" }}
+                    formatter={(v: any) => [`${Number(v).toFixed(2)}%`, ""]} />
+                  <Line type="monotone" dataKey="pctRetenido" stroke="#16A34A" strokeWidth={2} dot={false} name="% Retenido" />
+                  <Line type="monotone" dataKey="churnNeto" stroke="#F05A28" strokeWidth={1.5} dot={false} name="Churn Neto %" strokeDasharray="3 2" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+            <div style={{ display: "flex", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
+              {[["#16A34A","% Retenido"],["#F05A28","Churn Neto"]].map(([c, l]) => (
+                <span key={l} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--ink-3)" }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 2, background: c }} /> {l}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
