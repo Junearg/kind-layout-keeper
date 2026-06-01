@@ -17,7 +17,7 @@ const COUNTRY_COLORS: Record<string, string> = {
   Colombia: "#B5740F", Brasil: "#7B3FBF", Otros: "#6E6D66",
 };
 const PLAN_COLORS: Record<string, string> = {
-  Inicial: ORANGE, Avanzado: "#FF7A4D", Pro: "#FF9670", Base: "#FFB394",
+  Inicial: "#2563EB", Avanzado: ORANGE, Pro: "#7C3AED", Base: "#9CA3AF",
 };
 const GMV_COLORS: Record<string, string> = {
   Alto: ORANGE, Medio: "#FF9670", Bajo: "#FFD0B8",
@@ -93,7 +93,9 @@ function KpiCard({ label, value, sub, tone = "default" }: {
   );
 }
 
-// ── Evolución apilada por dimensión (12m) ─────────────────────────────────────
+// ── Evolución apilada 100% por dimensión ─────────────────────────────────────
+// Normaliza cada mes a 100% para que todas las barras tengan la misma altura.
+// El tooltip muestra tanto el % como el absoluto (contexto sin eje inflado).
 function StackedEvolution({
   data, dimensionKeys, getKey, colors, title,
 }: {
@@ -104,23 +106,41 @@ function StackedEvolution({
   title: string;
 }) {
   const chartData = useMemo(() => data.months.map((mm) => {
-    const row: Record<string, unknown> = { mes: mm.label };
+    const counts: Record<string, number> = {};
     for (const k of dimensionKeys) {
-      row[k] = data.rows.filter((r) => r.mesKey === mm.key && getKey(r) === k).length;
+      counts[k] = data.rows.filter((r) => r.mesKey === mm.key && getKey(r) === k).length;
+    }
+    const total = Object.values(counts).reduce((s, v) => s + v, 0) || 1;
+    const row: Record<string, unknown> = { mes: mm.label, _total: total };
+    for (const k of dimensionKeys) {
+      row[k] = +((( counts[k] ?? 0) / total) * 100).toFixed(1);
     }
     return row;
   }), [data, dimensionKeys, getKey]);
 
   return (
     <div>
-      <div className="card-eyebrow" style={{ marginBottom: 8 }}>{title} · últimos 12 meses</div>
+      <div className="card-eyebrow" style={{ marginBottom: 8 }}>{title} · composición mensual</div>
       <div style={{ height: 260 }}>
         <ResponsiveContainer>
           <BarChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
             <CartesianGrid stroke="#E8E6DC" vertical={false} />
             <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 10, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
-            <Tooltip contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid #E8E6DC" }} />
+            <YAxis
+              tick={{ fontSize: 10, fill: "#6E6D66" }} axisLine={false} tickLine={false}
+              unit="%" domain={[0, 100]}
+            />
+            <Tooltip
+              contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid #E8E6DC" }}
+              formatter={(v: any, name: any, item: any) => {
+                const total = item?.payload?._total ?? 0;
+                const abs = Math.round(Number(v) * total / 100);
+                return [`${Number(v).toFixed(1)}% (${nfmt(abs)} bajas)`, name];
+              }}
+              labelFormatter={(label: any, payload: any) =>
+                `${label} · ${nfmt(payload?.[0]?.payload?._total ?? 0)} bajas totales`
+              }
+            />
             {dimensionKeys.map((k, i) => (
               <Bar key={k} dataKey={k} stackId="a"
                 fill={colors[k] ?? EJ_COLORS[i % EJ_COLORS.length]!}
@@ -130,7 +150,6 @@ function StackedEvolution({
           </BarChart>
         </ResponsiveContainer>
       </div>
-      {/* Leyenda de colores */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px", marginTop: 10 }}>
         {dimensionKeys.map((k) => (
           <span key={k} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--ink-2)" }}>
