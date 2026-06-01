@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  LineChart, Line, Cell,
+  LineChart, Line, Cell, LabelList,
 } from "recharts";
 import { ORANGE } from "@/data/mockData";
 import { useMesActivo } from "@/data/dataset-store";
@@ -13,14 +13,14 @@ import {
 } from "@/data/supabase-segmentacion";
 
 const COUNTRY_COLORS: Record<string, string> = {
-  Argentina: "#F05A28", Chile: "#1E5DBF", México: "#0E9F6E",
-  Colombia: "#B5740F", Brasil: "#7B3FBF", Otros: "#6E6D66",
+  Argentina: "#F4A07A", Chile: "#7BAEE8", México: "#6FCFB2",
+  Colombia: "#E4B06E", Brasil: "#B48FD9", Otros: "#C8C7C4",
 };
 const PLAN_COLORS: Record<string, string> = {
-  Inicial: "#2563EB", Avanzado: ORANGE, Pro: "#7C3AED", Base: "#9CA3AF",
+  Inicial: "#7BAEE8", Avanzado: "#F4A07A", Pro: "#B48FD9", Base: "#C8C7C4",
 };
 const GMV_COLORS: Record<string, string> = {
-  Alto: ORANGE, Medio: "#FF9670", Bajo: "#FFD0B8",
+  Alto: "#F4A07A", Medio: "#6FCFB2", Bajo: "#B48FD9",
 };
 const EJ_COLORS = [
   "#F05A28", "#1E5DBF", "#0E9F6E", "#B5740F", "#7B3FBF",
@@ -145,7 +145,14 @@ function StackedEvolution({
               <Bar key={k} dataKey={k} stackId="a"
                 fill={colors[k] ?? EJ_COLORS[i % EJ_COLORS.length]!}
                 radius={i === dimensionKeys.length - 1 ? [4, 4, 0, 0] : 0}
-              />
+              >
+                <LabelList
+                  dataKey={k}
+                  position="center"
+                  style={{ fontSize: 10, fill: "#2B2B27", fontWeight: 600, pointerEvents: "none" }}
+                  formatter={(v: unknown) => Number(v) >= 8 ? k : ""}
+                />
+              </Bar>
             ))}
           </BarChart>
         </ResponsiveContainer>
