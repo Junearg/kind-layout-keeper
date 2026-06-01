@@ -120,12 +120,21 @@ function Tendencia() {
   // Estado de búsqueda del snapshot
   const [snapshotQ, setSnapshotQ] = useState("");
   const [snapshotPlan, setSnapshotPlan] = useState<string>("Todos");
+  const [snapshotPage, setSnapshotPage] = useState(1);
   const snapshotFiltered = (snapshotRows ?? []).filter((r) => {
     const qOk = !snapshotQ || [r.nombre, r.pais, r.id_hubspot, r.motivoCat, r.ejecutivo]
       .some(v => v.toLowerCase().includes(snapshotQ.toLowerCase()));
     const planOk = snapshotPlan === "Todos" || r.plan === snapshotPlan;
     return qOk && planOk;
   });
+  const SNAPSHOT_PAGE_SIZE = 10;
+  const snapshotTotalPages = Math.max(1, Math.ceil(snapshotFiltered.length / SNAPSHOT_PAGE_SIZE));
+  const snapshotCurrentPage = Math.min(snapshotPage, snapshotTotalPages);
+  const snapshotPageRows = snapshotFiltered.slice(
+    (snapshotCurrentPage - 1) * SNAPSHOT_PAGE_SIZE,
+    snapshotCurrentPage * SNAPSHOT_PAGE_SIZE,
+  );
+  useEffect(() => { setSnapshotPage(1); }, [snapshotQ, snapshotPlan, selectedPais, selectedPeriod]);
 
   // Motivos de baja (últimos 6 meses) — agrupados por categoría normalizada
   const prioridadFor = (cat: string): string => {
