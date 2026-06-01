@@ -90,9 +90,9 @@ function Tendencia() {
   const motivos = useMotivosMes();
   const resumen = useResumenMes();
   const mesActivo = useMesActivo();
+  const { data: insights6m } = useSupabaseChurnInsights(mesActivo, selectedPais);
   const { selectedPeriod } = usePeriod();
   const { selectedPais } = useCountry();
-  const { data: insights6m } = useSupabaseChurnInsights(mesActivo, selectedPais);
   const { data: ret } = useRetention(selectedPeriod, selectedPais);
   const { data: snapshotRows, isLoading: snapshotLoading } = useSnapshot(selectedPeriod, selectedPais);
 
@@ -109,30 +109,32 @@ function Tendencia() {
     return qOk && planOk;
   });
 
-  // Motivos de baja (últimos 6 meses, excluyendo NPS)
-  const PALETTE = ["#6B7280", "#2563EB", "#D97706", "#F05A28", "#7C3AED", "#DB2777", "#0D9488", "#16A34A", "#9333EA", "#0EA5E9"];
-  const prioridadFor = (m: string): string => {
-    const t = m.toLowerCase();
-    if (/sin (motivo|respuesta)/.test(t)) return "CRÍTICA";
-    if (/cierre temporal|dej(ó|o) de usar|precio|mal servicio|falta/.test(t)) return "ALTA";
-    if (/eligi(ó|o) otro/.test(t)) return "Estrat.";
+  // Motivos de baja (últimos 6 meses) — agrupados por categoría normalizada
+  const prioridadFor = (cat: string): string => {
+    if (cat === "Sin motivo")                    return "CRÍTICA";
+    if (cat === "Precio" || cat === "Cierre temporal" ||
+        cat === "Servicio" || cat === "Producto / Funcionalidades") return "ALTA";
+    if (cat === "Eligió otro sistema")            return "Estrat.";
     return "Media";
   };
   const motivosLive = useMemo(() => {
     if (!insights6m) return null;
     const filtered = insights6m.rows.filter((r) => !/nps/i.test(r.motivo));
+    // Normalizar cada fila a su categoría canónica antes de agrupar
     const map = new Map<string, number>();
-    for (const r of filtered) map.set(r.motivo, (map.get(r.motivo) ?? 0) + 1);
+    for (const r of filtered) {
+      const cat = normalizarMotivo(r.motivo, null, null, null);
+      map.set(cat, (map.get(cat) ?? 0) + 1);
+    }
     const total = filtered.length || 1;
     const sorted = [...map.entries()].sort((a, b) => b[1] - a[1]);
-    let palIdx = 0;
     return sorted.map(([motivo, n]) => {
-      const brecha = /sin (motivo|respuesta)/i.test(motivo);
+      const brecha = motivo === "Sin motivo";
       return {
         motivo,
         n,
         pct: +((n / total) * 100).toFixed(1),
-        color: brecha ? "#DC2626" : PALETTE[palIdx++ % PALETTE.length]!,
+        color: MOTIVO_COLORS[motivo as keyof typeof MOTIVO_COLORS] ?? "#9CA3AF",
         brecha,
         prioridad: prioridadFor(motivo),
         accionable: "—",
