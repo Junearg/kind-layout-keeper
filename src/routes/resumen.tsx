@@ -71,16 +71,26 @@ function Resumen() {
             </div>
             <div className="arrow-up">↗</div>
           </div>
-          <div className="bignum" style={{ fontSize: 72 }}>{nfmt(r.bajasMesActual)}</div>
+          {/* Tasa % como métrica principal */}
+          {ret && (
+            <div className="bignum" style={{ fontSize: 64, marginTop: 4 }}>
+              {ret.churnBruto.toFixed(2)}%
+            </div>
+          )}
+          <div className="fs-12" style={{ color: "rgba(255,255,255,0.85)", marginTop: 6 }}>
+            {nfmt(r.bajasMesActual)} bajas · base {nfmt(ret?.mpcsMesPasado ?? r.activeAccounts)}
+          </div>
           <div className="mt-12" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {r.monthDeltaPct != null && (
               <span className="callout">
                 {r.monthDeltaPct >= 0 ? "↑" : "↓"} {pctFmt(r.monthDeltaPct)} vs {r.prevClosedLabel}
               </span>
             )}
-            <span className="callout" style={{ background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.85)", fontSize: 11 }}>
-              Bajas: bloqueadas con fecha de baja asignada en {r.latestClosedLabel} y en estado Bajas o Bajas Clientes
-            </span>
+            {ret && ret.churnNeto !== ret.churnBruto && (
+              <span className="callout" style={{ background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.85)" }}>
+                neto {ret.churnNeto.toFixed(2)}%
+              </span>
+            )}
           </div>
         </div>
 

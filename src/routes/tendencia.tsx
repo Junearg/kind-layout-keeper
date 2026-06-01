@@ -263,22 +263,22 @@ function Tendencia() {
           </div>
         </div>
 
-        {/* Card 3 — Projected Churns (3 meses, compuesto) */}
+        {/* Card 3 — Projected Rate (3 meses) */}
         <div className="card">
           <div className="card-eyebrow" style={{ display: "flex", alignItems: "center" }}>
-            Projected 3m (compuesto)
-            <Info tip="Aplica la tasa WMA mes a mes sobre la base activa remanente del mes anterior (no sobre la base actual fija). Total = suma de los 3 meses proyectados." />
+            Tasa proyectada · 3m
+            <Info tip="Tasa WMA aplicada compuestamente mes a mes sobre la base remanente. El bignum es la tasa %; los absolutos son referencia." />
           </div>
-          <div className="bignum" style={{ marginTop: 8 }}>{nfmt(proj3Total)}</div>
+          <div className="bignum" style={{ marginTop: 8 }}>{pctfmt(wma)}</div>
           <div className="fs-12 muted" style={{ marginTop: 6 }}>
-            próximos 3 meses · tasa {pctfmt(wma)}
+            ≈ {nfmt(proj3Total)} bajas · próximos 3 meses
           </div>
           {proj3.length > 0 && (
             <div className="fs-12 muted mono" style={{ marginTop: 8, lineHeight: 1.5 }}>
               {proj3.map((p) => (
                 <div key={p.key} style={{ display: "flex", justifyContent: "space-between" }}>
                   <span>{p.mes}</span>
-                  <span>base {nfmt(p.activeBase)} · {nfmt(p.bajas)}</span>
+                  <span>{pctfmt(p.rate, 1)} · {nfmt(p.bajas)} sobre {nfmt(p.activeBase)}</span>
                 </div>
               ))}
             </div>
@@ -288,17 +288,17 @@ function Tendencia() {
         {/* Card 4 — Confidence Interval */}
         <div className="card ink">
           <div className="card-eyebrow" style={{ display: "flex", alignItems: "center", color: "rgba(255,255,255,0.7)" }}>
-            Confidence Interval
-            <Info tip="Desvío estándar de las últimas 6 tasas mensuales. Rango = tasa WMA ± 1.5 × σ, expresado en bajas absolutas sobre la base del próximo mes." />
+            Rango de confianza
+            <Info tip="Tasa WMA ± 1.5 × σ de las últimas 6 tasas. El bignum es el rango en %; los absolutos son referencia sobre la base proyectada." />
           </div>
           <div className="bignum" style={{ marginTop: 8 }}>
-            {nfmt(ciMin)}–{nfmt(ciMax)}
+            {pctfmt(ciLowRate, 1)}–{pctfmt(ciHighRate, 1)}
           </div>
           <div className="fs-12" style={{ color: "rgba(255,255,255,0.7)", marginTop: 6 }}>
-            centro {nfmt(ciCenter)} · σ₆ ±{sixStdDev.toFixed(2)} pts
+            ≈ {nfmt(ciMin)}–{nfmt(ciMax)} bajas · centro {nfmt(ciCenter)}
           </div>
           <div className="fs-12" style={{ color: "rgba(255,255,255,0.55)", marginTop: 4 }}>
-            tasa {pctfmt(ciLowRate)}–{pctfmt(ciHighRate)}
+            σ₆ ±{sixStdDev.toFixed(2)} pts
           </div>
           <div style={{ marginTop: 10 }}>
             <span className="callout" style={{
@@ -643,24 +643,26 @@ function Tendencia() {
         <div className="bento cols-4">
           <div className="card">
             <div className="card-eyebrow">Activas ≥10 ventas/mes</div>
-            <div className="bignum" style={{ fontSize: 36, marginTop: 8 }}>{nfmt(ret.activasConVentas)}</div>
-            <div className="fs-12 muted" style={{ marginTop: 6 }}>{ret.pctActivasConVentas.toFixed(1)}% de activas</div>
+            <div className="bignum" style={{ fontSize: 36, marginTop: 8 }}>{ret.pctActivasConVentas.toFixed(1)}%</div>
+            <div className="fs-12 muted" style={{ marginTop: 6 }}>{nfmt(ret.activasConVentas)} cuentas · de {nfmt(ret.activasHoy)} activas</div>
           </div>
           <div className="card">
             <div className="card-eyebrow">Login &lt;7 días</div>
-            <div className="bignum" style={{ fontSize: 36, marginTop: 8 }}>{nfmt(ret.loginMenos7)}</div>
-            <div className="fs-12 muted" style={{ marginTop: 6 }}>{ret.pctLoginMenos7.toFixed(1)}% de activas</div>
+            <div className="bignum" style={{ fontSize: 36, marginTop: 8 }}>{ret.pctLoginMenos7.toFixed(1)}%</div>
+            <div className="fs-12 muted" style={{ marginTop: 6 }}>{nfmt(ret.loginMenos7)} cuentas · de {nfmt(ret.activasHoy)} activas</div>
           </div>
           <div className="card">
             <div className="card-eyebrow">A Recuperar</div>
-            <div className="bignum" style={{ fontSize: 36, marginTop: 8 }}>{nfmt(ret.aRecuperar)}</div>
-            <div className="fs-12 muted" style={{ marginTop: 6 }}>Engagement + Onboarding</div>
+            <div className="bignum" style={{ fontSize: 36, marginTop: 8 }}>
+              {ret.activasHoy ? ((ret.aRecuperar / ret.activasHoy) * 100).toFixed(1) : "—"}%
+            </div>
+            <div className="fs-12 muted" style={{ marginTop: 6 }}>{nfmt(ret.aRecuperar)} cuentas · Engagement + Onboarding</div>
             <div className="fs-12 muted">{nfmt(ret.aRecuperarConVentas)} con ≥10 ventas</div>
           </div>
           <div className="card">
-            <div className="card-eyebrow">MPCs mes pasado</div>
+            <div className="card-eyebrow">Base activa anterior</div>
             <div className="bignum" style={{ fontSize: 36, marginTop: 8 }}>{nfmt(ret.mpcsMesPasado)}</div>
-            <div className="fs-12 muted" style={{ marginTop: 6 }}>base para cálculo de churn</div>
+            <div className="fs-12 muted" style={{ marginTop: 6 }}>denominador del churn · mes anterior</div>
           </div>
         </div>
 
