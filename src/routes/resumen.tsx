@@ -71,14 +71,14 @@ function Resumen() {
             </div>
             <div className="arrow-up">↗</div>
           </div>
-          {/* Tasa % como métrica principal */}
-          {ret && (
-            <div className="bignum" style={{ fontSize: 64, marginTop: 4 }}>
-              {ret.churnBruto.toFixed(2)}%
-            </div>
-          )}
+          {/* Tasa % como métrica principal — fallback a absoluto si ret no cargó */}
+          <div className="bignum" style={{ fontSize: ret ? 64 : 72, marginTop: 4 }}>
+            {ret ? `${ret.churnBruto.toFixed(2)}%` : nfmt(r.bajasMesActual)}
+          </div>
           <div className="fs-12" style={{ color: "rgba(255,255,255,0.85)", marginTop: 6 }}>
-            {nfmt(r.bajasMesActual)} bajas · base {nfmt(ret?.mpcsMesPasado ?? r.activeAccounts)}
+            {ret
+              ? `${nfmt(r.bajasMesActual)} bajas · base ${nfmt(ret.mpcsMesPasado)}`
+              : `bajas absolutas · cargando tasa…`}
           </div>
           <div className="mt-12" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {r.monthDeltaPct != null && (
