@@ -176,7 +176,7 @@ function Resumen() {
                     ? `estimado · plan ${ret.churnPlan != null ? `${ret.churnPlan.toFixed(1)}%` : "—"}`
                     : "sin datos suficientes"}
               </div>
-              {netoDisplay != null && ret.churnPlan != null && (
+              {netoDisplay != null && ret.churnPlan != null && ret.proyectadoVsPlan != null && (
                 <div style={{ marginTop: 10 }}>
                   <span className={`tag ${Math.abs(ret.proyectadoVsPlan) <= 5 ? "orange" : ret.proyectadoVsPlan > 5 ? "red" : "blue"}`}>
                     {ret.proyectadoVsPlan >= 0 ? "+" : ""}{ret.proyectadoVsPlan.toFixed(1)}% vs plan
