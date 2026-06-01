@@ -19,7 +19,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, ErrorBar, Cell,
   Line, ReferenceLine, Legend,
 } from "recharts";
-import { MOTIVO_CATS, MOTIVO_COLORS, AREA_ESTRATEGICA, normalizarMotivo } from "@/lib/motivo-normalizer";
+import { MOTIVO_CATS, MOTIVO_COLORS, AREA_ESTRATEGICA } from "@/lib/motivo-normalizer";
 import { PLANES } from "@/data/supabase-trend";
 import { useSnapshot } from "@/data/supabase-snapshot";
 import { mesCorto } from "@/data/schema";
@@ -108,9 +108,9 @@ function Tendencia() {
   const motivos = useMotivosMes();
   const resumen = useResumenMes();
   const mesActivo = useMesActivo();
+  const { data: insights6m } = useSupabaseChurnInsights(mesActivo, selectedPais);
   const { selectedPeriod } = usePeriod();
   const { selectedPais } = useCountry();
-  const { data: insights6m } = useSupabaseChurnInsights(mesActivo, selectedPais);
   const { data: ret } = useRetention(selectedPeriod, selectedPais);
   const { data: snapshotRows, isLoading: snapshotLoading } = useSnapshot(selectedPeriod, selectedPais);
 
@@ -481,50 +481,70 @@ function Tendencia() {
         </div>
       </div>
 
-      {/* Gráfico — Churn Bruto · Neto · Recuperadas */}
+      {/* Bruto vs Neto — comparación del período actual (datos exactos) + evolución base activa */}
       <div className="card lg" style={{ marginTop: 16 }}>
-        <div className="minihead">
+        <div className="minihead" style={{ marginBottom: 16 }}>
           <div>
             <div className="card-eyebrow">Churn Bruto · Neto · Recuperadas</div>
-            <div className="card-title">Evolución mensual · últimos 12 meses</div>
+            <div className="card-title">Período actual · y evolución base activa 12 meses</div>
           </div>
         </div>
-        <div className="chart-wrap" style={{ height: 280 }}>
+
+        {/* Pills de comparación para el período actual */}
+        {ret && ret.mpcsMesPasado > 0 ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 20 }}>
+            {[
+              { label: "Churn Bruto", value: ret.churnBruto.toFixed(2) + "%", sub: `${nfmt(ret.mpcsMesPasado - ret.activasHoy - (ret.mpcsMesPasado - ret.activasHoy > 0 ? 0 : 0))} bajas / ${nfmt(ret.mpcsMesPasado)} base`, color: ORANGE },
+              { label: "Churn Neto", value: ret.churnNeto.toFixed(2) + "%", sub: `caída neta · ${nfmt(ret.mpcsMesPasado)} → ${nfmt(ret.activasHoy)} activas`, color: "#2563EB" },
+              { label: "Recuperadas", value: `${Math.max(0, ret.churnBruto - ret.churnNeto).toFixed(2)}%`, sub: `bruto − neto · cuentas que volvieron al activo`, color: "#16A34A" },
+            ].map((p) => (
+              <div key={p.label} style={{ background: "var(--paper-2)", borderRadius: 12, padding: "14px 16px", borderLeft: `3px solid ${p.color}` }}>
+                <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--ink-3)", fontWeight: 500 }}>{p.label}</div>
+                <div className="mono" style={{ fontSize: 28, fontWeight: 700, marginTop: 4, color: p.color }}>{p.value}</div>
+                <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4 }}>{p.sub}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="fs-12 muted" style={{ marginBottom: 16 }}>
+            Importá el período anterior para ver comparación Bruto vs Neto.
+          </div>
+        )}
+
+        {/* Evolución 12m: base activa (línea) + bajas mensuales (barras) */}
+        <div className="card-eyebrow" style={{ marginBottom: 8 }}>Evolución base activa + bajas mensuales · 12 meses</div>
+        <div style={{ height: 260 }}>
           <ResponsiveContainer>
             <ComposedChart
               data={chartData.filter(p => !p.proyectado).map(p => ({
                 mes: p.mes,
-                rateBruto: p.rate,
-                rateNeto: p.rateNeto ?? null,
-                ratioRecuperadas: p.ratioRecuperadas ?? null,
+                activas: p.activeBase,
+                bajas: p.bajas,
               }))}
-              margin={{ top: 16, right: 24, left: 0, bottom: 8 }}
+              margin={{ top: 8, right: 24, left: 0, bottom: 8 }}
             >
               <CartesianGrid stroke="#E8E6DC" vertical={false} />
               <XAxis dataKey="mes" tick={{ fontSize: 12, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} unit="%" />
+              <YAxis yAxisId="base" tick={{ fontSize: 10, fill: "#6E6D66" }} axisLine={false} tickLine={false} orientation="left" />
+              <YAxis yAxisId="bajas" tick={{ fontSize: 10, fill: "#6E6D66" }} axisLine={false} tickLine={false} orientation="right" />
               <Tooltip
                 contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid #E8E6DC" }}
-                formatter={(v: any, name: any) => {
-                  const labels: Record<string, string> = {
-                    rateBruto: "Churn Bruto",
-                    rateNeto: "Churn Neto",
-                    ratioRecuperadas: "Recuperadas",
-                  };
-                  return [`${Number(v).toFixed(2)}%`, labels[name as string] ?? name];
-                }}
+                formatter={(v: any, name: any) => [
+                  nfmt(Number(v)),
+                  name === "activas" ? "Base activa inicio mes" : "Bajas del mes",
+                ]}
               />
-              <Legend formatter={(v) =>
-                ({ rateBruto: "Churn Bruto", rateNeto: "Churn Neto", ratioRecuperadas: "Recuperadas" } as Record<string,string>)[v] ?? v
-              } />
-              <Bar dataKey="ratioRecuperadas" fill="#16A34A" fillOpacity={0.55} barSize={18} radius={[4, 4, 0, 0]} name="ratioRecuperadas" />
-              <Line type="monotone" dataKey="rateBruto" stroke={ORANGE} strokeWidth={2.5} dot={{ r: 3, fill: ORANGE }} name="rateBruto" connectNulls />
-              <Line type="monotone" dataKey="rateNeto" stroke="#2563EB" strokeWidth={2} dot={{ r: 3, fill: "#2563EB" }} strokeDasharray="5 3" name="rateNeto" connectNulls />
+              <Bar yAxisId="bajas" dataKey="bajas" fill={ORANGE} fillOpacity={0.7} barSize={20} radius={[3, 3, 0, 0]} name="bajas" />
+              <Line yAxisId="base" type="monotone" dataKey="activas" stroke="#2563EB" strokeWidth={2} dot={{ r: 3, fill: "#2563EB" }} name="activas" connectNulls />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
-        <div className="fs-12 muted" style={{ marginTop: 10 }}>
-          Bruto = bajas / base inicio mes · Neto = caída neta de activas · Recuperadas = bruto − neto (cuentas que volvieron al activo)
+        <div style={{ display: "flex", gap: 16, marginTop: 10 }}>
+          {[["#2563EB", "Base activa inicio mes (eje izq.)"], [ORANGE, "Bajas del mes (eje der.)"]].map(([c, l]) => (
+            <span key={l} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--ink-3)" }}>
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: c }} />{l}
+            </span>
+          ))}
         </div>
       </div>
 
