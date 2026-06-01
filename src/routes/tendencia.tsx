@@ -629,7 +629,7 @@ function Tendencia() {
                 </tr>
               </thead>
               <tbody>
-                {snapshotFiltered.slice(0, 200).map((r, i) => (
+                {snapshotPageRows.map((r, i) => (
                   <tr key={`${r.id_hubspot}-${i}`}>
                     <td className="strong">{r.nombre}</td>
                     <td className="mono fs-11" style={{ color: "var(--ink-3)" }}>{r.id_hubspot}</td>
@@ -647,11 +647,32 @@ function Tendencia() {
                 ))}
               </tbody>
             </table>
-            {snapshotFiltered.length > 200 && (
-              <div className="fs-12 muted" style={{ marginTop: 10, textAlign: "center" }}>
-                Mostrando 200 de {nfmt(snapshotFiltered.length)} — exportá para ver todas
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, gap: 12, flexWrap: "wrap" }}>
+              <div className="fs-12 muted">
+                {snapshotFiltered.length === 0
+                  ? "Sin resultados"
+                  : `Mostrando ${(snapshotCurrentPage - 1) * SNAPSHOT_PAGE_SIZE + 1}–${Math.min(snapshotCurrentPage * SNAPSHOT_PAGE_SIZE, snapshotFiltered.length)} de ${nfmt(snapshotFiltered.length)}`}
               </div>
-            )}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <button
+                  onClick={() => setSnapshotPage(p => Math.max(1, p - 1))}
+                  disabled={snapshotCurrentPage <= 1}
+                  style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid var(--rule-2)", background: "var(--paper)", fontSize: 12, cursor: snapshotCurrentPage <= 1 ? "not-allowed" : "pointer", opacity: snapshotCurrentPage <= 1 ? 0.5 : 1 }}
+                >
+                  ← Anterior
+                </button>
+                <span className="fs-12 mono" style={{ color: "var(--ink-2)" }}>
+                  Hoja {snapshotCurrentPage} / {snapshotTotalPages}
+                </span>
+                <button
+                  onClick={() => setSnapshotPage(p => Math.min(snapshotTotalPages, p + 1))}
+                  disabled={snapshotCurrentPage >= snapshotTotalPages}
+                  style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid var(--rule-2)", background: "var(--paper)", fontSize: 12, cursor: snapshotCurrentPage >= snapshotTotalPages ? "not-allowed" : "pointer", opacity: snapshotCurrentPage >= snapshotTotalPages ? 0.5 : 1 }}
+                >
+                  Siguiente →
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
