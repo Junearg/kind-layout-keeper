@@ -44,6 +44,9 @@ const CSV_HEADERS = [
   "fecha_baja", "motivo_baja", "submotivo_baja", "comentarios_metabase",
 ] as const;
 
+// Columnas calculadas que se agregan al export (no vienen de Supabase)
+const CSV_CALC_HEADERS = ["hoy", "dias_desde_baja"] as const;
+
 function csvEscape(v: unknown): string {
   if (v == null) return "";
   const s = String(v);
@@ -68,9 +71,24 @@ async function exportBajasConMotivo(mesActivo: string): Promise<number> {
     rows.push(...batch);
     if (batch.length < PAGE) break;
   }
-  const lines = [CSV_HEADERS.join(",")];
+
+  // "hoy" fijo para toda la exportaci\u00F3n \u2014 referencia temporal consistente
+  const hoy = new Date();
+  const fechaHoy = hoy.toISOString().slice(0, 10); // YYYY-MM-DD
+
+  const allHeaders = [...CSV_HEADERS, ...CSV_CALC_HEADERS];
+  const lines = [allHeaders.join(",")];
   for (const r of rows) {
-    lines.push(CSV_HEADERS.map((h) => csvEscape((r as any)[h])).join(","));
+    const diasDesdeBaja = r.fecha_baja
+      ? Math.floor((hoy.getTime() - new Date(r.fecha_baja).getTime()) / 86_400_000)
+      : "";
+    const calcValues: Record<string, unknown> = {
+      hoy: fechaHoy,
+      dias_desde_baja: diasDesdeBaja,
+    };
+    lines.push(allHeaders.map((h) =>
+      csvEscape(h in calcValues ? calcValues[h] : (r as any)[h])
+    ).join(","));
   }
   const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);

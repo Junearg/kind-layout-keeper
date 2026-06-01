@@ -8,6 +8,7 @@ import { useDashboardData } from "@/data/liveData";
 import { useColaMes, useMesActivo } from "@/data/dataset-store";
 import { mesLargo } from "@/data/schema";
 import { usePeriod } from "@/contexts/PeriodContext";
+import { useCountry } from "@/contexts/CountryContext";
 import {
   useSupabaseScoredAccounts,
   tierDistFromScored,
@@ -85,7 +86,8 @@ function Cola() {
   const colaMes = useColaMes();
   const mesActivo = useMesActivo();
   const { selectedPeriod } = usePeriod();
-  const { data: scored = [] } = useSupabaseScoredAccounts(selectedPeriod);
+  const { selectedPais } = useCountry();
+  const { data: scored = [] } = useSupabaseScoredAccounts(selectedPeriod, selectedPais);
 
   const healthAccounts = scored.length ? scored : legacy.healthAccounts;
   const tierDist = scored.length ? tierDistFromScored(scored) : legacyTierDist;
