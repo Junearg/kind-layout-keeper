@@ -5,7 +5,7 @@ import { normalizarMotivo, type MotivoCat } from "@/lib/motivo-normalizer";
 export type { MotivoCat };
 export { normalizarMotivo };
 
-// Rebuild trigger v3 — forces fresh bundle on deploy
+// Rebuild trigger v4 — forces fresh bundle on deploy
 
 const TIER_COLORS: Record<Tier, string> = {
   Champion: "#F05A28",
