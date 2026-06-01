@@ -71,27 +71,36 @@ function Resumen() {
             </div>
             <div className="arrow-up">↗</div>
           </div>
-          {/* Tasa % como métrica principal — fallback a absoluto si ret no cargó */}
-          <div className="bignum" style={{ fontSize: ret ? 64 : 72, marginTop: 4 }}>
-            {ret ? `${ret.churnBruto.toFixed(2)}%` : nfmt(r.bajasMesActual)}
-          </div>
-          <div className="fs-12" style={{ color: "rgba(255,255,255,0.85)", marginTop: 6 }}>
-            {ret
-              ? `${nfmt(r.bajasMesActual)} bajas · base ${nfmt(ret.mpcsMesPasado)}`
-              : `bajas absolutas · cargando tasa…`}
-          </div>
-          <div className="mt-12" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {r.monthDeltaPct != null && (
-              <span className="callout">
-                {r.monthDeltaPct >= 0 ? "↑" : "↓"} {pctFmt(r.monthDeltaPct)} vs {r.prevClosedLabel}
-              </span>
-            )}
-            {ret && ret.churnNeto !== ret.churnBruto && (
-              <span className="callout" style={{ background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.85)" }}>
-                neto {ret.churnNeto.toFixed(2)}%
-              </span>
-            )}
-          </div>
+          {/* Tasa % solo cuando la base es válida (mpcsMesPasado > 0) */}
+          {(() => {
+            const baseValida = ret && ret.mpcsMesPasado > 0;
+            return (
+              <>
+                <div className="bignum" style={{ fontSize: baseValida ? 64 : 72, marginTop: 4 }}>
+                  {baseValida ? `${ret!.churnBruto.toFixed(2)}%` : nfmt(r.bajasMesActual)}
+                </div>
+                <div className="fs-12" style={{ color: "rgba(255,255,255,0.85)", marginTop: 6 }}>
+                  {baseValida
+                    ? `${nfmt(r.bajasMesActual)} bajas · base ${nfmt(ret!.mpcsMesPasado)}`
+                    : ret
+                      ? `${nfmt(r.bajasMesActual)} bajas · sin datos del período anterior`
+                      : "bajas absolutas · cargando tasa…"}
+                </div>
+                <div className="mt-12" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {r.monthDeltaPct != null && (
+                    <span className="callout">
+                      {r.monthDeltaPct >= 0 ? "↑" : "↓"} {pctFmt(r.monthDeltaPct)} vs {r.prevClosedLabel}
+                    </span>
+                  )}
+                  {baseValida && ret!.mpcsMesPasado > 0 && Math.abs(ret!.churnNeto - ret!.churnBruto) > 0.01 && (
+                    <span className="callout" style={{ background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.85)" }}>
+                      neto {ret!.churnNeto.toFixed(2)}%
+                    </span>
+                  )}
+                </div>
+              </>
+            );
+          })()}
         </div>
 
         {/* Cuentas activas */}
@@ -130,31 +139,41 @@ function Resumen() {
         <div className="bento cols-3">
 
           {/* Churn Neto vs Plan */}
-          <div className="card lg" style={{
-            borderLeft: `4px solid ${
-              ret.proyectadoVsPlan == null ? "var(--rule)" :
-              Math.abs(ret.proyectadoVsPlan) <= 5 ? "var(--orange)" :
-              ret.proyectadoVsPlan > 5 ? "var(--red)" : "#2f7d4f"
-            }`
-          }}>
-            <div className="card-eyebrow">Churn Neto vs Plan</div>
-            <div className="bignum" style={{ fontSize: 52, marginTop: 8 }}>
-              {ret.churnNeto.toFixed(1)}%
-            </div>
-            <div className="fs-12 muted" style={{ marginTop: 6 }}>
-              churn neto actual · plan {ret.churnPlan != null ? `${ret.churnPlan.toFixed(1)}%` : "—"}
-            </div>
-            {ret.proyectadoVsPlan != null && (
-              <div style={{ marginTop: 10 }}>
-                <span className={`tag ${Math.abs(ret.proyectadoVsPlan) <= 5 ? "orange" : ret.proyectadoVsPlan > 5 ? "red" : "blue"}`}>
-                  {ret.proyectadoVsPlan >= 0 ? "+" : ""}{ret.proyectadoVsPlan.toFixed(1)}% vs plan
-                </span>
+          {(() => {
+            const baseValida = ret.mpcsMesPasado > 0;
+            return (
+            <div className="card lg" style={{
+              borderLeft: `4px solid ${
+                !baseValida ? "var(--rule)" :
+                ret.proyectadoVsPlan == null ? "var(--rule)" :
+                Math.abs(ret.proyectadoVsPlan) <= 5 ? "var(--orange)" :
+                ret.proyectadoVsPlan > 5 ? "var(--red)" : "#2f7d4f"
+              }`
+            }}>
+              <div className="card-eyebrow">Churn Neto vs Plan</div>
+              <div className="bignum" style={{ fontSize: 52, marginTop: 8 }}>
+                {baseValida ? `${ret.churnNeto.toFixed(2)}%` : "—"}
               </div>
-            )}
-            <div className="fs-12 muted" style={{ marginTop: 8 }}>
-              churn bruto: <strong>{ret.churnBruto.toFixed(1)}%</strong>
+              <div className="fs-12 muted" style={{ marginTop: 6 }}>
+                {baseValida
+                  ? `churn neto actual · plan ${ret.churnPlan != null ? `${ret.churnPlan.toFixed(1)}%` : "—"}`
+                  : "sin datos del período anterior"}
+              </div>
+              {baseValida && ret.proyectadoVsPlan != null && (
+                <div style={{ marginTop: 10 }}>
+                  <span className={`tag ${Math.abs(ret.proyectadoVsPlan) <= 5 ? "orange" : ret.proyectadoVsPlan > 5 ? "red" : "blue"}`}>
+                    {ret.proyectadoVsPlan >= 0 ? "+" : ""}{ret.proyectadoVsPlan.toFixed(1)}% vs plan
+                  </span>
+                </div>
+              )}
+              {baseValida && (
+                <div className="fs-12 muted" style={{ marginTop: 8 }}>
+                  churn bruto: <strong>{ret.churnBruto.toFixed(2)}%</strong>
+                </div>
+              )}
             </div>
-          </div>
+            );
+          })()}
 
           {/* # Recuperar on target */}
           <div className="card lg" style={{ borderLeft: "4px solid var(--amber)" }}>
