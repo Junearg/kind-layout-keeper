@@ -187,10 +187,10 @@ function ContactosPage() {
         <>
           {/* KPIs */}
           <div className="bento cols-4" style={{ marginBottom: 16 }}>
-            <KpiCard label="Cuentas" value={nfmt(totals.total)} />
-            <KpiCard label="Con contacto" value={`${nfmt(totals.conContacto)} · ${totals.total ? ((totals.conContacto / totals.total) * 100).toFixed(1) : "0"}%`} />
-            <KpiCard label="Contactos totales" value={nfmt(totals.sumCant)} />
-            <KpiCard label="Contactos / mes (prom)" value={totals.avgRate.toFixed(2)} sub={`avg ${totals.avgCant.toFixed(2)} contactos/cuenta`} />
+            <KpiCard label="Cuentas (base)" value={nfmt(totals.total)} sub="total en el período seleccionado" />
+            <KpiCard label="Con contacto" value={`${totals.total ? ((totals.conContacto / totals.total) * 100).toFixed(1) : "0"}%`} sub={`${nfmt(totals.conContacto)} de ${nfmt(totals.total)} cuentas`} />
+            <KpiCard label="Contactos totales" value={nfmt(totals.sumCant)} sub={`${totals.avgCant.toFixed(2)} por cuenta · ${totals.avgRate.toFixed(2)}/mes`} />
+            <KpiCard label="Contactos / mes (prom)" value={`${totals.avgRate.toFixed(2)}`} sub={`${((totals.conContacto / (totals.total || 1)) * 100).toFixed(1)}% cuentas con ≥1 contacto`} />
           </div>
 
           {/* Filtros */}

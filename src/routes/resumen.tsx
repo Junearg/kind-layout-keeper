@@ -162,10 +162,12 @@ function Resumen() {
           <div className="card lg" style={{ borderLeft: "4px solid var(--amber)" }}>
             <div className="card-eyebrow"># Recuperar on target</div>
             <div className="bignum" style={{ fontSize: 52, marginTop: 8 }}>
-              {ret.nRecuperar != null ? nfmt(ret.nRecuperar) : "—"}
+              {ret.mpcsMeta != null && ret.nRecuperar != null
+                ? `${((ret.nRecuperar / ret.mpcsMeta) * 100).toFixed(1)}%`
+                : ret.nRecuperar != null ? nfmt(ret.nRecuperar) : "—"}
             </div>
             <div className="fs-12 muted" style={{ marginTop: 6 }}>
-              cuentas extra para cumplir el plan
+              {ret.nRecuperar != null ? nfmt(ret.nRecuperar) : "—"} cuentas · gap vs plan
             </div>
             <div className="fs-12 muted" style={{ marginTop: 8 }}>
               meta MPCs: <strong>{ret.mpcsMeta != null ? nfmt(ret.mpcsMeta) : "—"}</strong>
@@ -177,14 +179,15 @@ function Resumen() {
           <div className="card lg">
             <div className="card-eyebrow">A Recuperar</div>
             <div className="bignum" style={{ fontSize: 52, marginTop: 8 }}>
-              {nfmt(ret.aRecuperar)}
+              {ret.activasHoy ? `${((ret.aRecuperar / ret.activasHoy) * 100).toFixed(1)}%` : nfmt(ret.aRecuperar)}
             </div>
             <div className="fs-12 muted" style={{ marginTop: 6 }}>
-              cuentas en Engagement / Onboarding
+              {nfmt(ret.aRecuperar)} cuentas · de {nfmt(ret.activasHoy)} activas
             </div>
             <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
               <span className="callout" style={{ background: "var(--paper-2)", color: "var(--ink-2)" }}>
-                {nfmt(ret.aRecuperarConVentas)} con ≥10 ventas/mes
+                {ret.aRecuperar ? `${((ret.aRecuperarConVentas / ret.aRecuperar) * 100).toFixed(0)}%` : "0%"} con ≥10 ventas
+                <span style={{ marginLeft: 4, opacity: 0.7 }}>({nfmt(ret.aRecuperarConVentas)})</span>
               </span>
             </div>
           </div>
