@@ -605,7 +605,7 @@ function Tendencia() {
             </select>
             <input
               value={snapshotQ}
-              onChange={e => setSnapshotQ(e.target.value)}
+              onChange={e => { setSnapshotQ(e.target.value); setSnapshotPage(1); }}
               placeholder="Buscar nombre, país, motivo…"
               style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rule-2)", background: "var(--paper)", fontSize: 12.5, fontFamily: "inherit", width: 220 }}
             />
