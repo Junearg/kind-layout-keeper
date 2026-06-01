@@ -6,6 +6,14 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Pais } from "@/contexts/CountryContext";
+import { PAISES_CONOCIDOS } from "@/contexts/CountryContext";
+
+function applyPaisFilter(query: any, pais: Pais) {
+  if (pais === "Región") return query;
+  if (pais === "Others") return query.not("pais", "in", `(${PAISES_CONOCIDOS.join(",")})`);
+  return query.eq("pais", pais);
+}
 
 const PAGE = 1000;
 
@@ -160,16 +168,19 @@ type Raw = {
   fecha_baja: string | null;
 };
 
-async function fetchInsights(mesActivo: string): Promise<ChurnInsights> {
+async function fetchInsights(mesActivo: string, pais: Pais = "Región"): Promise<ChurnInsights> {
   const since = prevMonth(mesActivo, 5); // últimos 6 meses inclusive
-  const raws = await pageAll<Raw>(() => supabase
-    .from("clientes")
-    .select(
-      "id_cuenta_dash,nombre,pais,plan,ejecutivo,motivo_baja,gmv,cant_contactos,productos,usuarios,nps_score,v_salon,v_delivery,v_mostrador,fecha_baja",
-    )
-    .eq("mes_exportacion", mesActivo)
-    .eq("estado_dash", "Bloqueado")
-    .not("fecha_baja", "is", null));
+  const raws = await pageAll<Raw>(() => applyPaisFilter(
+    supabase
+      .from("clientes")
+      .select(
+        "id_cuenta_dash,nombre,pais,plan,ejecutivo,motivo_baja,gmv,cant_contactos,productos,usuarios,nps_score,v_salon,v_delivery,v_mostrador,fecha_baja",
+      )
+      .eq("mes_exportacion", mesActivo)
+      .eq("estado_dash", "Bloqueado")
+      .not("fecha_baja", "is", null),
+    pais,
+  ));
 
   const rows: ChurnRow[] = [];
   const trendMap = new Map<string, number>();
@@ -279,10 +290,10 @@ async function fetchInsights(mesActivo: string): Promise<ChurnInsights> {
   };
 }
 
-export function useSupabaseChurnInsights(mesActivo: string) {
+export function useSupabaseChurnInsights(mesActivo: string, pais: Pais = "Región") {
   return useQuery({
-    queryKey: ["supabase-churn-insights", mesActivo],
-    queryFn: () => fetchInsights(mesActivo),
+    queryKey: ["supabase-churn-insights", mesActivo, pais],
+    queryFn: () => fetchInsights(mesActivo, pais),
     enabled: Boolean(mesActivo),
     staleTime: 60_000,
   });

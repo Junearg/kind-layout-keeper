@@ -20,7 +20,10 @@ export type TrendRatePoint = {
   key: string;
   bajas: number;
   activeBase: number;
-  rate: number;
+  rate: number;       // churn bruto %
+  rateNeto?: number | null;          // caída neta de activas %
+  ratioRecuperadas?: number | null;  // bruto − neto (cuentas que volvieron)
+  activasFinMes?: number | null;
   proyectado: boolean;
   bajasMin?: number;
   bajasMax?: number;
@@ -28,8 +31,8 @@ export type TrendRatePoint = {
   rateMax?: number;
   bajasError?: [number, number];
   motivoBreakdown?: Partial<Record<MotivoCat, number>>;
-  planBreakdown?: Partial<Record<Plan, number>>;   // bajas por plan
-  planRates?: Partial<Record<Plan, number>>;        // tasa % por plan
+  planBreakdown?: Partial<Record<Plan, number>>;
+  planRates?: Partial<Record<Plan, number>>;
 };
 
 export type TrendRate = {
@@ -202,12 +205,21 @@ async function fetchTrendRate(mesActivo: string): Promise<TrendRate> {
       const a = activasPorPlan[plan] ?? 0;
       planRates[plan] = a > 0 ? (b / a) * 100 : 0;
     }
+    // Churn neto y recuperadas
+    const activasFinMes = activeByMonth.get(k) ?? null;
+    const rateNeto = activasFinMes != null && activeBase > 0
+      ? ((activeBase - activasFinMes) / activeBase) * 100
+      : null;
+    const ratioRecuperadas = rateNeto != null ? Math.max(0, rate - rateNeto) : null;
     return {
       mes: mesCorto(k),
       key: k,
       bajas: bajasMes,
       activeBase,
       rate,
+      rateNeto,
+      ratioRecuperadas,
+      activasFinMes,
       proyectado: false,
       motivoBreakdown: byMonthMotivo.get(k) ?? {},
       planBreakdown: pb,

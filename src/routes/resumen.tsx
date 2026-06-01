@@ -10,13 +10,12 @@ import { useRetention } from "@/data/supabase-retention";
 import { useCountry } from "@/contexts/CountryContext";
 import { useMesActivo } from "@/data/dataset-store";
 import { ORANGE } from "@/data/mockData";
+import { mesCorto } from "@/data/schema";
+import { normalizarMotivo, MOTIVO_CATS, MOTIVO_COLORS } from "@/lib/motivo-normalizer";
 import {
-  ResponsiveContainer, ComposedChart, Bar, Line, Area,
-  XAxis, YAxis, Tooltip, CartesianGrid, Cell,
-  PieChart, Pie,
+  ResponsiveContainer, ComposedChart, BarChart, Bar, Line,
+  XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts";
-
-const MOTIVO_PALETTE = ["#6B7280", "#2563EB", "#D97706", "#F05A28", "#7C3AED", "#DB2777", "#0D9488", "#16A34A", "#9333EA", "#0EA5E9"];
 
 export const Route = createFileRoute("/resumen")({
   head: () => ({ meta: [{ title: "Fudo Customer Center" }] }),
@@ -26,14 +25,12 @@ export const Route = createFileRoute("/resumen")({
 const nfmt = (n: number) => n.toLocaleString("es-AR");
 const pctFmt = (n: number | null | undefined, digits = 1) =>
   n == null ? "—" : `${n >= 0 ? "+" : ""}${n.toFixed(digits)}%`;
-const tierClass = (t: string) => (t === "At Risk" ? "tier-AtRisk" : t);
-
 function Resumen() {
   const { selectedPeriod } = usePeriod();
   const { data: r, isLoading, error } = useSupabaseResumen(selectedPeriod);
   const mesActivo = useMesActivo();
-  const { data: insights6m } = useSupabaseChurnInsights(mesActivo);
   const { selectedPais } = useCountry();
+  const { data: insights6m } = useSupabaseChurnInsights(mesActivo, selectedPais);
   const { data: ret } = useRetention(selectedPeriod, selectedPais);
 
 
@@ -111,7 +108,7 @@ function Resumen() {
 
       <div className="bento cols-2">
         <TrendCard trend={r.churnTrend} delta={r.monthDeltaPct} prevLabel={r.prevClosedLabel} latestLabel={r.latestClosedLabel} />
-        <MotivosDonutCard rows={insights6m?.rows ?? null} />
+        <MotivosStackedCard rows={insights6m?.rows ?? null} />
       </div>
 
       {/* Retención vs Plan */}
@@ -311,154 +308,84 @@ function TrendCard({ trend, delta, prevLabel, latestLabel }: {
 
 
 
-function TierDonutCard({ tierDist, total }: { tierDist: { tier: string; count: number; pct: number; color: string }[]; total: number }) {
-  return (
-    <div className="card cream lg">
-      <div className="minihead">
-        <div>
-          <div className="card-eyebrow">Salud de la base</div>
-          <div className="card-title">Distribución por tier</div>
-        </div>
-      </div>
-      <div style={{ position: "relative", height: 240 }}>
-        <ResponsiveContainer>
-          <PieChart>
-            <Pie data={tierDist} dataKey="count" nameKey="tier" innerRadius={70} outerRadius={110} paddingAngle={2} stroke="none">
-              {tierDist.map((t) => <Cell key={t.tier} fill={t.color} />)}
-            </Pie>
-            <Tooltip contentStyle={{ fontSize: 12 }} />
-          </PieChart>
-        </ResponsiveContainer>
-        <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", pointerEvents: "none", textAlign: "center" }}>
-          <div>
-            <div className="bignum" style={{ fontSize: 40, justifyContent: "center" }}>{nfmt(total)}</div>
-            <div className="muted fs-11" style={{ marginTop: 4 }}>cuentas activas</div>
-          </div>
-        </div>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
-        {tierDist.map((t) => (
-          <div key={t.tier} className="row-flex" style={{ justifyContent: "space-between", fontSize: 12 }}>
-            <span className="row-flex" style={{ gap: 8 }}>
-              <span className="tier-dot" style={{ background: t.color }} />
-              <span className={`tag tier-${tierClass(t.tier)}`}>{t.tier}</span>
-            </span>
-            <span className="mono">{nfmt(t.count)} · {t.pct.toFixed(1)}%</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 type ChurnRowLite = { motivo: string; fechaBaja: string | null };
 
-function MotivosDonutCard({ rows }: { rows: ChurnRowLite[] | null }) {
-  const [from, setFrom] = useState<string>("");
-  const [to, setTo] = useState<string>("");
-
-  // Default range = min/max fechaBaja en rows
-  const bounds = useMemo(() => {
-    if (!rows || rows.length === 0) return null;
-    let min = "9999-12-31", max = "0000-01-01";
+function MotivosStackedCard({ rows }: { rows: ChurnRowLite[] | null }) {
+  const data = useMemo(() => {
+    if (!rows) return null;
+    const byMonth = new Map<string, Partial<Record<string, number>>>();
     for (const r of rows) {
-      if (!r.fechaBaja) continue;
-      const d = r.fechaBaja.slice(0, 10);
-      if (d < min) min = d;
-      if (d > max) max = d;
+      if (!r.fechaBaja || /nps/i.test(r.motivo)) continue;
+      const mes = r.fechaBaja.slice(0, 7);
+      const cat = normalizarMotivo(r.motivo, null, null, null);
+      const m = byMonth.get(mes) ?? {};
+      m[cat] = (m[cat] ?? 0) + 1;
+      byMonth.set(mes, m);
     }
-    return { min, max };
+    const months = Array.from(byMonth.keys()).sort().slice(-12);
+    return months.map((mes) => {
+      const counts = byMonth.get(mes) ?? {};
+      const total = MOTIVO_CATS.reduce((s, c) => s + (counts[c] ?? 0), 0) || 1;
+      const row: Record<string, unknown> = { mes: mesCorto(mes), _total: total };
+      for (const cat of MOTIVO_CATS) {
+        row[cat] = +((( counts[cat] ?? 0) / total) * 100).toFixed(1);
+      }
+      return row;
+    });
   }, [rows]);
 
-  const fromEff = from || bounds?.min || "";
-  const toEff = to || bounds?.max || "";
-
-  const motivos = useMemo(() => {
-    if (!rows) return null;
-    const filtered = rows.filter((x) => {
-      if (/nps/i.test(x.motivo)) return false;
-      if (!x.fechaBaja) return false;
-      const d = x.fechaBaja.slice(0, 10);
-      if (fromEff && d < fromEff) return false;
-      if (toEff && d > toEff) return false;
-      return true;
-    });
-    const map = new Map<string, number>();
-    for (const x of filtered) map.set(x.motivo, (map.get(x.motivo) ?? 0) + 1);
-    const total = filtered.length || 1;
-    const sorted = [...map.entries()].sort((a, b) => b[1] - a[1]);
-    let palIdx = 0;
-    return sorted.map(([motivo, n]) => {
-      const brecha = /sin (motivo|respuesta)/i.test(motivo);
-      return {
-        motivo, n,
-        pct: +((n / total) * 100).toFixed(1),
-        color: brecha ? "#DC2626" : MOTIVO_PALETTE[palIdx++ % MOTIVO_PALETTE.length]!,
-        brecha,
-      };
-    });
-  }, [rows, fromEff, toEff]);
-
-  if (!motivos) {
+  if (!data) {
     return (
       <div className="card lg" style={{ display: "grid", placeItems: "center", minHeight: 320 }}>
         <div className="muted fs-12">Cargando motivos…</div>
       </div>
     );
   }
-  const total = motivos.reduce((s, m) => s + m.n, 0);
-  const sinMotivo = motivos.find((m) => m.brecha);
-  const pctSinMotivo = sinMotivo ? (sinMotivo.n / (total || 1)) * 100 : 0;
-
-  const inputStyle: React.CSSProperties = {
-    fontSize: 12, padding: "6px 8px", border: "1px solid var(--rule)",
-    borderRadius: 8, background: "white", color: "var(--ink)", fontFamily: "inherit",
-  };
 
   return (
     <div className="card lg">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+      <div className="minihead" style={{ marginBottom: 12 }}>
         <div>
-          <div className="card-eyebrow">Distribución de motivos</div>
-          <div className="card-title serif" style={{ fontStyle: "italic" }}>{nfmt(total)} bajas categorizadas</div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-          <span className="muted fs-11">Desde</span>
-          <input type="date" value={fromEff} min={bounds?.min} max={bounds?.max} onChange={(e) => setFrom(e.target.value)} style={inputStyle} />
-          <span className="muted fs-11">Hasta</span>
-          <input type="date" value={toEff} min={bounds?.min} max={bounds?.max} onChange={(e) => setTo(e.target.value)} style={inputStyle} />
-          {(from || to) && (
-            <button onClick={() => { setFrom(""); setTo(""); }} style={{ ...inputStyle, cursor: "pointer" }}>Limpiar</button>
-          )}
+          <div className="card-eyebrow">Distribución de motivos de baja</div>
+          <div className="card-title">Composición mensual · últimos 12 meses</div>
         </div>
       </div>
-      <div className="chart-wrap" style={{ height: 380, position: "relative", background: "white" }}>
+      <div className="chart-wrap" style={{ height: 320 }}>
         <ResponsiveContainer>
-          <PieChart>
-            <Pie
-              data={motivos}
-              dataKey="n"
-              nameKey="motivo"
-              cx="50%"
-              cy="50%"
-              innerRadius={95}
-              outerRadius={145}
-              paddingAngle={1}
-              stroke="white"
-              strokeWidth={2}
-            >
-              {motivos.map((m, i) => <Cell key={i} fill={m.color} />)}
-            </Pie>
+          <BarChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+            <CartesianGrid stroke="#E8E6DC" vertical={false} />
+            <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} unit="%" domain={[0, 100]} />
             <Tooltip
               contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid #E8E6DC" }}
-              formatter={(v: any, _n: any, p: any) => [`${Number(v).toLocaleString()} · ${p?.payload?.pct}%`, p?.payload?.motivo]}
+              formatter={(v: any, name: any, item: any) => {
+                const total = item?.payload?._total ?? 0;
+                const abs = Math.round(Number(v) * (total as number) / 100);
+                return [`${Number(v).toFixed(1)}% (${abs} bajas)`, name];
+              }}
+              labelFormatter={(label: any, payload: any) =>
+                `${label} · ${payload?.[0]?.payload?._total ?? 0} bajas totales`
+              }
             />
-          </PieChart>
+            {MOTIVO_CATS.map((cat, i) => (
+              <Bar
+                key={cat}
+                dataKey={cat}
+                stackId="m"
+                fill={MOTIVO_COLORS[cat]}
+                radius={i === MOTIVO_CATS.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+              />
+            ))}
+          </BarChart>
         </ResponsiveContainer>
-        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none" }}>
-          <div style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 40, color: "#DC2626", lineHeight: 1, letterSpacing: "-0.03em" }}>{pctSinMotivo.toFixed(1)}%</div>
-          <div className="serif" style={{ fontSize: 16, color: "#DC2626", marginTop: 6, fontStyle: "italic" }}>sin motivo</div>
-        </div>
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px", marginTop: 10 }}>
+        {MOTIVO_CATS.map((cat) => (
+          <span key={cat} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--ink-2)" }}>
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: MOTIVO_COLORS[cat], flexShrink: 0 }} />
+            {cat}
+          </span>
+        ))}
       </div>
     </div>
   );

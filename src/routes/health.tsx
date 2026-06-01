@@ -13,6 +13,7 @@ import { useDashboardData } from "@/data/liveData";
 import { useHealthMes, useMesActivo } from "@/data/dataset-store";
 import { mesLargo } from "@/data/schema";
 import { usePeriod } from "@/contexts/PeriodContext";
+import { useCountry } from "@/contexts/CountryContext";
 import {
   useSupabaseScoredAccounts,
   tierDistFromScored,
@@ -65,8 +66,9 @@ function Health() {
   const healthMes = useHealthMes();
   const mesActivo = useMesActivo();
   const { selectedPeriod } = usePeriod();
-  const { data: scored = [] } = useSupabaseScoredAccounts(selectedPeriod);
-  const { data: insights } = useSupabaseChurnInsights(selectedPeriod);
+  const { selectedPais } = useCountry();
+  const { data: scored = [] } = useSupabaseScoredAccounts(selectedPeriod, selectedPais);
+  const { data: insights } = useSupabaseChurnInsights(selectedPeriod, selectedPais);
 
   const healthAccounts = scored.length ? scored : legacy.healthAccounts;
   const tierDist = scored.length ? tierDistFromScored(scored) : legacy.tierDist;

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
 import { usePeriod } from "@/contexts/PeriodContext";
+import { useCountry, PAISES_CONOCIDOS, type Pais } from "@/contexts/CountryContext";
 import { supabase } from "@/integrations/supabase/client";
 import { NpsSection } from "@/components/NpsSection";
 import { CsatSection } from "@/components/CsatSection";
@@ -46,17 +47,26 @@ function countMeses(s: string | null): number {
   return s.split(/[,;|]/).map((x) => x.trim()).filter(Boolean).length;
 }
 
-function useContactos(period: string) {
+function applyPaisFilter(query: any, pais: Pais) {
+  if (pais === "Región") return query;
+  if (pais === "Others") return query.not("pais", "in", `(${PAISES_CONOCIDOS.join(",")})`);
+  return query.eq("pais", pais);
+}
+
+function useContactos(period: string, pais: Pais) {
   return useQuery({
-    queryKey: ["contactos", period],
+    queryKey: ["contactos", period, pais],
     queryFn: async () => {
       const rows = await pageAll<ContactoRow>(() =>
-        supabase
-          .from("clientes")
-          .select(
-            "id_cuenta_dash,nombre,pais,ejecutivo,plan,estado_dash,cant_contactos,meses_con_contacto,primera_fecha_contacto,ultima_fecha_contacto,temas_contacto,motivos_contacto",
-          )
-          .eq("mes_exportacion", period),
+        applyPaisFilter(
+          supabase
+            .from("clientes")
+            .select(
+              "id_cuenta_dash,nombre,pais,ejecutivo,plan,estado_dash,cant_contactos,meses_con_contacto,primera_fecha_contacto,ultima_fecha_contacto,temas_contacto,motivos_contacto",
+            )
+            .eq("mes_exportacion", period),
+          pais,
+        ),
       );
       return rows.map((r) => {
         const meses = countMeses(r.meses_con_contacto);
@@ -77,7 +87,8 @@ type SortKey = "rate" | "cant" | "meses" | "ultima" | "nombre";
 
 function ContactosPage() {
   const { selectedPeriod } = usePeriod();
-  const { data, isLoading, error } = useContactos(selectedPeriod);
+  const { selectedPais } = useCountry();
+  const { data, isLoading, error } = useContactos(selectedPeriod, selectedPais);
 
   const [q, setQ] = useState("");
   const [pais, setPais] = useState<string>("");

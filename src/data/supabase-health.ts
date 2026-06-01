@@ -7,6 +7,14 @@ import {
   type RiskFlagKey,
 } from "@/lib/healthScore";
 import type { HealthAccount } from "@/data/mockData";
+import type { Pais } from "@/contexts/CountryContext";
+import { PAISES_CONOCIDOS } from "@/contexts/CountryContext";
+
+function applyPaisFilter(query: any, pais: Pais) {
+  if (pais === "Región") return query;
+  if (pais === "Others") return query.not("pais", "in", `(${PAISES_CONOCIDOS.join(",")})`);
+  return query.eq("pais", pais);
+}
 
 const SCORE_COLS =
   "id_cuenta_dash, nombre, pais, plan, productos, usuarios, v_salon, v_delivery, v_mostrador, cant_contactos, nps_score, motivo_baja, motivo_metabase, estado_dash, ultima_fecha_contacto";
@@ -53,17 +61,15 @@ function npsGrupo(score: number | null): string {
   return "Detractor";
 }
 
-async function fetchScoredAccounts(period: string): Promise<ScoredAccount[]> {
+async function fetchScoredAccounts(period: string, pais: Pais = "Región"): Promise<ScoredAccount[]> {
   // Paginamos para esquivar el límite de 1000 filas de PostgREST.
   const PAGE = 1000;
   const out: Row[] = [];
   for (let from = 0; ; from += PAGE) {
-    const { data, error } = await supabase
-      .from("clientes")
-      .select(SCORE_COLS)
-      .eq("mes_exportacion", period)
-      .eq("estado_dash", "Activo")
-      .range(from, from + PAGE - 1);
+    const { data, error } = await applyPaisFilter(
+      supabase.from("clientes").select(SCORE_COLS).eq("mes_exportacion", period).eq("estado_dash", "Activo"),
+      pais,
+    ).range(from, from + PAGE - 1);
     if (error) throw error;
     const batch = (data ?? []) as Row[];
     out.push(...batch);
@@ -92,10 +98,10 @@ async function fetchScoredAccounts(period: string): Promise<ScoredAccount[]> {
   });
 }
 
-export function useSupabaseScoredAccounts(period: string) {
+export function useSupabaseScoredAccounts(period: string, pais: Pais = "Región") {
   return useQuery({
-    queryKey: ["supabase-scored-accounts", period],
-    queryFn: () => fetchScoredAccounts(period),
+    queryKey: ["supabase-scored-accounts", period, pais],
+    queryFn: () => fetchScoredAccounts(period, pais),
     enabled: Boolean(period),
     staleTime: 60_000,
   });

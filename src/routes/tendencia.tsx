@@ -90,7 +90,7 @@ function Tendencia() {
   const motivos = useMotivosMes();
   const resumen = useResumenMes();
   const mesActivo = useMesActivo();
-  const { data: insights6m } = useSupabaseChurnInsights(mesActivo);
+  const { data: insights6m } = useSupabaseChurnInsights(mesActivo, selectedPais);
   const { selectedPeriod } = usePeriod();
   const { selectedPais } = useCountry();
   const { data: ret } = useRetention(selectedPeriod, selectedPais);
@@ -379,30 +379,45 @@ function Tendencia() {
         )}
       </div>
 
-      {/* Gráfico INFERIOR — Bajas absolutas por motivo (referencia) */}
+      {/* Gráfico INFERIOR — Composición % de motivos (100% stacked) */}
       <div className="card lg" style={{ marginTop: 16 }}>
         <div className="minihead">
           <div>
-            <div className="card-eyebrow">Bajas mensuales por motivo · valores nominales</div>
-            <div className="card-title">Referencia — desglose por categoría de causa</div>
+            <div className="card-eyebrow">Composición de motivos de baja · % sobre total de bajas</div>
+            <div className="card-title">Referencia — proporción de cada causa por mes</div>
           </div>
         </div>
         <div className="chart-wrap" style={{ height: 280, position: "relative" }}>
           <ResponsiveContainer>
             <BarChart
-              data={chartData.filter(p => !p.proyectado).map(p => ({
-                mes: p.mes,
-                ...((p as any).motivoBreakdown ?? {}),
-                _total: p.bajas,
-              }))}
+              data={chartData.filter(p => !p.proyectado).map(p => {
+                const bd = (p as any).motivoBreakdown ?? {};
+                const total = MOTIVO_CATS.reduce((s, c) => s + (bd[c] ?? 0), 0) || 1;
+                const row: Record<string, unknown> = { mes: p.mes, _total: p.bajas };
+                for (const cat of MOTIVO_CATS) {
+                  row[cat] = +((( bd[cat] ?? 0) / total) * 100).toFixed(1);
+                }
+                return row;
+              })}
               margin={{ top: 16, right: 24, left: 0, bottom: 8 }}
             >
               <CartesianGrid stroke="#E8E6DC" vertical={false} />
               <XAxis dataKey="mes" tick={{ fontSize: 12, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid #E8E6DC" }} />
-              {MOTIVO_CATS.map((cat) => (
-                <Bar key={cat} dataKey={cat} stackId="motivo" fill={MOTIVO_COLORS[cat]} radius={MOTIVO_CATS.indexOf(cat) === MOTIVO_CATS.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
+              <YAxis tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} unit="%" domain={[0, 100]} />
+              <Tooltip
+                contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid #E8E6DC" }}
+                formatter={(v: any, name: any, item: any) => {
+                  const total = item?.payload?._total ?? 0;
+                  const abs = Math.round(Number(v) * (total as number) / 100);
+                  return [`${Number(v).toFixed(1)}% (${nfmt(abs)})`, name];
+                }}
+                labelFormatter={(label: any, payload: any) =>
+                  `${label} · ${nfmt(payload?.[0]?.payload?._total ?? 0)} bajas totales`
+                }
+              />
+              {MOTIVO_CATS.map((cat, i) => (
+                <Bar key={cat} dataKey={cat} stackId="motivo" fill={MOTIVO_COLORS[cat]}
+                  radius={i === MOTIVO_CATS.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
               ))}
             </BarChart>
           </ResponsiveContainer>
@@ -415,6 +430,53 @@ function Tendencia() {
               {cat}
             </span>
           ))}
+        </div>
+      </div>
+
+      {/* Gráfico — Churn Bruto · Neto · Recuperadas */}
+      <div className="card lg" style={{ marginTop: 16 }}>
+        <div className="minihead">
+          <div>
+            <div className="card-eyebrow">Churn Bruto · Neto · Recuperadas</div>
+            <div className="card-title">Evolución mensual · últimos 12 meses</div>
+          </div>
+        </div>
+        <div className="chart-wrap" style={{ height: 280 }}>
+          <ResponsiveContainer>
+            <ComposedChart
+              data={chartData.filter(p => !p.proyectado).map(p => ({
+                mes: p.mes,
+                rateBruto: p.rate,
+                rateNeto: (p as any).rateNeto ?? null,
+                ratioRecuperadas: (p as any).ratioRecuperadas ?? null,
+              }))}
+              margin={{ top: 16, right: 24, left: 0, bottom: 8 }}
+            >
+              <CartesianGrid stroke="#E8E6DC" vertical={false} />
+              <XAxis dataKey="mes" tick={{ fontSize: 12, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} unit="%" />
+              <Tooltip
+                contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid #E8E6DC" }}
+                formatter={(v: any, name: any) => {
+                  const labels: Record<string, string> = {
+                    rateBruto: "Churn Bruto",
+                    rateNeto: "Churn Neto",
+                    ratioRecuperadas: "Recuperadas",
+                  };
+                  return [`${Number(v).toFixed(2)}%`, labels[name as string] ?? name];
+                }}
+              />
+              <Legend formatter={(v) =>
+                ({ rateBruto: "Churn Bruto", rateNeto: "Churn Neto", ratioRecuperadas: "Recuperadas" } as Record<string,string>)[v] ?? v
+              } />
+              <Bar dataKey="ratioRecuperadas" fill="#16A34A" fillOpacity={0.55} barSize={18} radius={[4, 4, 0, 0]} name="ratioRecuperadas" />
+              <Line type="monotone" dataKey="rateBruto" stroke={ORANGE} strokeWidth={2.5} dot={{ r: 3, fill: ORANGE }} name="rateBruto" connectNulls />
+              <Line type="monotone" dataKey="rateNeto" stroke="#2563EB" strokeWidth={2} dot={{ r: 3, fill: "#2563EB" }} strokeDasharray="5 3" name="rateNeto" connectNulls />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="fs-12 muted" style={{ marginTop: 10 }}>
+          Bruto = bajas / base inicio mes · Neto = caída neta de activas · Recuperadas = bruto − neto (cuentas que volvieron al activo)
         </div>
       </div>
 
