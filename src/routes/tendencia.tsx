@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
 import { EmptyPeriod } from "@/components/EmptyPeriod";
@@ -19,7 +19,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, ErrorBar, Cell,
   Line, ReferenceLine, Legend,
 } from "recharts";
-import { MOTIVO_CATS, MOTIVO_COLORS, AREA_ESTRATEGICA, normalizarMotivo } from "@/lib/motivo-normalizer";
+import { MOTIVO_CATS, MOTIVO_COLORS, AREA_ESTRATEGICA } from "@/lib/motivo-normalizer";
 import { PLANES } from "@/data/supabase-trend";
 import { useSnapshot } from "@/data/supabase-snapshot";
 import { mesCorto } from "@/data/schema";
@@ -108,9 +108,9 @@ function Tendencia() {
   const motivos = useMotivosMes();
   const resumen = useResumenMes();
   const mesActivo = useMesActivo();
+  const { data: insights6m } = useSupabaseChurnInsights(mesActivo, selectedPais);
   const { selectedPeriod } = usePeriod();
   const { selectedPais } = useCountry();
-  const { data: insights6m } = useSupabaseChurnInsights(mesActivo, selectedPais);
   const { data: ret } = useRetention(selectedPeriod, selectedPais);
   const { data: snapshotRows, isLoading: snapshotLoading } = useSnapshot(selectedPeriod, selectedPais);
 
@@ -120,21 +120,12 @@ function Tendencia() {
   // Estado de búsqueda del snapshot
   const [snapshotQ, setSnapshotQ] = useState("");
   const [snapshotPlan, setSnapshotPlan] = useState<string>("Todos");
-  const [snapshotPage, setSnapshotPage] = useState(1);
   const snapshotFiltered = (snapshotRows ?? []).filter((r) => {
     const qOk = !snapshotQ || [r.nombre, r.pais, r.id_hubspot, r.motivoCat, r.ejecutivo]
       .some(v => v.toLowerCase().includes(snapshotQ.toLowerCase()));
     const planOk = snapshotPlan === "Todos" || r.plan === snapshotPlan;
     return qOk && planOk;
   });
-  const SNAPSHOT_PAGE_SIZE = 10;
-  const snapshotTotalPages = Math.max(1, Math.ceil(snapshotFiltered.length / SNAPSHOT_PAGE_SIZE));
-  const snapshotCurrentPage = Math.min(snapshotPage, snapshotTotalPages);
-  const snapshotPageRows = snapshotFiltered.slice(
-    (snapshotCurrentPage - 1) * SNAPSHOT_PAGE_SIZE,
-    snapshotCurrentPage * SNAPSHOT_PAGE_SIZE,
-  );
-  useEffect(() => { setSnapshotPage(1); }, [snapshotQ, snapshotPlan, selectedPais, selectedPeriod]);
 
   // Motivos de baja (últimos 6 meses) — agrupados por categoría normalizada
   const prioridadFor = (cat: string): string => {
@@ -414,56 +405,79 @@ function Tendencia() {
       </div>
 
       {/* Gráfico INFERIOR — Composición % de motivos (100% stacked) */}
+      {/* Barras horizontales rankeadas por motivo — sin leyenda, todo legible de un vistazo */}
       <div className="card lg" style={{ marginTop: 16 }}>
-        <div className="minihead">
+        <div className="minihead" style={{ marginBottom: 4 }}>
           <div>
-            <div className="card-eyebrow">Composición de motivos de baja · % sobre total de bajas</div>
-            <div className="card-title">Referencia — proporción de cada causa por mes</div>
+            <div className="card-eyebrow">Motivos de baja · distribución del período</div>
+            <div className="card-title">% sobre total de bajas categorizadas · ordenado por frecuencia</div>
           </div>
+          <div className="fs-12 muted">{nfmt(totalCategorizadasDisplay)} bajas · brecha {pctSinMotivoDisplay.toFixed(1)}%</div>
         </div>
-        <div className="chart-wrap" style={{ height: 280, position: "relative" }}>
+        <div style={{ height: motivosDisplay.length * 46 + 24 }}>
           <ResponsiveContainer>
             <BarChart
-              data={chartData.filter(p => !p.proyectado).map(p => {
-                const bd = p.motivoBreakdown ?? {};
-                const total = MOTIVO_CATS.reduce((s, c) => s + (bd[c] ?? 0), 0) || 1;
-                const row: Record<string, unknown> = { mes: p.mes, _total: p.bajas };
-                for (const cat of MOTIVO_CATS) {
-                  row[cat] = +((( bd[cat] ?? 0) / total) * 100).toFixed(1);
-                }
-                return row;
-              })}
-              margin={{ top: 16, right: 24, left: 0, bottom: 8 }}
+              data={motivosDisplay.map(m => ({
+                motivo: m.motivo,
+                pct: m.pct,
+                n: m.n,
+                color: MOTIVO_COLORS[m.motivo as keyof typeof MOTIVO_COLORS] ?? m.color,
+                brecha: m.brecha,
+              }))}
+              layout="vertical"
+              margin={{ top: 8, right: 110, left: 8, bottom: 8 }}
             >
-              <CartesianGrid stroke="#E8E6DC" vertical={false} />
-              <XAxis dataKey="mes" tick={{ fontSize: 12, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} unit="%" domain={[0, 100]} />
+              <XAxis
+                type="number" domain={[0, 100]} unit="%" hide
+              />
+              <YAxis
+                type="category" dataKey="motivo" width={190}
+                tick={{ fontSize: 12.5, fill: "#2B2B27", fontWeight: 500 }}
+                axisLine={false} tickLine={false}
+              />
               <Tooltip
                 contentStyle={{ fontSize: 12, borderRadius: 10, border: "1px solid #E8E6DC" }}
-                formatter={(v: any, name: any, item: any) => {
-                  const total = item?.payload?._total ?? 0;
-                  const abs = Math.round(Number(v) * (total as number) / 100);
-                  return [`${Number(v).toFixed(1)}% (${nfmt(abs)})`, name];
-                }}
-                labelFormatter={(label: any, payload: any) =>
-                  `${label} · ${nfmt(payload?.[0]?.payload?._total ?? 0)} bajas totales`
-                }
+                formatter={(v: any, _: any, item: any) => [
+                  `${Number(v).toFixed(1)}% · ${nfmt(item?.payload?.n ?? 0)} bajas`,
+                  item?.payload?.motivo,
+                ]}
+                cursor={{ fill: "#F2F0E9" }}
               />
-              {MOTIVO_CATS.map((cat, i) => (
-                <Bar key={cat} dataKey={cat} stackId="motivo" fill={MOTIVO_COLORS[cat]}
-                  radius={i === MOTIVO_CATS.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
-              ))}
+              <Bar dataKey="pct" radius={[0, 6, 6, 0]} barSize={28} isAnimationActive={false}>
+                {motivosDisplay.map((m, i) => (
+                  <Cell
+                    key={i}
+                    fill={MOTIVO_COLORS[m.motivo as keyof typeof MOTIVO_COLORS] ?? m.color}
+                    fillOpacity={m.brecha ? 1 : 0.82}
+                  />
+                ))}
+                <LabelList
+                  content={({ x, y, width, height, value, index }) => {
+                    const m = motivosDisplay[index as number];
+                    if (!m) return null;
+                    const xNum = Number(x ?? 0);
+                    const yNum = Number(y ?? 0);
+                    const w = Number(width ?? 0);
+                    const h = Number(height ?? 0);
+                    return (
+                      <text
+                        x={xNum + w + 8}
+                        y={yNum + h / 2 + 1}
+                        fontSize={12}
+                        fontFamily="'JetBrains Mono', monospace"
+                        fontWeight={600}
+                        fill={m.brecha ? "#DC2626" : "#2B2B27"}
+                        dominantBaseline="middle"
+                      >
+                        {`${Number(value).toFixed(1)}%`}
+                        <tspan fontSize={10.5} fontWeight={400} fill="#6E6D66"> ({nfmt(m.n)})</tspan>
+                      </text>
+                    );
+                  }}
+                />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
-        </div>
-        {/* Leyenda de colores */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 16px", marginTop: 12 }}>
-          {MOTIVO_CATS.map((cat) => (
-            <span key={cat} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--ink-2)" }}>
-              <span style={{ width: 8, height: 8, borderRadius: 2, background: MOTIVO_COLORS[cat], flexShrink: 0 }} />
-              {cat}
-            </span>
-          ))}
         </div>
       </div>
 
@@ -635,7 +649,7 @@ function Tendencia() {
                 </tr>
               </thead>
               <tbody>
-                {snapshotPageRows.map((r, i) => (
+                {snapshotFiltered.slice(0, 200).map((r, i) => (
                   <tr key={`${r.id_hubspot}-${i}`}>
                     <td className="strong">{r.nombre}</td>
                     <td className="mono fs-11" style={{ color: "var(--ink-3)" }}>{r.id_hubspot}</td>
@@ -653,30 +667,9 @@ function Tendencia() {
                 ))}
               </tbody>
             </table>
-            {snapshotFiltered.length > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, gap: 12, flexWrap: "wrap" }}>
-                <div className="fs-12 muted">
-                  Mostrando {(snapshotCurrentPage - 1) * SNAPSHOT_PAGE_SIZE + 1}–{Math.min(snapshotCurrentPage * SNAPSHOT_PAGE_SIZE, snapshotFiltered.length)} de {nfmt(snapshotFiltered.length)}
-                </div>
-                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                  <button
-                    onClick={() => setSnapshotPage(p => Math.max(1, p - 1))}
-                    disabled={snapshotCurrentPage <= 1}
-                    style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid var(--rule-2)", background: "var(--paper)", fontSize: 12.5, fontFamily: "inherit", cursor: snapshotCurrentPage <= 1 ? "not-allowed" : "pointer", opacity: snapshotCurrentPage <= 1 ? 0.5 : 1 }}
-                  >
-                    ← Anterior
-                  </button>
-                  <span className="fs-12 mono" style={{ padding: "0 8px" }}>
-                    Hoja {snapshotCurrentPage} de {snapshotTotalPages}
-                  </span>
-                  <button
-                    onClick={() => setSnapshotPage(p => Math.min(snapshotTotalPages, p + 1))}
-                    disabled={snapshotCurrentPage >= snapshotTotalPages}
-                    style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid var(--rule-2)", background: "var(--paper)", fontSize: 12.5, fontFamily: "inherit", cursor: snapshotCurrentPage >= snapshotTotalPages ? "not-allowed" : "pointer", opacity: snapshotCurrentPage >= snapshotTotalPages ? 0.5 : 1 }}
-                  >
-                    Siguiente →
-                  </button>
-                </div>
+            {snapshotFiltered.length > 200 && (
+              <div className="fs-12 muted" style={{ marginTop: 10, textAlign: "center" }}>
+                Mostrando 200 de {nfmt(snapshotFiltered.length)} — exportá para ver todas
               </div>
             )}
           </div>
