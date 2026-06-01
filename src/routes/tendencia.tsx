@@ -120,12 +120,30 @@ function Tendencia() {
   // Estado de búsqueda del snapshot
   const [snapshotQ, setSnapshotQ] = useState("");
   const [snapshotPlan, setSnapshotPlan] = useState<string>("Todos");
-  const snapshotFiltered = (snapshotRows ?? []).filter((r) => {
-    const qOk = !snapshotQ || [r.nombre, r.pais, r.id_hubspot, r.motivoCat, r.ejecutivo]
-      .some(v => v.toLowerCase().includes(snapshotQ.toLowerCase()));
-    const planOk = snapshotPlan === "Todos" || r.plan === snapshotPlan;
-    return qOk && planOk;
-  });
+  const [snapshotPage, setSnapshotPage] = useState(0);
+  const SNAPSHOT_PAGE_SIZE = 10;
+
+  const snapshotFiltered = useMemo(() => {
+    const filtered = (snapshotRows ?? []).filter((r) => {
+      const qOk = !snapshotQ || [r.nombre, r.pais, r.id_hubspot, r.motivoCat, r.ejecutivo]
+        .some(v => v.toLowerCase().includes(snapshotQ.toLowerCase()));
+      const planOk = snapshotPlan === "Todos" || r.plan === snapshotPlan;
+      return qOk && planOk;
+    });
+    // Ordenar: con fecha_baja primero (más reciente → más antigua), luego sin fecha
+    return filtered.sort((a, b) => {
+      if (!a.fecha_baja && !b.fecha_baja) return 0;
+      if (!a.fecha_baja) return 1;
+      if (!b.fecha_baja) return -1;
+      return b.fecha_baja.localeCompare(a.fecha_baja);
+    });
+  }, [snapshotRows, snapshotQ, snapshotPlan]);
+
+  const snapshotTotalPages = Math.max(1, Math.ceil(snapshotFiltered.length / SNAPSHOT_PAGE_SIZE));
+  const snapshotPageRows = snapshotFiltered.slice(
+    snapshotPage * SNAPSHOT_PAGE_SIZE,
+    (snapshotPage + 1) * SNAPSHOT_PAGE_SIZE
+  );
 
   // Motivos de baja (últimos 6 meses) — agrupados por categoría normalizada
   const prioridadFor = (cat: string): string => {
@@ -637,7 +655,7 @@ function Tendencia() {
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <select
               value={snapshotPlan}
-              onChange={e => setSnapshotPlan(e.target.value)}
+              onChange={e => { setSnapshotPlan(e.target.value); setSnapshotPage(0); }}
               style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid var(--rule-2)", background: "var(--paper)", fontSize: 12.5, fontFamily: "inherit" }}
             >
               <option value="Todos">Todos los planes</option>
@@ -645,7 +663,7 @@ function Tendencia() {
             </select>
             <input
               value={snapshotQ}
-              onChange={e => setSnapshotQ(e.target.value)}
+              onChange={e => { setSnapshotQ(e.target.value); setSnapshotPage(0); }}
               placeholder="Buscar nombre, país, motivo…"
               style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rule-2)", background: "var(--paper)", fontSize: 12.5, fontFamily: "inherit", width: 220 }}
             />
@@ -669,7 +687,9 @@ function Tendencia() {
                 </tr>
               </thead>
               <tbody>
-                {snapshotFiltered.slice(0, 200).map((r, i) => (
+                {snapshotPageRows.length === 0 ? (
+                  <tr><td colSpan={8} style={{ padding: 20, textAlign: "center", color: "var(--ink-3)" }}>Sin resultados</td></tr>
+                ) : snapshotPageRows.map((r, i) => (
                   <tr key={`${r.id_hubspot}-${i}`}>
                     <td className="strong">{r.nombre}</td>
                     <td className="mono fs-11" style={{ color: "var(--ink-3)" }}>{r.id_hubspot}</td>
@@ -679,19 +699,38 @@ function Tendencia() {
                     <td className="mono" style={{ textAlign: "right", color: r.diasDesdeBaja != null && r.diasDesdeBaja > 30 ? "var(--red)" : "var(--ink-2)" }}>
                       {r.diasDesdeBaja != null ? r.diasDesdeBaja : "—"}
                     </td>
-                    <td>
-                      <span className="fs-11" style={{ color: "var(--ink-2)" }}>{r.motivoCat}</span>
-                    </td>
+                    <td><span className="fs-11" style={{ color: "var(--ink-2)" }}>{r.motivoCat}</span></td>
                     <td className="fs-11 muted">{r.ejecutivo}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {snapshotFiltered.length > 200 && (
-              <div className="fs-12 muted" style={{ marginTop: 10, textAlign: "center" }}>
-                Mostrando 200 de {nfmt(snapshotFiltered.length)} — exportá para ver todas
+
+            {/* Paginación */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 4px", marginTop: 8, borderTop: "1px solid var(--rule)" }}>
+              <span className="fs-12 muted">
+                {snapshotFiltered.length === 0
+                  ? "Sin resultados"
+                  : `${snapshotPage * SNAPSHOT_PAGE_SIZE + 1}–${Math.min((snapshotPage + 1) * SNAPSHOT_PAGE_SIZE, snapshotFiltered.length)} de ${nfmt(snapshotFiltered.length)} cuentas`}
+              </span>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <button
+                  className="btn ghost"
+                  disabled={snapshotPage === 0}
+                  onClick={() => setSnapshotPage(p => Math.max(0, p - 1))}
+                  style={{ padding: "5px 12px", fontSize: 12 }}
+                >← Anterior</button>
+                <span className="fs-12 muted" style={{ minWidth: 80, textAlign: "center" }}>
+                  Pág {snapshotPage + 1} / {snapshotTotalPages}
+                </span>
+                <button
+                  className="btn ghost"
+                  disabled={snapshotPage >= snapshotTotalPages - 1}
+                  onClick={() => setSnapshotPage(p => Math.min(snapshotTotalPages - 1, p + 1))}
+                  style={{ padding: "5px 12px", fontSize: 12 }}
+                >Siguiente →</button>
               </div>
-            )}
+            </div>
           </div>
         )}
       </div>
