@@ -19,7 +19,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, ErrorBar, Cell,
   Line, ReferenceLine, Legend,
 } from "recharts";
-import { MOTIVO_CATS, MOTIVO_COLORS, AREA_ESTRATEGICA, normalizarMotivo } from "@/lib/motivo-normalizer";
+import { MOTIVO_CATS, MOTIVO_COLORS, AREA_ESTRATEGICA } from "@/lib/motivo-normalizer";
 import { PLANES } from "@/data/supabase-trend";
 import { useSnapshot } from "@/data/supabase-snapshot";
 import { mesCorto } from "@/data/schema";
@@ -108,9 +108,9 @@ function Tendencia() {
   const motivos = useMotivosMes();
   const resumen = useResumenMes();
   const mesActivo = useMesActivo();
+  const { data: insights6m } = useSupabaseChurnInsights(mesActivo, selectedPais);
   const { selectedPeriod } = usePeriod();
   const { selectedPais } = useCountry();
-  const { data: insights6m } = useSupabaseChurnInsights(mesActivo, selectedPais);
   const { data: ret } = useRetention(selectedPeriod, selectedPais);
   const { data: snapshotRows, isLoading: snapshotLoading } = useSnapshot(selectedPeriod, selectedPais);
 
@@ -169,7 +169,7 @@ function Tendencia() {
   const hasData = !!resumen || (motivos !== null);
 
 
-  // Tendencia rate-based: cada fila trae bajas, rate%, activeBase y banda min/max.
+  // Tendencia rate-based: incluye todos los campos de TrendRatePoint necesarios para los gráficos.
   const chartData = d.trendRate.points.map((p) => ({
     mes: p.proyectado ? `${p.mes}*` : p.mes,
     key: p.key,
@@ -181,6 +181,11 @@ function Tendencia() {
     bajasMax: p.bajasMax ?? null,
     rangoY: p.bajasMin != null && p.bajasMax != null ? [p.bajasMin, p.bajasMax] : null,
     bajasError: p.bajasError ?? null,
+    // Campos para gráficos de motivos y neto/recuperadas
+    motivoBreakdown: p.motivoBreakdown ?? {},
+    planRates: p.planRates ?? {},
+    rateNeto: p.rateNeto ?? null,
+    ratioRecuperadas: p.ratioRecuperadas ?? null,
   }));
   const forecastX = chartData.filter((x) => x.proyectado).map((x) => x.mes);
 
@@ -352,7 +357,7 @@ function Tendencia() {
                 bajas: p.bajas,
                 activeBase: p.activeBase,
                 ...Object.fromEntries(
-                  PLANES.map(pl => [`rate_${pl}`, (p as any).planRates?.[pl] ?? null])
+                  PLANES.map(pl => [`rate_${pl}`, p.planRates?.[pl] ?? null])
                 ),
               }))}
               margin={{ top: 32, right: 24, left: 0, bottom: 8 }}
@@ -411,7 +416,7 @@ function Tendencia() {
           <ResponsiveContainer>
             <BarChart
               data={chartData.filter(p => !p.proyectado).map(p => {
-                const bd = (p as any).motivoBreakdown ?? {};
+                const bd = p.motivoBreakdown ?? {};
                 const total = MOTIVO_CATS.reduce((s, c) => s + (bd[c] ?? 0), 0) || 1;
                 const row: Record<string, unknown> = { mes: p.mes, _total: p.bajas };
                 for (const cat of MOTIVO_CATS) {
@@ -467,8 +472,8 @@ function Tendencia() {
               data={chartData.filter(p => !p.proyectado).map(p => ({
                 mes: p.mes,
                 rateBruto: p.rate,
-                rateNeto: (p as any).rateNeto ?? null,
-                ratioRecuperadas: (p as any).ratioRecuperadas ?? null,
+                rateNeto: p.rateNeto ?? null,
+                ratioRecuperadas: p.ratioRecuperadas ?? null,
               }))}
               margin={{ top: 16, right: 24, left: 0, bottom: 8 }}
             >
