@@ -19,7 +19,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, ErrorBar, Cell,
   Line, ReferenceLine, Legend,
 } from "recharts";
-import { MOTIVO_CATS, MOTIVO_COLORS, AREA_ESTRATEGICA } from "@/lib/motivo-normalizer";
+import { MOTIVO_CATS, MOTIVO_COLORS, AREA_ESTRATEGICA, normalizarMotivo } from "@/lib/motivo-normalizer";
 import { PLANES } from "@/data/supabase-trend";
 import { useSnapshot } from "@/data/supabase-snapshot";
 import { mesCorto } from "@/data/schema";
@@ -108,9 +108,9 @@ function Tendencia() {
   const motivos = useMotivosMes();
   const resumen = useResumenMes();
   const mesActivo = useMesActivo();
-  const { data: insights6m } = useSupabaseChurnInsights(mesActivo, selectedPais);
   const { selectedPeriod } = usePeriod();
   const { selectedPais } = useCountry();
+  const { data: insights6m } = useSupabaseChurnInsights(mesActivo, selectedPais);
   const { data: ret } = useRetention(selectedPeriod, selectedPais);
   const { data: snapshotRows, isLoading: snapshotLoading } = useSnapshot(selectedPeriod, selectedPais);
 
