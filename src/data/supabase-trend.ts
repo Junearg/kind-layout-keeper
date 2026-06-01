@@ -193,7 +193,7 @@ async function fetchTrendRate(mesActivo: string): Promise<TrendRate> {
     activeBaseByKey.set(k, nextBase + (byMonth.get(k) ?? 0));
   }
 
-  const closed: TrendRatePoint[] = closedKeys.map((k) => {
+  const closed: TrendRatePoint[] = closedKeys.map((k, idx) => {
     const bajasMes = byMonth.get(k) ?? 0;
     const activeBase = activeBaseByKey.get(k) ?? 0;
     const rate = activeBase > 0 ? (bajasMes / activeBase) * 100 : 0;
@@ -205,8 +205,14 @@ async function fetchTrendRate(mesActivo: string): Promise<TrendRate> {
       const a = activasPorPlan[plan] ?? 0;
       planRates[plan] = a > 0 ? (b / a) * 100 : 0;
     }
-    // Churn neto y recuperadas
-    const activasFinMes = activeByMonth.get(k) ?? null;
+    // activasFinMes: inicio del mes siguiente = fin de este mes.
+    // La reconstrucción backward ya calculó activeBaseByKey para todos los meses,
+    // por lo que no necesita snapshots históricos individuales.
+    const nextKey = idx < closedKeys.length - 1 ? closedKeys[idx + 1] : null;
+    const activasFinMes =
+      nextKey != null && activeBaseByKey.has(nextKey)
+        ? activeBaseByKey.get(nextKey)!          // ← fin del mes = inicio del siguiente
+        : (activeByMonth.get(k) ?? null);        // fallback: snapshot directo (último mes)
     const rateNeto = activasFinMes != null && activeBase > 0
       ? ((activeBase - activasFinMes) / activeBase) * 100
       : null;
