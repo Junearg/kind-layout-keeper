@@ -73,20 +73,28 @@ function Resumen() {
             </div>
             <div className="arrow-up">↗</div>
           </div>
-          {/* Tasa % solo cuando la base es válida (mpcsMesPasado > 0) */}
+          {/* Tasa % — base exacta si mpcsMesPasado > 0, estimada si no */}
           {(() => {
-            const baseValida = ret && ret.mpcsMesPasado > 0;
+            const baseExacta = ret && ret.mpcsMesPasado > 0;
+            // Estimación: bajas / (activas_hoy + bajas) ≈ base inicio mes
+            const baseEstimada = r.activeAccounts + r.bajasMesActual;
+            const rateEstimado = baseEstimada > 0
+              ? (r.bajasMesActual / baseEstimada) * 100
+              : null;
+            const rateDisplay = baseExacta
+              ? ret!.churnBruto.toFixed(2)
+              : rateEstimado?.toFixed(2) ?? null;
             return (
               <>
-                <div className="bignum" style={{ fontSize: baseValida ? 64 : 72, marginTop: 4 }}>
-                  {baseValida ? `${ret!.churnBruto.toFixed(2)}%` : nfmt(r.bajasMesActual)}
+                <div className="bignum" style={{ fontSize: 64, marginTop: 4 }}>
+                  {rateDisplay != null ? `${rateDisplay}%` : nfmt(r.bajasMesActual)}
                 </div>
                 <div className="fs-12" style={{ color: "rgba(255,255,255,0.85)", marginTop: 6 }}>
-                  {baseValida
+                  {baseExacta
                     ? `${nfmt(r.bajasMesActual)} bajas · base ${nfmt(ret!.mpcsMesPasado)}`
-                    : ret
-                      ? `${nfmt(r.bajasMesActual)} bajas · sin datos del período anterior`
-                      : "bajas absolutas · cargando tasa…"}
+                    : rateDisplay != null
+                      ? `${nfmt(r.bajasMesActual)} bajas · base ≈ ${nfmt(baseEstimada)} (estimada)`
+                      : "cargando…"}
                 </div>
                 <div className="mt-12" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {r.monthDeltaPct != null && (
@@ -94,7 +102,7 @@ function Resumen() {
                       {r.monthDeltaPct >= 0 ? "↑" : "↓"} {pctFmt(r.monthDeltaPct)} vs {r.prevClosedLabel}
                     </span>
                   )}
-                  {baseValida && ret!.mpcsMesPasado > 0 && Math.abs(ret!.churnNeto - ret!.churnBruto) > 0.01 && (
+                  {baseExacta && Math.abs(ret!.churnNeto - ret!.churnBruto) > 0.01 && (
                     <span className="callout" style={{ background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.85)" }}>
                       neto {ret!.churnNeto.toFixed(2)}%
                     </span>
@@ -145,35 +153,40 @@ function Resumen() {
 
           {/* Churn Neto vs Plan */}
           {(() => {
-            const baseValida = ret.mpcsMesPasado > 0;
+            const baseExacta = ret.mpcsMesPasado > 0;
+            // Estimación neta: (activas_ayer - activas_hoy) / activas_ayer ≈ churn neto
+            const baseEst = r.activeAccounts + r.bajasMesActual;
+            const netoEst = baseEst > 0 ? ((baseEst - ret.activasHoy) / baseEst) * 100 : null;
+            const netoDisplay = baseExacta ? ret.churnNeto : netoEst;
+            const accentColor = netoDisplay == null ? "var(--rule)"
+              : ret.churnPlan == null ? "var(--rule)"
+              : netoDisplay > ret.churnPlan * 1.05 ? "var(--red)"
+              : netoDisplay < ret.churnPlan * 0.95 ? "#2f7d4f"
+              : "var(--orange)";
             return (
-            <div className="card lg" style={{
-              borderLeft: `4px solid ${
-                !baseValida ? "var(--rule)" :
-                ret.proyectadoVsPlan == null ? "var(--rule)" :
-                Math.abs(ret.proyectadoVsPlan) <= 5 ? "var(--orange)" :
-                ret.proyectadoVsPlan > 5 ? "var(--red)" : "#2f7d4f"
-              }`
-            }}>
+            <div className="card lg" style={{ borderLeft: `4px solid ${accentColor}` }}>
               <div className="card-eyebrow">Churn Neto vs Plan</div>
               <div className="bignum" style={{ fontSize: 52, marginTop: 8 }}>
-                {baseValida ? `${ret.churnNeto.toFixed(2)}%` : "—"}
+                {netoDisplay != null ? `${netoDisplay.toFixed(2)}%` : "—"}
               </div>
               <div className="fs-12 muted" style={{ marginTop: 6 }}>
-                {baseValida
+                {baseExacta
                   ? `churn neto actual · plan ${ret.churnPlan != null ? `${ret.churnPlan.toFixed(1)}%` : "—"}`
-                  : "sin datos del período anterior"}
+                  : netoDisplay != null
+                    ? `estimado · plan ${ret.churnPlan != null ? `${ret.churnPlan.toFixed(1)}%` : "—"}`
+                    : "sin datos suficientes"}
               </div>
-              {baseValida && ret.proyectadoVsPlan != null && (
+              {netoDisplay != null && ret.churnPlan != null && (
                 <div style={{ marginTop: 10 }}>
                   <span className={`tag ${Math.abs(ret.proyectadoVsPlan) <= 5 ? "orange" : ret.proyectadoVsPlan > 5 ? "red" : "blue"}`}>
                     {ret.proyectadoVsPlan >= 0 ? "+" : ""}{ret.proyectadoVsPlan.toFixed(1)}% vs plan
                   </span>
                 </div>
               )}
-              {baseValida && (
+              {netoDisplay != null && (
                 <div className="fs-12 muted" style={{ marginTop: 8 }}>
-                  churn bruto: <strong>{ret.churnBruto.toFixed(2)}%</strong>
+                  bruto ≈ {baseExacta ? ret.churnBruto.toFixed(2) : ((r.bajasMesActual / baseEst) * 100).toFixed(2)}%
+                  {!baseExacta && <span style={{ marginLeft: 6, opacity: 0.7 }}>(estimado)</span>}
                 </div>
               )}
             </div>
