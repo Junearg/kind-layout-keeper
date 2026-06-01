@@ -597,7 +597,7 @@ function Tendencia() {
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <select
               value={snapshotPlan}
-              onChange={e => setSnapshotPlan(e.target.value)}
+              onChange={e => { setSnapshotPlan(e.target.value); setSnapshotPage(1); }}
               style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid var(--rule-2)", background: "var(--paper)", fontSize: 12.5, fontFamily: "inherit" }}
             >
               <option value="Todos">Todos los planes</option>
