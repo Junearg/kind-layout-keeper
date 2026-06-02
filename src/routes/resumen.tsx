@@ -257,20 +257,21 @@ function Q1Metric({ label, value, tone }: { label: string; value: string; tone: 
 function TierMiniBars({ tierDist }: { tierDist: { tier: string; count: number; color: string }[] }) {
   const total = tierDist.reduce((s, t) => s + t.count, 0) || 1;
   return (
-    <div className="mt-16">
-      <div style={{ display: "flex", height: 10, borderRadius: 99, overflow: "hidden", gap: 2 }}>
+    <div style={{ marginTop: 12 }}>
+      <div style={{ display: "flex", height: 8, borderRadius: 99, overflow: "hidden", gap: 2 }}>
         {tierDist.map((t) => (
           <div key={t.tier} style={{ width: `${(t.count / total) * 100}%`, background: t.color }} />
         ))}
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, fontSize: 11 }}>
+      {/* Una fila compacta por tier */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8 }}>
         {tierDist.map((t) => (
-          <div key={t.tier} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <span className="row-flex" style={{ gap: 5 }}>
-              <span className="tier-dot" style={{ background: t.color }} />
-              <span className="muted">{t.tier}</span>
+          <div key={t.tier} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 10.5 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: t.color, flexShrink: 0 }} />
+              <span style={{ color: "var(--ink-3)" }}>{t.tier}</span>
             </span>
-            <span className="mono strong">{nfmt(t.count)}</span>
+            <span className="mono" style={{ fontWeight: 600, color: "var(--ink-2)" }}>{nfmt(t.count)}</span>
           </div>
         ))}
       </div>
