@@ -2,11 +2,46 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
+import { supabase } from "@/integrations/supabase/client";
 import {
   listFechasDiarias,
   useKpiSnapshotMultipais,
   type KpiDiario,
 } from "@/data/supabase-kpis-diarios";
+
+/** Diagnóstico: muestra qué valores reales hay en Supabase para una fecha */
+function useDebugFecha(fecha: string) {
+  return useQuery({
+    queryKey: ["debug-fecha", fecha],
+    queryFn: async () => {
+      if (!fecha) return null;
+      const { data } = await supabase
+        .from("clientes")
+        .select("estado_dash,etapa,temas_contacto,motivos_contacto")
+        .eq("mes_exportacion", fecha)
+        .limit(500);
+      const rows = data ?? [];
+      const total = rows.length;
+      const countBy = (field: keyof typeof rows[0]) => {
+        const map: Record<string, number> = {};
+        for (const r of rows) {
+          const v = String(r[field] ?? "(null)");
+          map[v] = (map[v] ?? 0) + 1;
+        }
+        return Object.entries(map).sort((a, b) => b[1] - a[1]);
+      };
+      return {
+        total,
+        estado_dash: countBy("estado_dash"),
+        etapa: countBy("etapa"),
+        temas_contacto: countBy("temas_contacto"),
+        motivos_contacto: countBy("motivos_contacto"),
+      };
+    },
+    enabled: Boolean(fecha),
+    staleTime: 60_000,
+  });
+}
 
 export const Route = createFileRoute("/retencion")({
   head: () => ({ meta: [{ title: "Retención · Churn Hub" }] }),
@@ -70,6 +105,8 @@ function RetencionPage() {
   const kpiMap = new Map<string, KpiDiario>();
   if (kpis) for (const k of kpis) kpiMap.set(k.pais, k);
 
+  const { data: debug } = useDebugFecha(fechaHoy);
+
   if (fechasLoading) {
     return (
       <Layout>
@@ -116,6 +153,34 @@ function RetencionPage() {
           </select>
         </div>
       </div>
+
+      {/* Panel de diagnóstico — muestra valores reales en Supabase */}
+      {debug && (
+        <details style={{ marginBottom: 16 }}>
+          <summary style={{ cursor: "pointer", fontSize: 12, color: "var(--ink-3)", padding: "8px 0" }}>
+            🔍 Diagnóstico · {debug.total} filas encontradas para {fechaHoy}
+            {debug.total === 0 && " — ⚠️ SIN DATOS para esta fecha"}
+          </summary>
+          <div className="card" style={{ padding: 16, marginTop: 8, fontSize: 12, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
+            {[
+              { label: "estado_dash", vals: debug.estado_dash },
+              { label: "etapa", vals: debug.etapa },
+              { label: "temas_contacto (ventas?)", vals: debug.temas_contacto },
+              { label: "motivos_contacto (login?)", vals: debug.motivos_contacto },
+            ].map(({ label, vals }) => (
+              <div key={label}>
+                <div style={{ fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>{label}</div>
+                {vals.slice(0, 6).map(([v, n]) => (
+                  <div key={v} style={{ display: "flex", justifyContent: "space-between", padding: "2px 0", borderBottom: "1px solid var(--rule)" }}>
+                    <span style={{ color: "var(--ink-3)", fontFamily: "monospace" }}>{v}</span>
+                    <span style={{ fontWeight: 600 }}>{n}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
 
       {/* Tabla multi-país */}
       <div className="card lg" style={{ padding: 0, overflow: "hidden" }}>
