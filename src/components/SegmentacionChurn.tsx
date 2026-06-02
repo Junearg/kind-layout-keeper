@@ -259,32 +259,31 @@ function PlanTab({ data }: { data: SegmentacionData }) {
         <div className="card-eyebrow" style={{ marginBottom: 12 }}>
           Tasa de churn por plan · bajas / base activa · {latestLabel}
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {m.planRates.map((r) => (
-            <div key={r.name} style={{ display: "grid", gridTemplateColumns: "80px 1fr 56px 140px", alignItems: "center", gap: 12, fontSize: 12.5 }}>
-              {/* Nombre del plan */}
-              <span style={{ fontWeight: 600, color: PLAN_COLORS[r.name] ?? "var(--ink)" }}>
-                {r.name}
-              </span>
-              {/* Barra de tasa */}
-              <div style={{ background: "var(--paper-2)", borderRadius: 99, height: 8, overflow: "hidden" }}>
-                <div style={{
-                  width: `${(r.rate / m.maxRate) * 100}%`,
-                  background: PLAN_COLORS[r.name] ?? "var(--orange)",
-                  height: "100%", borderRadius: 99,
-                  transition: "width 0.3s",
-                }} />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+          {m.planRates.map((r) => {
+            const accent = PLAN_COLORS[r.name] ?? "var(--orange)";
+            const isHigh = r.rate > 5;
+            return (
+              <div key={r.name} style={{
+                borderRadius: 14, padding: "16px 18px",
+                border: `2px solid ${accent}`,
+                background: "var(--paper)",
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, color: accent, marginBottom: 6 }}>
+                  {r.name}
+                </div>
+                <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1, color: isHigh ? "#DC2626" : "var(--ink)", fontFamily: "'Inter', sans-serif", letterSpacing: "-0.02em" }}>
+                  {pctfmt(r.rate)}
+                </div>
+                <div style={{ marginTop: 10, fontSize: 11, color: "var(--ink-3)" }}>
+                  <span style={{ fontVariantNumeric: "tabular-nums" }}>{nfmt(r.bajas)}</span> bajas
+                </div>
+                <div style={{ fontSize: 11, color: "var(--ink-4)" }}>
+                  de <span style={{ fontVariantNumeric: "tabular-nums" }}>{nfmt(r.base)}</span> activas
+                </div>
               </div>
-              {/* Tasa % */}
-              <span className="mono" style={{ fontWeight: 700, textAlign: "right", color: r.rate > 5 ? "var(--red)" : "var(--ink)" }}>
-                {pctfmt(r.rate)}
-              </span>
-              {/* Bajas / base */}
-              <span className="muted" style={{ fontSize: 11 }}>
-                {nfmt(r.bajas)} bajas · de {nfmt(r.base)} activas
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
