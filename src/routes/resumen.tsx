@@ -9,7 +9,7 @@ import { useSupabaseChurnInsights } from "@/data/supabase-churn-insights";
 import { useRetention } from "@/data/supabase-retention";
 import { useCountry } from "@/contexts/CountryContext";
 import { useMesActivo } from "@/data/dataset-store";
-import { useKpisDiarios, useKpiDelta, listFechasDiarias, type KpiDiario } from "@/data/supabase-kpis-diarios";
+import { useKpisDiarios, useKpiDelta, listFechasDiarias, useKpiSnapshotMultipais, type KpiDiario } from "@/data/supabase-kpis-diarios";
 import { useQuery } from "@tanstack/react-query";
 import { ORANGE } from "@/data/mockData";
 import { mesCorto } from "@/data/schema";
@@ -523,138 +523,150 @@ function MotivosStackedCard({ rows }: { rows: ChurnRowLite[] | null }) {
   );
 }
 
-// ─── Snapshot Diario ────────────────────────────────────────────────────────
-function DailySection({ pais }: { pais: import("@/contexts/CountryContext").Pais }) {
-  // Última fecha diaria disponible
-  const { data: fechas } = useQuery({
+// ─── Snapshot Diario Multi-País (replica columna J del GSheet) ──────────────
+function DailySection({ pais: _pais }: { pais: import("@/contexts/CountryContext").Pais }) {
+  const { data: fechas, isLoading: fechasLoading } = useQuery({
     queryKey: ["fechas-diarias"],
     queryFn: listFechasDiarias,
     staleTime: 300_000,
   });
-  const fechaHoy = fechas?.[0] ?? "";
-  const { data: delta, isLoading } = useKpiDelta(fechaHoy, pais);
-  const { data: serie } = useKpisDiarios(pais, 30);
+  const [fechaSel, setFechaSel] = useState<string>("");
+  const fechaHoy = fechaSel || fechas?.[0] || "";
+  const { data: kpis, isLoading } = useKpiSnapshotMultipais(fechaHoy);
 
-  if (!fechaHoy) return null;
-  if (isLoading || !delta) {
-    return (
-      <div className="card" style={{ padding: 16, marginTop: 16 }}>
-        <div className="card-eyebrow">Snapshot diario</div>
-        <div className="fs-12 muted" style={{ marginTop: 8 }}>Cargando datos diarios…</div>
+  const PAISES_COLS = ["Región", "Argentina", "Chile", "México", "Colombia", "Brasil"] as const;
+
+  if (fechasLoading) return null;
+  if (!fechas || fechas.length === 0) return (
+    <div className="card" style={{ padding: 16, marginTop: 16, background: "#FFFBEB", border: "1px solid #FDE68A" }}>
+      <div className="card-eyebrow">Snapshot diario</div>
+      <div className="fs-12" style={{ marginTop: 8, color: "#92400E" }}>
+        No hay snapshots diarios importados. Importá el archivo desde <strong>/importar</strong> en modo Diario para activar esta sección.
       </div>
-    );
-  }
+    </div>
+  );
 
-  const { hoy, ayer: _ayer, delta: d } = delta;
-  const nfmt2 = (n: number) => n.toLocaleString("es-AR");
-  const sign = (n: number, invert = false) => {
-    const bad = invert ? n > 0 : n < 0;
-    return { prefix: n >= 0 ? "+" : "", color: bad ? "var(--red)" : n === 0 ? "var(--ink-3)" : "var(--green, #16A34A)" };
+  type MetricaDef = {
+    label: string;
+    group?: string;
+    get: (k: KpiDiario) => string;
+    highlight?: (k: KpiDiario) => boolean;
   };
 
-  const cards: { label: string; value: string; delta: number; invert?: boolean; sub?: string }[] = [
-    { label: "Activas", value: nfmt2(hoy.activas), delta: d.activas, sub: `% ret. ${hoy.pctRetenido.toFixed(2)}%` },
-    { label: "Pago Pendiente", value: nfmt2(hoy.pagoPendiente), delta: d.pagoPendiente, invert: true },
-    { label: "Bajas Confirmadas", value: nfmt2(hoy.bajas), delta: d.bajas, invert: true },
-    { label: "A Recuperar", value: nfmt2(hoy.aRecuperar), delta: d.aRecuperar, invert: true,
-      sub: `Onb ${hoy.onboarding} · Eng ${hoy.engagement}` },
-    { label: "Sin ventas", value: nfmt2(hoy.sinVentas), delta: d.sinVentas, invert: true,
-      sub: `Con ventas: ${nfmt2(hoy.activasConVentas)}` },
+  const fmt  = (n: number) => n.toLocaleString("es-AR");
+  const pct  = (n: number | null | undefined) => n == null ? "—" : `${n.toFixed(1)}%`;
+  const pct2 = (n: number | null | undefined) => n == null ? "—" : `${n.toFixed(2)}%`;
+
+  const METRICAS: MetricaDef[] = [
+    // Bloque 1 — Cuentas
+    { label: "Activas",                    group: "Cuentas",  get: k => fmt(k.activas) },
+    { label: "Pago Pendiente",                                get: k => fmt(k.pagoPendiente) },
+    { label: "Bajas Confirmadas",                             get: k => fmt(k.bajas) },
+    { label: "Cuentas a Recuperar",                           get: k => fmt(k.aRecuperar) },
+    { label: "C/ vtas últimos 7 días",                        get: k => fmt(k.activasConVentas) },
+    { label: "S/ vtas últimos 7 días",                        get: k => fmt(k.sinVentas) },
+    { label: "Onboarding",                                    get: k => fmt(k.onboarding) },
+    { label: "Engagement",                                    get: k => fmt(k.engagement) },
+    { label: "% Retenido",                group: "Tasas",    get: k => pct(k.pctRetenido),      highlight: k => k.pctRetenido < 95 },
+    // Bloque 2 — Ventas
+    { label: "Activas ≥10 ventas/mes",    group: "Actividad", get: k => fmt(k.activasConVentas) },
+    { label: "A Recuperar ≥10v/mes",                          get: k => fmt(k.recuperar10v) },
+    { label: "% ≥10v mensual",                                get: k => pct(k.pct10v) },
+    { label: "% Retenido ≥10v",                               get: k => pct(k.pctRetenido10v) },
+    { label: "Login < 7 días",                                get: k => fmt(k.loginMenos7) },
+    { label: "% Login < 7 días",                              get: k => pct(k.loginPct) },
+    // Bloque 3 — Churn y Plan
+    { label: "MPCs mes pasado",           group: "Churn / Plan", get: k => fmt(k.mpcsMesPasado) },
+    { label: "Churn Bruto",                                   get: k => pct2(k.churnBruto),    highlight: k => k.churnBruto > 5 },
+    { label: "Churn Neto",                                    get: k => pct2(k.churnNeto),     highlight: k => k.churnNeto > 5 },
+    { label: "Churn Plan",                                    get: k => pct(k.churnPlan) },
+    { label: "Proyectado vs Plan",                            get: k => k.proyectadoVsPlan == null ? "—" : `${k.proyectadoVsPlan >= 0 ? "+" : ""}${k.proyectadoVsPlan.toFixed(1)}%`, highlight: k => (k.proyectadoVsPlan ?? 0) > 5 },
+    { label: "# Recuperar para on-target",                    get: k => k.nRecuperar == null ? "—" : fmt(k.nRecuperar) },
+    { label: "MPCs Retenidos (meta)",                         get: k => k.mpcsMeta == null ? "—" : fmt(k.mpcsMeta) },
+    { label: "MPCs vs Plan",                                  get: k => k.mpcsVsPlan == null ? "—" : `${k.mpcsVsPlan >= 0 ? "+" : ""}${k.mpcsVsPlan.toFixed(1)}%`, highlight: k => (k.mpcsVsPlan ?? 0) < -3 },
   ];
+
+  const kpiMap = new Map<string, KpiDiario>();
+  if (kpis) for (const k of kpis) kpiMap.set(k.pais, k);
 
   return (
     <>
       <div className="divider" style={{ marginTop: 24 }}>
         <span className="kicker">Snapshot</span>
-        <span className="alt">/ diario · {fechaHoy}</span>
-        <span className="sub">vs ayer</span>
+        <span className="alt">/ diario · todos los países</span>
         <span className="rule" />
       </div>
 
-      {/* KPI cards */}
-      <div className="bento cols-5" style={{ marginBottom: 16 }}>
-        {cards.map((c) => {
-          const { prefix, color } = sign(c.delta, c.invert);
-          return (
-            <div key={c.label} className="card" style={{ padding: 16 }}>
-              <div className="card-eyebrow" style={{ fontSize: 10.5 }}>{c.label}</div>
-              <div className="mono" style={{ fontSize: 26, fontWeight: 600, marginTop: 6, lineHeight: 1.1 }}>
-                {c.value}
-              </div>
-              {c.delta !== 0 && (
-                <div style={{ fontSize: 11, marginTop: 6, color, fontWeight: 500 }}>
-                  {prefix}{nfmt2(c.delta)} vs ayer
-                </div>
-              )}
-              {c.delta === 0 && (
-                <div style={{ fontSize: 11, marginTop: 6, color: "var(--ink-3)" }}>
-                  sin cambio
-                </div>
-              )}
-              {c.sub && <div className="fs-11 muted" style={{ marginTop: 4 }}>{c.sub}</div>}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Gráfico de evolución 30 días */}
-      {serie && serie.length > 1 && (
-        <div className="bento cols-2">
-          {/* Absolutos: Activas + Pago Pendiente + A Recuperar */}
-          <div className="card lg">
-            <div className="card-eyebrow">Evolución absoluta · últimos 30 días</div>
-            <div style={{ height: 240, marginTop: 12 }}>
-              <ResponsiveContainer>
-                <ComposedChart data={serie} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
-                  <CartesianGrid stroke="#E8E6DC" vertical={false} />
-                  <XAxis dataKey="fecha" tick={{ fontSize: 10, fill: "#6E6D66" }} axisLine={false} tickLine={false}
-                    tickFormatter={(v) => mesCorto(v.slice(0, 7)) + " " + v.slice(8, 10)} interval="preserveStartEnd" />
-                  <YAxis tick={{ fontSize: 10, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #E8E6DC" }}
-                    labelFormatter={(v) => v} />
-                  <Line type="monotone" dataKey="activas" stroke="#2563EB" strokeWidth={2} dot={false} name="Activas" />
-                  <Line type="monotone" dataKey="pagoPendiente" stroke="#D97706" strokeWidth={1.5} dot={false} name="Pago Pendiente" strokeDasharray="4 2" />
-                  <Line type="monotone" dataKey="aRecuperar" stroke="#7C3AED" strokeWidth={1.5} dot={false} name="A Recuperar" />
-                  <Bar dataKey="bajas" fill="#F05A28" fillOpacity={0.6} barSize={6} radius={[2,2,0,0]} name="Bajas" />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
-            <div style={{ display: "flex", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
-              {[["#2563EB","Activas"],["#D97706","Pago Pendiente"],["#7C3AED","A Recuperar"],["#F05A28","Bajas"]].map(([c, l]) => (
-                <span key={l} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--ink-3)" }}>
-                  <span style={{ width: 8, height: 8, borderRadius: 2, background: c }} /> {l}
-                </span>
-              ))}
+      <div className="card lg" style={{ padding: 0, overflow: "hidden" }}>
+        {/* Header con selector de fecha */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px", borderBottom: "1px solid var(--rule)" }}>
+          <div>
+            <div className="card-eyebrow">Snapshot diario · métricas completas</div>
+            <div className="card-title" style={{ fontSize: 15 }}>
+              {fechas.length} fecha{fechas.length !== 1 ? "s" : ""} disponible{fechas.length !== 1 ? "s" : ""}
             </div>
           </div>
-
-          {/* % Retenido + Churn Neto */}
-          <div className="card lg">
-            <div className="card-eyebrow">Tasa diaria · últimos 30 días</div>
-            <div style={{ height: 240, marginTop: 12 }}>
-              <ResponsiveContainer>
-                <ComposedChart data={serie} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
-                  <CartesianGrid stroke="#E8E6DC" vertical={false} />
-                  <XAxis dataKey="fecha" tick={{ fontSize: 10, fill: "#6E6D66" }} axisLine={false} tickLine={false}
-                    tickFormatter={(v) => mesCorto(v.slice(0, 7)) + " " + v.slice(8, 10)} interval="preserveStartEnd" />
-                  <YAxis tick={{ fontSize: 10, fill: "#6E6D66" }} axisLine={false} tickLine={false} unit="%" />
-                  <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #E8E6DC" }}
-                    formatter={(v: any) => [`${Number(v).toFixed(2)}%`, ""]} />
-                  <Line type="monotone" dataKey="pctRetenido" stroke="#16A34A" strokeWidth={2} dot={false} name="% Retenido" />
-                  <Line type="monotone" dataKey="churnNeto" stroke="#F05A28" strokeWidth={1.5} dot={false} name="Churn Neto %" strokeDasharray="3 2" />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
-            <div style={{ display: "flex", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
-              {[["#16A34A","% Retenido"],["#F05A28","Churn Neto"]].map(([c, l]) => (
-                <span key={l} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--ink-3)" }}>
-                  <span style={{ width: 8, height: 8, borderRadius: 2, background: c }} /> {l}
-                </span>
-              ))}
-            </div>
-          </div>
+          <select
+            value={fechaHoy}
+            onChange={e => setFechaSel(e.target.value)}
+            style={{ fontSize: 12.5, padding: "6px 10px", borderRadius: 8, border: "1px solid var(--rule-2)", background: "var(--paper)", fontFamily: "inherit" }}
+          >
+            {fechas.map(f => <option key={f} value={f}>{f}</option>)}
+          </select>
         </div>
-      )}
+
+        {isLoading ? (
+          <div className="fs-12 muted" style={{ padding: 20 }}>Cargando métricas…</div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+              <thead>
+                <tr style={{ background: "var(--paper-2)" }}>
+                  <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 500, fontSize: 11, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: 0.5, minWidth: 220, position: "sticky", left: 0, background: "var(--paper-2)", borderRight: "1px solid var(--rule)" }}>
+                    Métrica
+                  </th>
+                  {PAISES_COLS.map(p => (
+                    <th key={p} style={{ padding: "10px 16px", textAlign: "right", fontWeight: 600, fontSize: 12, color: p === "Región" ? "var(--orange)" : "var(--ink)", minWidth: 110, borderLeft: "1px solid var(--rule)" }}>
+                      {p}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {METRICAS.map((m, i) => {
+                  const isGroupHeader = m.group !== undefined && (i === 0 || m.group !== METRICAS[i - 1]?.group);
+                  return (
+                    <>
+                      {isGroupHeader && (
+                        <tr key={`g-${m.group}`}>
+                          <td colSpan={PAISES_COLS.length + 1} style={{ padding: "8px 16px 4px", fontSize: 10, textTransform: "uppercase", letterSpacing: 0.8, color: "var(--ink-4)", fontWeight: 600, background: "var(--paper-2)", borderTop: i > 0 ? "2px solid var(--rule)" : undefined }}>
+                            {m.group}
+                          </td>
+                        </tr>
+                      )}
+                      <tr key={m.label} style={{ borderTop: "1px solid var(--rule)" }}>
+                        <td style={{ padding: "9px 16px", color: "var(--ink-2)", position: "sticky", left: 0, background: "var(--paper)", borderRight: "1px solid var(--rule)", fontWeight: 400 }}>
+                          {m.label}
+                        </td>
+                        {PAISES_COLS.map(p => {
+                          const k = kpiMap.get(p);
+                          const val = k ? m.get(k) : "—";
+                          const bad = k ? (m.highlight?.(k) ?? false) : false;
+                          return (
+                            <td key={p} style={{ padding: "9px 16px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: bad ? "var(--red)" : p === "Región" ? "var(--ink)" : "var(--ink-2)", fontWeight: bad ? 700 : p === "Región" ? 600 : 400, borderLeft: "1px solid var(--rule)" }}>
+                              {val}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    </>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </>
   );
 }
