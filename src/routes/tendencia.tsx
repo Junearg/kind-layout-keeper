@@ -261,8 +261,8 @@ function Tendencia() {
         <EmptyPeriod section="Tendencia mensual" mes={mesLargo(mesActivo)} />
       ) : (
       <>
-      {/* Fila 1 — Churn Rate · 4 tarjetas */}
-      <div className="bento cols-4" style={{ marginBottom: 20 }}>
+      {/* Fila 1 — Monthly Churn Rate */}
+      <div style={{ marginBottom: 20, maxWidth: 280 }}>
 
         {/* Card 1 — Monthly Churn Rate */}
         <div className="card">
@@ -287,69 +287,6 @@ function Tendencia() {
           )}
         </div>
 
-        {/* Card 2 — WMA Projected Rate */}
-        <div className="card orange">
-          <div className="card-eyebrow" style={{ display: "flex", alignItems: "center", color: "rgba(255,255,255,0.85)" }}>
-            WMA Projected Rate
-            <Info tip="Promedio ponderado móvil de las últimas 3 tasas mensuales (pesos 50% / 30% / 20%). Suaviza picos atípicos para estimar el próximo mes." />
-          </div>
-          <div className="bignum" style={{ marginTop: 8 }}>
-            {firstProj ? pctfmt(firstProj.rate) : d.wmaRate !== null ? pctfmt(d.wmaRate) : "—"}
-          </div>
-          <div className="fs-12" style={{ color: "rgba(255,255,255,0.85)", marginTop: 6 }}>
-            {firstProj ? <>proy. {firstProj.mes} · ≈ {nfmt(firstProj.bajas)} bajas</> : "sin proyección"}
-          </div>
-          <div className="fs-12" style={{ color: "rgba(255,255,255,0.7)", marginTop: 4 }}>
-            suaviza picos (50/30/20)
-          </div>
-        </div>
-
-        {/* Card 3 — Projected Rate (3 meses) */}
-        <div className="card">
-          <div className="card-eyebrow" style={{ display: "flex", alignItems: "center" }}>
-            Tasa proyectada · 3m
-            <Info tip="Tasa WMA aplicada compuestamente mes a mes sobre la base remanente. El bignum es la tasa %; los absolutos son referencia." />
-          </div>
-          <div className="bignum" style={{ marginTop: 8 }}>{pctfmt(wma)}</div>
-          <div className="fs-12 muted" style={{ marginTop: 6 }}>
-            ≈ {nfmt(proj3Total)} bajas · próximos 3 meses
-          </div>
-          {proj3.length > 0 && (
-            <div className="fs-12 muted mono" style={{ marginTop: 8, lineHeight: 1.5 }}>
-              {proj3.map((p) => (
-                <div key={p.key} style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span>{p.mes}</span>
-                  <span>{pctfmt(p.rate, 1)} · {nfmt(p.bajas)} sobre {nfmt(p.activeBase)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Card 4 — Confidence Interval */}
-        <div className="card ink">
-          <div className="card-eyebrow" style={{ display: "flex", alignItems: "center", color: "rgba(255,255,255,0.7)" }}>
-            Rango de confianza
-            <Info tip="Tasa WMA ± 1.5 × σ de las últimas 6 tasas. El bignum es el rango en %; los absolutos son referencia sobre la base proyectada." />
-          </div>
-          <div className="bignum" style={{ marginTop: 8 }}>
-            {pctfmt(ciLowRate, 1)}–{pctfmt(ciHighRate, 1)}
-          </div>
-          <div className="fs-12" style={{ color: "rgba(255,255,255,0.7)", marginTop: 6 }}>
-            ≈ {nfmt(ciMin)}–{nfmt(ciMax)} bajas · centro {nfmt(ciCenter)}
-          </div>
-          <div className="fs-12" style={{ color: "rgba(255,255,255,0.55)", marginTop: 4 }}>
-            σ₆ ±{sixStdDev.toFixed(2)} pts
-          </div>
-          <div style={{ marginTop: 10 }}>
-            <span className="callout" style={{
-              background: sixStdDev > 0.8 ? "rgba(220,38,38,0.25)" : sixStdDev < 0.4 ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.12)",
-              color: "white",
-            }}>
-              {variabilityLabel}
-            </span>
-          </div>
-        </div>
       </div>
 
 
