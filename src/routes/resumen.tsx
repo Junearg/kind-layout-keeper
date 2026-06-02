@@ -62,68 +62,58 @@ function Resumen() {
       ) : !r ? null : (
       <>
 
-      {/* Bento 3 cols */}
+      {/* Header — 2 tarjetas simétricas y compactas */}
       <div className="bento cols-2">
         {/* Bajas del mes */}
-        <div className="card orange lg" style={{ minHeight: 280 }}>
-          <div className="bubble-wrap"><div className="bubble" /></div>
-          <div className="card-head">
+        <div className="card orange" style={{ minHeight: 148, padding: "16px 20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
-              <div className="card-eyebrow">Bajas del mes</div>
-              <div className="card-title" style={{ color: "white" }}>{r.latestClosedLabel}</div>
+              <div className="card-eyebrow" style={{ fontSize: 11 }}>Bajas del mes</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 2 }}>{r.latestClosedLabel}</div>
             </div>
-            <div className="arrow-up">↗</div>
+            <span style={{ fontSize: 16, opacity: 0.6 }}>↗</span>
           </div>
-          {/* Tasa % — base exacta si mpcsMesPasado > 0, estimada si no */}
           {(() => {
             const baseExacta = ret && ret.mpcsMesPasado > 0;
-            // Estimación: bajas / (activas_hoy + bajas) ≈ base inicio mes
             const baseEstimada = r.activeAccounts + r.bajasMesActual;
-            const rateEstimado = baseEstimada > 0
-              ? (r.bajasMesActual / baseEstimada) * 100
-              : null;
-            const rateDisplay = baseExacta
-              ? ret!.churnBruto.toFixed(2)
-              : rateEstimado?.toFixed(2) ?? null;
+            const rateEstimado = baseEstimada > 0 ? (r.bajasMesActual / baseEstimada) * 100 : null;
+            const rateDisplay = baseExacta ? ret!.churnBruto.toFixed(2) : rateEstimado?.toFixed(2) ?? null;
             return (
               <>
-                <div className="bignum" style={{ fontSize: 64, marginTop: 4 }}>
+                <div style={{ fontSize: 42, fontWeight: 700, marginTop: 8, lineHeight: 1, fontFamily: "'Inter', sans-serif", letterSpacing: "-0.02em" }}>
                   {rateDisplay != null ? `${rateDisplay}%` : nfmt(r.bajasMesActual)}
                 </div>
-                <div className="fs-12" style={{ color: "rgba(255,255,255,0.85)", marginTop: 6 }}>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 6 }}>
                   {baseExacta
                     ? `${nfmt(r.bajasMesActual)} bajas · base ${nfmt(ret!.mpcsMesPasado)}`
                     : rateDisplay != null
-                      ? `${nfmt(r.bajasMesActual)} bajas · base ≈ ${nfmt(baseEstimada)} (estimada)`
+                      ? `${nfmt(r.bajasMesActual)} bajas · base ≈ ${nfmt(baseEstimada)} (est.)`
                       : "cargando…"}
                 </div>
-                <div className="mt-12" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {r.monthDeltaPct != null && (
-                    <span className="callout">
+                {r.monthDeltaPct != null && (
+                  <div style={{ marginTop: 10 }}>
+                    <span className="callout" style={{ fontSize: 11 }}>
                       {r.monthDeltaPct >= 0 ? "↑" : "↓"} {pctFmt(r.monthDeltaPct)} vs {r.prevClosedLabel}
                     </span>
-                  )}
-                  {baseExacta && Math.abs(ret!.churnNeto - ret!.churnBruto) > 0.01 && (
-                    <span className="callout" style={{ background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.85)" }}>
-                      neto {ret!.churnNeto.toFixed(2)}%
-                    </span>
-                  )}
-                </div>
+                  </div>
+                )}
               </>
             );
           })()}
         </div>
 
         {/* Cuentas activas */}
-        <div className="card lg">
-          <div className="card-head">
+        <div className="card" style={{ minHeight: 148, padding: "16px 20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
-              <div className="card-eyebrow">Cuentas activas</div>
-              <div className="card-title">{periodLabel(r.period)}</div>
+              <div className="card-eyebrow" style={{ fontSize: 11 }}>Cuentas activas</div>
+              <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>{periodLabel(r.period)}</div>
             </div>
-            <div className="arrow-up">●</div>
+            <span style={{ fontSize: 16, opacity: 0.3 }}>●</span>
           </div>
-          <div className="bignum" style={{ fontSize: 64 }}>{nfmt(r.activeAccounts)}</div>
+          <div style={{ fontSize: 42, fontWeight: 700, marginTop: 8, lineHeight: 1, fontFamily: "'Inter', sans-serif", letterSpacing: "-0.02em" }}>
+            {nfmt(r.activeAccounts)}
+          </div>
           <TierMiniBars tierDist={r.tierDist} />
         </div>
       </div>
