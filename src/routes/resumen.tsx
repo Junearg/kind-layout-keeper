@@ -372,12 +372,33 @@ function TrendCard({ trend, delta, prevLabel, latestLabel }: {
 type ChurnRowLite = { motivo: string; fechaBaja: string | null };
 
 function MotivosStackedCard({ rows }: { rows: ChurnRowLite[] | null }) {
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+
+  // Rango disponible en los datos
+  const bounds = useMemo(() => {
+    if (!rows) return null;
+    let min = "9999-12-31", max = "0000-01-01";
+    for (const r of rows) {
+      if (!r.fechaBaja) continue;
+      const d = r.fechaBaja.slice(0, 10);
+      if (d < min) min = d;
+      if (d > max) max = d;
+    }
+    return { min, max };
+  }, [rows]);
+
   const result = useMemo(() => {
     if (!rows) return null;
+    const fromEff = from || bounds?.min || "";
+    const toEff   = to   || bounds?.max || "";
     const counts: Partial<Record<string, number>> = {};
     let total = 0;
     for (const r of rows) {
       if (!r.fechaBaja || /nps/i.test(r.motivo)) continue;
+      const d = r.fechaBaja.slice(0, 10);
+      if (fromEff && d < fromEff) continue;
+      if (toEff   && d > toEff)   continue;
       const cat = normalizarMotivo(r.motivo, null, null, null);
       counts[cat] = (counts[cat] ?? 0) + 1;
       total++;
@@ -393,7 +414,7 @@ function MotivosStackedCard({ rows }: { rows: ChurnRowLite[] | null }) {
       .sort((a, b) => b.value - a.value);
     const pctSinMotivo = pieData.find((d) => d.name === "Sin motivo")?.pct ?? 0;
     return { pieData, total, pctSinMotivo };
-  }, [rows]);
+  }, [rows, from, to, bounds]);
 
   if (!result) {
     return (
@@ -412,11 +433,36 @@ function MotivosStackedCard({ rows }: { rows: ChurnRowLite[] | null }) {
           <div className="card-eyebrow">Distribución de motivos de baja</div>
           <div className="card-title">Acumulado del período · {nfmt(total)} bajas</div>
         </div>
-        {pctSinMotivo > 0 && (
-          <span style={{ background: "#FEE2E2", color: "#DC2626", padding: "6px 12px", borderRadius: 8, fontSize: 13, fontWeight: 600, border: "1px solid #FECACA" }}>
-            ⚠ {pctSinMotivo.toFixed(1)}% sin motivo
-          </span>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          {/* Filtro de fechas */}
+          {bounds && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span className="fs-11 muted">Desde</span>
+              <input
+                type="date" value={from || bounds.min} min={bounds.min} max={bounds.max}
+                onChange={(e) => setFrom(e.target.value)}
+                style={{ fontSize: 12, padding: "4px 8px", borderRadius: 6, border: "1px solid var(--rule)", background: "var(--paper)", color: "var(--ink)", fontFamily: "inherit" }}
+              />
+              <span className="fs-11 muted">Hasta</span>
+              <input
+                type="date" value={to || bounds.max} min={bounds.min} max={bounds.max}
+                onChange={(e) => setTo(e.target.value)}
+                style={{ fontSize: 12, padding: "4px 8px", borderRadius: 6, border: "1px solid var(--rule)", background: "var(--paper)", color: "var(--ink)", fontFamily: "inherit" }}
+              />
+              {(from || to) && (
+                <button onClick={() => { setFrom(""); setTo(""); }}
+                  style={{ fontSize: 11, padding: "4px 8px", borderRadius: 6, border: "1px solid var(--rule)", background: "var(--paper)", cursor: "pointer", color: "var(--ink-3)" }}>
+                  ✕
+                </button>
+              )}
+            </div>
+          )}
+          {pctSinMotivo > 0 && (
+            <span style={{ background: "#FEE2E2", color: "#DC2626", padding: "6px 12px", borderRadius: 8, fontSize: 13, fontWeight: 600, border: "1px solid #FECACA" }}>
+              ⚠ {pctSinMotivo.toFixed(1)}% sin motivo
+            </span>
+          )}
+        </div>
       </div>
 
       <div style={{ display: "flex", gap: 32, alignItems: "center", flexWrap: "wrap" }}>
