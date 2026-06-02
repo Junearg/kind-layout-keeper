@@ -19,7 +19,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, ErrorBar, Cell,
   Line, ReferenceLine, Legend,
 } from "recharts";
-import { MOTIVO_CATS, MOTIVO_COLORS, AREA_ESTRATEGICA } from "@/lib/motivo-normalizer";
+import { MOTIVO_CATS, MOTIVO_COLORS, AREA_ESTRATEGICA, normalizarMotivo } from "@/lib/motivo-normalizer";
 import { PLANES } from "@/data/supabase-trend";
 import { useSnapshot } from "@/data/supabase-snapshot";
 import { mesCorto } from "@/data/schema";

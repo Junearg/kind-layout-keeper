@@ -118,8 +118,7 @@ function Resumen() {
         </div>
       </div>
 
-      {/* Snapshot diario */}
-      <DailySection pais={selectedPais} />
+      {/* Snapshot diario → ver pestaña Retención */}
 
       {/* Tendencia */}
       <div className="divider">
