@@ -9,26 +9,36 @@ import {
   type KpiDiario,
 } from "@/data/supabase-kpis-diarios";
 
-/** Diagnóstico: muestra qué valores reales hay en Supabase para una fecha */
+/** Diagnóstico: cuenta exacta por campo usando paginación completa */
 function useDebugFecha(fecha: string) {
   return useQuery({
-    queryKey: ["debug-fecha", fecha],
+    queryKey: ["debug-fecha-v2", fecha],
     queryFn: async () => {
       if (!fecha) return null;
-      const { data } = await supabase
-        .from("clientes")
-        .select("estado_dash,etapa,temas_contacto,motivos_contacto")
-        .eq("mes_exportacion", fecha)
-        .limit(500);
-      const rows = data ?? [];
-      const total = rows.length;
-      const countBy = (field: keyof typeof rows[0]) => {
+
+      // Paginación completa para contar bien
+      const PAGE = 1000;
+      const allRows: { estado_dash: string|null; etapa: string|null; temas_contacto: string|null; motivos_contacto: string|null }[] = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from("clientes")
+          .select("estado_dash,etapa,temas_contacto,motivos_contacto")
+          .eq("mes_exportacion", fecha)
+          .range(from, from + PAGE - 1);
+        if (error) break;
+        const batch = data ?? [];
+        allRows.push(...batch as any);
+        if (batch.length < PAGE) break;
+      }
+
+      const total = allRows.length;
+      const countBy = (field: keyof typeof allRows[0]) => {
         const map: Record<string, number> = {};
-        for (const r of rows) {
+        for (const r of allRows) {
           const v = String(r[field] ?? "(null)");
           map[v] = (map[v] ?? 0) + 1;
         }
-        return Object.entries(map).sort((a, b) => b[1] - a[1]);
+        return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 8);
       };
       return {
         total,
