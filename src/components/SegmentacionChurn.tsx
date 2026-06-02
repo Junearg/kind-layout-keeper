@@ -284,6 +284,35 @@ function PlanTab({ data }: { data: SegmentacionData }) {
               </div>
             );
           })}
+
+          {/* Tarjeta de diagnóstico: plan más afectado */}
+          {(() => {
+            const worst = m.planRates[0];
+            const best  = m.planRates[m.planRates.length - 1];
+            if (!worst || !best || worst.name === best.name) return null;
+            const ratio = best.rate > 0 ? (worst.rate / best.rate) : null;
+            return (
+              <div style={{
+                borderRadius: 14, padding: "16px 18px",
+                background: "#FEF2F2", border: "2px solid #FECACA",
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, color: "#DC2626", marginBottom: 6 }}>
+                  MÁS AFECTADO
+                </div>
+                <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, color: "#DC2626", fontFamily: "'Inter', sans-serif", letterSpacing: "-0.02em" }}>
+                  {worst.name}
+                </div>
+                <div style={{ marginTop: 8, fontSize: 12, color: "#991B1B", fontWeight: 600 }}>
+                  {pctfmt(worst.rate)} de su base se da de baja
+                </div>
+                {ratio != null && (
+                  <div style={{ marginTop: 6, fontSize: 11, color: "#B91C1C" }}>
+                    {ratio.toFixed(1)}× más que {best.name} ({pctfmt(best.rate)})
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </div>
 
