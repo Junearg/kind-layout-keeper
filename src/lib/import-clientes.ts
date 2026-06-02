@@ -16,7 +16,6 @@ const COLUMN_MAP: Record<string, string> = {
   "Fecha del último log in": "ultima_fecha_contacto",  // login = último contacto
   "ventas?": "temas_contacto",        // "C/ vtas ultimos 7 dias" | "S/ vtas ultimos 7 dias"
   "ultima login?": "motivos_contacto", // "Menos de 7 dias" | "Más de 7 dias"
-  "Estado de Cuenta": "estado_cuenta",
   "Fecha de Baja": "fecha_baja",
   "Motivo de Baja (HB)": "motivo_baja",
   "Motivo de Baja": "motivo_baja",
