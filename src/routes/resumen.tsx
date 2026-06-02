@@ -352,7 +352,7 @@ function TrendCard({ trend, delta, prevLabel, latestLabel }: {
               <LabelList
                 content={({ x, y, width, value, index }) => {
                   const d = data[index as number];
-                  if (!d || d.bajas !== maxBajas) return null;
+                  if (!d) return null;
                   const xNum = Number(x ?? 0) + Number(width ?? 0) / 2;
                   const yNum = Number(y ?? 0) - 8;
                   return (
