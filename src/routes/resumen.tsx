@@ -138,8 +138,8 @@ function Resumen() {
         <span className="rule" />
       </div>
 
-      <TrendCard trend={r.churnTrend} delta={r.monthDeltaPct} prevLabel={r.prevClosedLabel} latestLabel={r.latestClosedLabel} />
-      
+      <TrendCard trend={r.churnTrend.slice(-6)} delta={r.monthDeltaPct} prevLabel={r.prevClosedLabel} latestLabel={r.latestClosedLabel} />
+      <MotivosStackedCard rows={insights6m?.rows ?? null} />
 
       {/* Retención vs Plan */}
       {ret && (
@@ -176,7 +176,7 @@ function Resumen() {
                     ? `estimado · plan ${ret.churnPlan != null ? `${ret.churnPlan.toFixed(1)}%` : "—"}`
                     : "sin datos suficientes"}
               </div>
-              {netoDisplay != null && ret.churnPlan != null && ret.proyectadoVsPlan != null && (
+              {netoDisplay != null && ret.churnPlan != null && (
                 <div style={{ marginTop: 10 }}>
                   <span className={`tag ${Math.abs(ret.proyectadoVsPlan) <= 5 ? "orange" : ret.proyectadoVsPlan > 5 ? "red" : "blue"}`}>
                     {ret.proyectadoVsPlan >= 0 ? "+" : ""}{ret.proyectadoVsPlan.toFixed(1)}% vs plan
