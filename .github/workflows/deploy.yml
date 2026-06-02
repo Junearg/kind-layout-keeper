@@ -35,3 +35,14 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_SUPABASE_PROJECT_ID: ysxqrpgtwsmywcfjuxxr
+
+      - name: Show build output structure
+        run: |
+          echo "=== dist/ ==="
+          ls -la dist/ 2>/dev/null || echo "no dist/"
+          echo "=== dist/server/ ==="
+          ls -la dist/server/ 2>/dev/null || echo "no dist/server/"
+          echo "=== dist/client/ ==="
+          ls -la dist/client/ 2>/dev/null || echo "no dist/client/"
+          echo "=== dist/server/wrangler.json ==="
+          cat dist/server/wrangler.json 2>/dev/null || echo "no wrangler.json"
