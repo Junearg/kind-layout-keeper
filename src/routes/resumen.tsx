@@ -16,7 +16,7 @@ import { mesCorto } from "@/data/schema";
 import { normalizarMotivo, MOTIVO_CATS, MOTIVO_COLORS } from "@/lib/motivo-normalizer";
 import {
   ResponsiveContainer, ComposedChart, BarChart, Bar, Line,
-  XAxis, YAxis, Tooltip, CartesianGrid, LabelList,
+  XAxis, YAxis, Tooltip, CartesianGrid, LabelList, Cell,
 } from "recharts";
 
 export const Route = createFileRoute("/resumen")({
@@ -296,8 +296,10 @@ function TrendCard({ trend, delta, prevLabel, latestLabel }: {
     const pct = d.pctMotivo ?? 0;
     const conMotivo = Math.round((d.bajas * pct) / 100);
     const sinMotivo = Math.max(0, d.bajas - conMotivo);
-    return { ...d, conMotivo, sinMotivo };
+    const pctSinMotivo = d.bajas > 0 ? Math.round((sinMotivo / d.bajas) * 100) : 0;
+    return { ...d, conMotivo, sinMotivo, pctSinMotivo };
   });
+  const maxBajas = Math.max(...data.map((d) => d.bajas), 0);
 
   return (
     <div className="card lg">
@@ -346,7 +348,26 @@ function TrendCard({ trend, delta, prevLabel, latestLabel }: {
               }}
             />
             <Bar dataKey="conMotivo" stackId="b" fill={ORANGE} radius={[0, 0, 0, 0]} barSize={28} />
-            <Bar dataKey="sinMotivo" stackId="b" fill={SIN_COLOR} radius={[6, 6, 0, 0]} barSize={28} />
+            <Bar dataKey="sinMotivo" stackId="b" fill={SIN_COLOR} radius={[6, 6, 0, 0]} barSize={28}>
+              <LabelList
+                content={({ x, y, width, value, index }) => {
+                  const d = data[index as number];
+                  if (!d || d.bajas !== maxBajas) return null;
+                  const xNum = Number(x ?? 0) + Number(width ?? 0) / 2;
+                  const yNum = Number(y ?? 0) - 8;
+                  return (
+                    <g>
+                      <text x={xNum} y={yNum} textAnchor="middle" fontSize={12} fontWeight={700} fill="#DC2626">
+                        {`${d.pctSinMotivo}% sin motivo`}
+                      </text>
+                      <text x={xNum} y={yNum - 16} textAnchor="middle" fontSize={11} fill="#6E6D66">
+                        {nfmt(d.bajas)} bajas
+                      </text>
+                    </g>
+                  );
+                }}
+              />
+            </Bar>
           </ComposedChart>
         </ResponsiveContainer>
       </div>
