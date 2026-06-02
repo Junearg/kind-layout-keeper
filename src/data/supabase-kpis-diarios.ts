@@ -54,15 +54,33 @@ export type KpiDiario = {
   mpcsVsPlan: number | null;        // (activas - mpcsMeta) / mpcsMeta × 100
 };
 
-/** Calcula los 25 KPIs para un snapshot diario y país. */
+/** Calcula los 25 KPIs para un snapshot diario y país.
+ *
+ * Replica exactamente las fórmulas del GSheet "Dashboard > columna J":
+ * - Activas           = COUNTIF(estado_dash, "Activo")
+ * - Aviso de Pago     = COUNTIF(estado_dash, "Aviso de Pago")
+ * - Bajas Confirmadas = COUNTIF(etapa, "Bajas"|"Bajas clientes")
+ * - A Recuperar       = COUNTIF(etapa, "Onboarding"|"Engagement")
+ * - C/ vtas 7d        = COUNTIF(temas_contacto, "C/ vtas ultimos 7 dias")
+ * - S/ vtas 7d        = COUNTIF(temas_contacto, "S/ vtas ultimos 7 dias")
+ * - Login < 7d        = COUNTIF(motivos_contacto, "Menos de 7 dias")
+ * - % Retenido        = Activas / MPCs_mes_pasado × 100
+ */
 export async function computeKpiDia(fecha: string, pais: Pais): Promise<KpiDiario> {
   type ActiveRow = {
+    temas_contacto: string | null;      // "C/ vtas ultimos 7 dias" | "S/ vtas ultimos 7 dias"
+    motivos_contacto: string | null;    // "Menos de 7 dias" | otros
+    ultima_fecha_contacto: string | null;
     v_salon: number | null;
     v_delivery: number | null;
     v_mostrador: number | null;
-    ultima_fecha_contacto: string | null;
   };
-  type RecuperarRow = { v_salon: number | null; v_delivery: number | null; v_mostrador: number | null };
+  type RecuperarRow = {
+    temas_contacto: string | null;
+    v_salon: number | null;
+    v_delivery: number | null;
+    v_mostrador: number | null;
+  };
 
   const d = new Date(fecha);
   d.setUTCDate(d.getUTCDate() - 1);
@@ -72,42 +90,48 @@ export async function computeKpiDia(fecha: string, pais: Pais): Promise<KpiDiari
     activasRes, bajasRes, onboardingRes, engagementRes,
     pagoPendienteRes, prevActivasRes, recuperarRowsRes,
   ] = await Promise.all([
+    // Activas = estado_dash = "Activo"
     applyPais(
       supabase.from("clientes")
-        .select("v_salon,v_delivery,v_mostrador,ultima_fecha_contacto")
+        .select("temas_contacto,motivos_contacto,ultima_fecha_contacto,v_salon,v_delivery,v_mostrador")
         .eq("mes_exportacion", fecha)
         .eq("estado_dash", "Activo"),
       pais
     ),
+    // Bajas Confirmadas
     applyPais(
       supabase.from("clientes").select("*", { count: "exact", head: true })
         .eq("mes_exportacion", fecha).in("etapa", ETAPAS_BAJA),
       pais
     ),
+    // Onboarding
     applyPais(
       supabase.from("clientes").select("*", { count: "exact", head: true })
         .eq("mes_exportacion", fecha).eq("etapa", "Onboarding"),
       pais
     ),
+    // Engagement
     applyPais(
       supabase.from("clientes").select("*", { count: "exact", head: true })
         .eq("mes_exportacion", fecha).eq("etapa", "Engagement"),
       pais
     ),
+    // Aviso de Pago (= "Pago Pendiente" del GSheet)
     applyPais(
       supabase.from("clientes").select("*", { count: "exact", head: true })
-        .eq("mes_exportacion", fecha).eq("estado_dash", "Pago Pendiente"),
+        .eq("mes_exportacion", fecha).eq("estado_dash", "Aviso de Pago"),
       pais
     ),
+    // MPCs mes pasado = activas del día anterior
     applyPais(
       supabase.from("clientes").select("*", { count: "exact", head: true })
         .eq("mes_exportacion", prevFecha).eq("estado_dash", "Activo"),
       pais
     ),
-    // A Recuperar con datos de ventas (para recuperar10v)
+    // A Recuperar con temas_contacto para calcular recuperar10v
     applyPais(
       supabase.from("clientes")
-        .select("v_salon,v_delivery,v_mostrador")
+        .select("temas_contacto,v_salon,v_delivery,v_mostrador")
         .eq("mes_exportacion", fecha)
         .in("etapa", ETAPAS_RECUPERAR),
       pais
@@ -124,22 +148,32 @@ export async function computeKpiDia(fecha: string, pais: Pais): Promise<KpiDiari
   const pagoPendiente = pagoPendienteRes.count ?? 0;
   const mpcsMesPasado = prevActivasRes.count ?? activas;
 
-  const activasConVentas = rows.filter(r =>
-    ((r.v_salon ?? 0) + (r.v_delivery ?? 0) + (r.v_mostrador ?? 0)) >= 10
-  ).length;
+  // C/ vtas últimos 7 días: usa la columna "temas_contacto" que importa "ventas?"
+  // Si temas_contacto es null (import mensual sin este campo) → fallback a ventas mensuales ≥10
+  const hasVentasColumn = rows.some(r => r.temas_contacto != null);
+  const activasConVentas = hasVentasColumn
+    ? rows.filter(r => r.temas_contacto === "C/ vtas ultimos 7 dias").length
+    : rows.filter(r => ((r.v_salon ?? 0) + (r.v_delivery ?? 0) + (r.v_mostrador ?? 0)) >= 10).length;
 
-  const recuperar10v = recRows.filter(r =>
-    ((r.v_salon ?? 0) + (r.v_delivery ?? 0) + (r.v_mostrador ?? 0)) >= 10
-  ).length;
+  const sinVentas = hasVentasColumn
+    ? rows.filter(r => r.temas_contacto === "S/ vtas ultimos 7 dias").length
+    : rows.filter(r => ((r.v_salon ?? 0) + (r.v_delivery ?? 0) + (r.v_mostrador ?? 0)) === 0).length;
 
-  const sinVentas = rows.filter(r =>
-    ((r.v_salon ?? 0) + (r.v_delivery ?? 0) + (r.v_mostrador ?? 0)) === 0
-  ).length;
+  // Recuperar con ventas
+  const hasVentasRec = recRows.some(r => r.temas_contacto != null);
+  const recuperar10v = hasVentasRec
+    ? recRows.filter(r => r.temas_contacto === "C/ vtas ultimos 7 dias").length
+    : recRows.filter(r => ((r.v_salon ?? 0) + (r.v_delivery ?? 0) + (r.v_mostrador ?? 0)) >= 10).length;
 
-  const loginMenos7 = rows.filter(r => {
-    if (!r.ultima_fecha_contacto) return false;
-    return (Date.now() - new Date(r.ultima_fecha_contacto).getTime()) / 86_400_000 < 7;
-  }).length;
+  // Login < 7 días: usa motivos_contacto = "Menos de 7 dias" (importado de "ultima login?")
+  // Si el campo no está disponible → calcula desde ultima_fecha_contacto
+  const hasLoginColumn = rows.some(r => r.motivos_contacto != null);
+  const loginMenos7 = hasLoginColumn
+    ? rows.filter(r => r.motivos_contacto === "Menos de 7 dias").length
+    : rows.filter(r => {
+        if (!r.ultima_fecha_contacto) return false;
+        return (Date.now() - new Date(r.ultima_fecha_contacto).getTime()) / 86_400_000 < 7;
+      }).length;
 
   const base          = mpcsMesPasado || 1;
   const pct10v        = activas > 0 ? (activasConVentas / activas) * 100 : 0;
