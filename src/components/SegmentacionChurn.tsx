@@ -228,36 +228,72 @@ function PlanTab({ data }: { data: SegmentacionData }) {
     }
     const total = Object.values(curr).reduce((s, v) => s + v, 0);
     const top = [...PLANES_ORDER].sort((a, b) => (curr[b] ?? 0) - (curr[a] ?? 0))[0];
-    const rates = PLANES_ORDER.map((p) => {
+    // Tasa por plan: bajas del período / base activa del plan
+    const planRates = PLANES_ORDER.map((p) => {
       const base = data.activeBase.plan[p] ?? 0;
-      return { name: p as string, rate: base > 0 ? ((curr[p] ?? 0) / base) * 100 : 0 };
-    }).filter((r) => r.rate > 0);
-    const worstRate = [...rates].sort((a, b) => b.rate - a.rate)[0];
+      const bajas = curr[p] ?? 0;
+      return { name: p as string, rate: base > 0 ? (bajas / base) * 100 : 0, bajas, base };
+    }).filter((r) => r.base > 0).sort((a, b) => b.rate - a.rate);
+    const worstRate = planRates[0];
     const totalBase = Object.values(data.activeBase.plan).reduce((s, v) => s + v, 0);
     const totalRate = totalBase > 0 ? (total / totalBase) * 100 : 0;
-    return { curr, total, top, worstRate, totalRate };
+    const maxRate = Math.max(...planRates.map(r => r.rate), 0.01);
+    return { curr, total, top, worstRate, totalRate, planRates, maxRate };
   }, [data, latestKey]);
 
   const getPlan = (r: BajaRow) => r.planBase as string | null;
 
   return (
     <>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 20 }}>
         <KpiCard label="Mayor volumen" value={m.top ?? "—"}
           sub={m.top ? `${nfmt(m.curr[m.top] ?? 0)} bajas · ${latestLabel}` : ""} />
         <KpiCard label="Mayor tasa" value={m.worstRate?.name ?? "—"}
           sub={m.worstRate ? `${pctfmt(m.worstRate.rate)} · sobre base del plan` : ""} tone="orange" />
         <KpiCard label="Churn rate total" value={pctfmt(m.totalRate)}
           sub={`${nfmt(m.total)} bajas · ${latestLabel}`} />
-        <KpiCard label="Base activa por plan" value={m.worstRate?.name ?? "—"}
-          sub={m.worstRate ? `${pctfmt(m.worstRate.rate)} mayor tasa` : ""} tone="ink" />
       </div>
+
+      {/* Tasa de churn por plan sobre base activa */}
+      <div style={{ marginBottom: 20 }}>
+        <div className="card-eyebrow" style={{ marginBottom: 12 }}>
+          Tasa de churn por plan · bajas / base activa · {latestLabel}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {m.planRates.map((r) => (
+            <div key={r.name} style={{ display: "grid", gridTemplateColumns: "80px 1fr 56px 140px", alignItems: "center", gap: 12, fontSize: 12.5 }}>
+              {/* Nombre del plan */}
+              <span style={{ fontWeight: 600, color: PLAN_COLORS[r.name] ?? "var(--ink)" }}>
+                {r.name}
+              </span>
+              {/* Barra de tasa */}
+              <div style={{ background: "var(--paper-2)", borderRadius: 99, height: 8, overflow: "hidden" }}>
+                <div style={{
+                  width: `${(r.rate / m.maxRate) * 100}%`,
+                  background: PLAN_COLORS[r.name] ?? "var(--orange)",
+                  height: "100%", borderRadius: 99,
+                  transition: "width 0.3s",
+                }} />
+              </div>
+              {/* Tasa % */}
+              <span className="mono" style={{ fontWeight: 700, textAlign: "right", color: r.rate > 5 ? "var(--red)" : "var(--ink)" }}>
+                {pctfmt(r.rate)}
+              </span>
+              {/* Bajas / base */}
+              <span className="muted" style={{ fontSize: 11 }}>
+                {nfmt(r.bajas)} bajas · de {nfmt(r.base)} activas
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <StackedEvolution
         data={data}
         dimensionKeys={[...PLANES_ORDER] as string[]}
         getKey={getPlan}
         colors={PLAN_COLORS}
-        title="Bajas por plan"
+        title="Composición de bajas por plan"
       />
     </>
   );
