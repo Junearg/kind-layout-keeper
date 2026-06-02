@@ -229,7 +229,7 @@ function PlanTab({ data }: { data: SegmentacionData }) {
     const total = Object.values(curr).reduce((s, v) => s + v, 0);
     const top = [...PLANES_ORDER].sort((a, b) => (curr[b] ?? 0) - (curr[a] ?? 0))[0];
     // Tasa por plan: bajas del período / base activa del plan
-    const planRates = PLANES_ORDER.map((p) => {
+    const planRates = PLANES_ORDER.filter(p => p !== "Base").map((p) => {
       const base = data.activeBase.plan[p] ?? 0;
       const bajas = curr[p] ?? 0;
       return { name: p as string, rate: base > 0 ? (bajas / base) * 100 : 0, bajas, base };
