@@ -257,19 +257,42 @@ async function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
   }
 }
 
+// Columnas clave para detectar dónde están los headers
+const KNOWN_HEADERS = new Set(
+  Object.keys(COLUMN_MAP).map(normalizeHeaderKey)
+);
+
 export async function parseClientesSheet(
   file: File | ArrayBuffer,
 ): Promise<Record<string, unknown>[]> {
   const buf = file instanceof ArrayBuffer ? file : await readFileAsArrayBuffer(file);
   const wb = XLSX.read(buf, { type: "array", cellDates: true });
-  const sheetName =
-    wb.SheetNames.find((n) => n.toLowerCase().includes("base general")) || wb.SheetNames[0];
-  const ws = wb.Sheets[sheetName];
-  if (!ws) throw new Error(`No se encontró la hoja "Base general" en el archivo.`);
 
-  // range from row 2 (index 1): row 1 = "DATOS CHURN BASE", row 2 = headers, row 3+ = data
+  // Buscar la hoja: "Base general" primero, luego la primera disponible
+  const sheetName =
+    wb.SheetNames.find((n) => n.toLowerCase().includes("base general")) ||
+    wb.SheetNames.find((n) => n.toLowerCase().includes("base")) ||
+    wb.SheetNames[0];
+  const ws = wb.Sheets[sheetName];
+  if (!ws) throw new Error(`No se encontró ninguna hoja válida en el archivo.`);
+
+  // Detectar automáticamente si los headers están en fila 1 o fila 2.
+  // Export mensual: fila 1 = título ("DATOS CHURN BASE"), fila 2 = headers.
+  // base_hubspot / export diario: fila 1 = headers directamente.
+  const rowsR0 = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
+    range: 0, defval: null, raw: true,
+  });
+  const firstRowKeys = rowsR0.length > 0
+    ? Object.keys(rowsR0[0]!).map(normalizeHeaderKey)
+    : [];
+  const headerMatchesR0 = firstRowKeys.filter(k => KNOWN_HEADERS.has(k)).length;
+
+  // Si la primera fila ya tiene columnas conocidas → usar range:0 (base_hubspot)
+  // Si no → asumir que fila 1 es título y fila 2 son headers → range:1 (export mensual)
+  const range = headerMatchesR0 >= 2 ? 0 : 1;
+
   const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
-    range: 1,
+    range,
     defval: null,
     raw: true,
   });
