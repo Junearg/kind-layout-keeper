@@ -261,36 +261,6 @@ function Tendencia() {
         <EmptyPeriod section="Tendencia mensual" mes={mesLargo(mesActivo)} />
       ) : (
       <>
-      {/* Fila 1 — Monthly Churn Rate */}
-      <div style={{ marginBottom: 20, maxWidth: 280 }}>
-
-        {/* Card 1 — Monthly Churn Rate */}
-        <div className="card">
-          <div className="card-eyebrow" style={{ display: "flex", alignItems: "center" }}>
-            Monthly Churn Rate
-            <Info tip="Bajas del mes en curso / cuentas activas al inicio del mes. El badge muestra la variación vs el mes anterior en puntos porcentuales." />
-          </div>
-          <div className="bignum" style={{ marginTop: 8 }}>
-            {latestRateP ? pctfmt(latestRateP.rate) : "—"}
-          </div>
-          <div className="fs-12 muted" style={{ marginTop: 6 }}>
-            {latestRateP
-              ? <>{nfmt(latestRateP.bajas)} bajas · {latestRateP.mes}</>
-              : "sin datos"}
-          </div>
-          {d.monthDeltaRatePts !== null && (
-            <div style={{ marginTop: 10 }}>
-              <span className={`tag ${d.monthDeltaRatePts > 0 ? "red" : "blue"}`}>
-                {d.monthDeltaRatePts >= 0 ? "+" : ""}{d.monthDeltaRatePts.toFixed(2)} pts vs ant.
-              </span>
-            </div>
-          )}
-        </div>
-
-      </div>
-
-
-
       {/* Segmentación */}
       <SegmentacionChurn />
 

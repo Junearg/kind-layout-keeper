@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { SegmentacionChurn } from "@/components/SegmentacionChurn";
 import { useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
 
@@ -220,6 +221,14 @@ function Resumen() {
         </div>
         </>
       )}
+
+      {/* ── Churn Rate — Segmentación ── */}
+      <div className="divider" style={{ marginTop: 24 }}>
+        <span className="kicker">Churn Rate</span>
+        <span className="alt">/ segmentación y evolución</span>
+        <span className="rule" />
+      </div>
+      <SegmentacionChurn />
       </>
       )}
     </Layout>

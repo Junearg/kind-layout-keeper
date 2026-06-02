@@ -11,7 +11,6 @@ import { useCountry, PAISES } from "@/contexts/CountryContext";
 const TABS = [
 
   { to: "/resumen",    label: "Dashboard" },
-  { to: "/tendencia",  label: "Churn Rate" },
   { to: "/health",     label: "Health Score" },
   { to: "/contactos",  label: "Contact Churn" },
   { to: "/retencion",  label: "Retención" },
