@@ -62,10 +62,10 @@ function Resumen() {
       ) : !r ? null : (
       <>
 
-      {/* Header — 2 tarjetas simétricas y compactas */}
-      <div className="bento cols-2">
+      {/* Header — 2 tarjetas cuadradas compactas */}
+      <div style={{ display: "flex", gap: 16, marginBottom: 0 }}>
         {/* Bajas del mes */}
-        <div className="card orange" style={{ minHeight: 148, padding: "16px 20px" }}>
+        <div className="card orange" style={{ width: 220, minHeight: 200, padding: "16px 20px", flexShrink: 0 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
               <div className="card-eyebrow" style={{ fontSize: 11 }}>Bajas del mes</div>
@@ -103,7 +103,7 @@ function Resumen() {
         </div>
 
         {/* Cuentas activas */}
-        <div className="card" style={{ minHeight: 148, padding: "16px 20px" }}>
+        <div className="card" style={{ width: 220, minHeight: 200, padding: "16px 20px", flexShrink: 0 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
               <div className="card-eyebrow" style={{ fontSize: 11 }}>Cuentas activas</div>
