@@ -64,7 +64,7 @@ function Resumen() {
       ) : error ? (
         <div className="card" style={{ padding: 20, color: "var(--red)" }}>Error: {(error as Error).message}</div>
       ) : !r ? null : (
-      <>
+      <div key={selectedPeriod}>{/* key fuerza remount al cambiar período — evita conflictos de hooks */}
 
       {/* Header — 2 tarjetas cuadradas compactas */}
       <div style={{ display: "flex", gap: 16, marginBottom: 0 }}>
@@ -179,8 +179,7 @@ function Resumen() {
       </div>
 
       <TrendCard trend={r.churnTrend.slice(-12)} delta={r.monthDeltaPct} prevLabel={r.prevClosedLabel} latestLabel={r.latestClosedLabel} />
-      {/* MotivosStackedCard temporalmente deshabilitado para diagnóstico */}
-      {false && <MotivosStackedCard rows={insights6m?.rows ?? null} />}
+      <MotivosStackedCard rows={insights6m?.rows ?? null} />
 
       {/* Retención vs Plan — oculto por ahora */}
       {false && ret && (
@@ -279,7 +278,7 @@ function Resumen() {
         <span className="rule" />
       </div>
       <SegmentacionChurn />
-      </>
+      </div>
       )}
     </Layout>
   );
