@@ -21,24 +21,17 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
   async function loadPeriods() {
     setLoading(true);
     try {
-      // Paginamos para superar el límite de 1000 filas de PostgREST
-      const PAGE = 1000;
-      const allPeriods = new Set<string>();
-      for (let from = 0; ; from += PAGE) {
-        const { data, error } = await supabase
-          .from("clientes")
-          .select("mes_exportacion")
-          .not("mes_exportacion", "is", null)
-          .range(from, from + PAGE - 1);
-        if (error) break;
-        const batch = (data ?? []).map((r) => r.mes_exportacion as string).filter(Boolean);
-        batch.forEach((p) => allPeriods.add(p));
-        if (batch.length < PAGE) break;
-      }
-      // Solo períodos mensuales (formato YYYY-MM, 7 caracteres), ordenados desc
-      const uniq = Array.from(allPeriods)
-        .filter((p) => p.length === 7)
-        .sort((a, b) => b.localeCompare(a));
+      // Una sola query con limit alto — solo traemos mes_exportacion (string ligero)
+      // Filtramos a YYYY-MM (len=7) para excluir snapshots diarios (YYYY-MM-DD)
+      const { data, error } = await supabase
+        .from("clientes")
+        .select("mes_exportacion")
+        .not("mes_exportacion", "is", null)
+        .limit(50000);
+      if (error) throw error;
+      const uniq = Array.from(
+        new Set((data ?? []).map((r) => r.mes_exportacion as string).filter((p) => p?.length === 7)),
+      ).sort((a, b) => b.localeCompare(a));
 
       setAvailable(uniq);
       const stored = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
