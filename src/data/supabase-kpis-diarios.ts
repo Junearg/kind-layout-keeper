@@ -69,8 +69,8 @@ export type KpiDiario = {
  */
 export async function computeKpiDia(fecha: string, pais: Pais): Promise<KpiDiario> {
   type ActiveRow = {
-    temas_contacto: string | null;      // "C/ vtas ultimos 7 dias" | "S/ vtas ultimos 7 dias"
-    motivos_contacto: string | null;    // "Menos de 7 dias" | otros
+    temas_contacto: string | null;
+    motivos_contacto: string | null;
     ultima_fecha_contacto: string | null;
     v_salon: number | null;
     v_delivery: number | null;
@@ -87,61 +87,55 @@ export async function computeKpiDia(fecha: string, pais: Pais): Promise<KpiDiari
   d.setUTCDate(d.getUTCDate() - 1);
   const prevFecha = d.toISOString().slice(0, 10);
 
-  const [
-    activasRes, bajasRes, onboardingRes, engagementRes,
-    pagoPendienteRes, prevActivasRes, recuperarRowsRes,
-  ] = await Promise.all([
-    // Activas = estado_dash = "Activo"
+  // Paginación completa para superar el límite de 1000 filas de PostgREST
+  async function fetchAllRows<T>(builder: () => any): Promise<T[]> {
+    const PAGE = 1000;
+    const out: T[] = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await builder().range(from, from + PAGE - 1);
+      if (error) break;
+      const batch = (data ?? []) as T[];
+      out.push(...batch);
+      if (batch.length < PAGE) break;
+    }
+    return out;
+  }
+
+  // Activas con paginación completa (puede ser 25.000+ filas)
+  const rows = await fetchAllRows<ActiveRow>(() =>
     applyPais(
       supabase.from("clientes")
         .select("temas_contacto,motivos_contacto,ultima_fecha_contacto,v_salon,v_delivery,v_mostrador")
         .eq("mes_exportacion", fecha)
         .eq("estado_dash", "Activo"),
       pais
-    ),
-    // Bajas Confirmadas
-    applyPais(
-      supabase.from("clientes").select("*", { count: "exact", head: true })
-        .eq("mes_exportacion", fecha).in("etapa", ETAPAS_BAJA),
-      pais
-    ),
-    // Onboarding
-    applyPais(
-      supabase.from("clientes").select("*", { count: "exact", head: true })
-        .eq("mes_exportacion", fecha).eq("etapa", "Onboarding"),
-      pais
-    ),
-    // Engagement
-    applyPais(
-      supabase.from("clientes").select("*", { count: "exact", head: true })
-        .eq("mes_exportacion", fecha).eq("etapa", "Engagement"),
-      pais
-    ),
-    // Aviso de Pago (= "Pago Pendiente" del GSheet)
-    applyPais(
-      supabase.from("clientes").select("*", { count: "exact", head: true })
-        .eq("mes_exportacion", fecha).eq("estado_dash", "Aviso de Pago"),
-      pais
-    ),
-    // MPCs mes pasado = activas del día anterior
-    applyPais(
-      supabase.from("clientes").select("*", { count: "exact", head: true })
-        .eq("mes_exportacion", prevFecha).eq("estado_dash", "Activo"),
-      pais
-    ),
-    // A Recuperar: usa nps_motivo (= "Estado de Cuenta" col W) = "A Recuperar"
-    // Exacto al GSheet: CONTAR.SI.CONJUNTO(Base_Hubspot!$W:$W,"A Recuperar")
+    )
+  );
+
+  // A Recuperar con paginación (puede ser 6.000+ filas)
+  const recRows = await fetchAllRows<RecuperarRow>(() =>
     applyPais(
       supabase.from("clientes")
         .select("temas_contacto,v_salon,v_delivery,v_mostrador")
         .eq("mes_exportacion", fecha)
         .eq("nps_motivo", "A Recuperar"),
       pais
-    ),
-  ]);
+    )
+  );
 
-  const rows        = (activasRes.data ?? []) as ActiveRow[];
-  const recRows     = (recuperarRowsRes.data ?? []) as RecuperarRow[];
+  // Las queries de COUNT no necesitan paginación (solo devuelven el número)
+  const [bajasRes, onboardingRes, engagementRes, pagoPendienteRes, prevActivasRes] = await Promise.all([
+    applyPais(supabase.from("clientes").select("*", { count: "exact", head: true })
+      .eq("mes_exportacion", fecha).in("etapa", ETAPAS_BAJA), pais),
+    applyPais(supabase.from("clientes").select("*", { count: "exact", head: true })
+      .eq("mes_exportacion", fecha).eq("etapa", "Onboarding"), pais),
+    applyPais(supabase.from("clientes").select("*", { count: "exact", head: true })
+      .eq("mes_exportacion", fecha).eq("etapa", "Engagement"), pais),
+    applyPais(supabase.from("clientes").select("*", { count: "exact", head: true })
+      .eq("mes_exportacion", fecha).eq("estado_dash", "Aviso de Pago"), pais),
+    applyPais(supabase.from("clientes").select("*", { count: "exact", head: true })
+      .eq("mes_exportacion", prevFecha).eq("estado_dash", "Activo"), pais),
+  ]);
   const activas     = rows.length;
   const bajas       = bajasRes.count ?? 0;
   const onboarding  = onboardingRes.count ?? 0;
