@@ -275,9 +275,15 @@ export async function parseClientesSheet(
   const buf = file instanceof ArrayBuffer ? file : await readFileAsArrayBuffer(file);
   const wb = XLSX.read(buf, { type: "array", cellDates: true });
 
-  // Buscar la hoja: "Base general" primero, luego la primera disponible
+  // Prioridad de hojas:
+  // 1. "Base general" — export mensual estándar de HubSpot
+  // 2. "Cruce Bajas" — archivo consolidado mensual (bajas + NPS + contact rate)
+  // 3. "Base_Hubspot" / "base" — import diario
+  // 4. Primera hoja disponible
   const sheetName =
     wb.SheetNames.find((n) => n.toLowerCase().includes("base general")) ||
+    wb.SheetNames.find((n) => n.toLowerCase().includes("cruce bajas")) ||
+    wb.SheetNames.find((n) => n.toLowerCase().includes("bajas")) ||
     wb.SheetNames.find((n) => n.toLowerCase().includes("base")) ||
     wb.SheetNames[0];
   const ws = wb.Sheets[sheetName];
