@@ -238,18 +238,24 @@ function RetencionPage() {
             <div style={{ fontSize: 52, fontWeight: 800, lineHeight: 1, color: retTone === "green" ? "#16A34A" : retTone === "red" ? "#DC2626" : "var(--ink)", fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em" }}>
               {region ? pct(region.pctRetenido) : "—"}
             </div>
-            {deltaRet != null && (
-              <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{
-                  fontSize: 13, fontWeight: 700,
-                  color: deltaRet > 0 ? "#16A34A" : deltaRet < 0 ? "#DC2626" : "var(--ink-3)",
-                }}>
-                  {deltaRet > 0 ? "▲ +" : deltaRet < 0 ? "▼ " : "= "}{Math.abs(deltaRet).toFixed(1)}%
+            <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6, minHeight: 22 }}>
+              {deltaRet != null ? (
+                <>
+                  <span style={{
+                    fontSize: 13, fontWeight: 700,
+                    color: deltaRet > 0 ? "#16A34A" : deltaRet < 0 ? "#DC2626" : "var(--ink-3)",
+                  }}>
+                    {deltaRet > 0 ? "▲ +" : deltaRet < 0 ? "▼ " : "= "}{Math.abs(deltaRet).toFixed(1)}%
+                  </span>
+                  <span style={{ fontSize: 11, color: "var(--ink-3)" }}>{antLabel}</span>
+                </>
+              ) : (
+                <span style={{ fontSize: 11, color: "var(--ink-4)", fontStyle: "italic" }}>
+                  Sin snapshot anterior — importá más fechas para ver tendencia
                 </span>
-                <span style={{ fontSize: 11, color: "var(--ink-3)" }}>{antLabel}</span>
-              </div>
-            )}
-            <div style={{ marginTop: 8, fontSize: 11, color: "var(--ink-4)" }}>
+              )}
+            </div>
+            <div style={{ marginTop: 6, fontSize: 11, color: "var(--ink-4)" }}>
               {region ? `${fmt(region.activas)} activas · base ${fmt(region.mpcsMesPasado)}` : ""}
             </div>
           </div>
