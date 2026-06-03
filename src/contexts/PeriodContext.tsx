@@ -31,17 +31,22 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
           `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
         );
       }
+      // Verificamos existencia con limit:1 en lugar de count (más confiable)
       const results = await Promise.all(
         candidates.map((m) =>
           supabase
             .from("clientes")
-            .select("*", { count: "exact", head: true })
-            .eq("mes_exportacion", m),
+            .select("mes_exportacion")
+            .eq("mes_exportacion", m)
+            .limit(1),
         ),
       );
       const uniq = candidates
-        .filter((_, i) => (results[i].count ?? 0) > 0)
+        .filter((_, i) => (results[i].data?.length ?? 0) > 0)
         .sort((a, b) => b.localeCompare(a));
+
+      // Debug temporal — ver en consola qué meses tienen datos
+      console.log("[PeriodContext] Meses disponibles:", uniq);
 
       setAvailable(uniq);
       const stored = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
