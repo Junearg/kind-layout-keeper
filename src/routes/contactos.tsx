@@ -460,12 +460,14 @@ function ChurnedAccountsSection() {
                 <tbody>
                   {pageRows.map((r, i) => {
                     const npsScore = r.nps_score;
+                    // NPS: 1-6 Detractor, 7-8 Pasivo, 9-10 Promotor
                     let npsBg = "transparent";
                     let npsColor = "var(--ink-3)";
+                    let npsLabel = "";
                     if (npsScore != null) {
-                      if (npsScore <= 6) { npsBg = "rgba(239,68,68,0.12)"; npsColor = "var(--red)"; }
-                      else if (npsScore <= 8) { npsBg = "rgba(245,158,11,0.12)"; npsColor = "#D97706"; }
-                      else { npsBg = "rgba(34,197,94,0.12)"; npsColor = "#16A34A"; }
+                      if (npsScore <= 6)  { npsBg = "rgba(239,68,68,0.12)";  npsColor = "#DC2626"; npsLabel = "Detractor"; }
+                      else if (npsScore <= 8) { npsBg = "rgba(245,158,11,0.12)"; npsColor = "#D97706"; npsLabel = "Pasivo"; }
+                      else               { npsBg = "rgba(34,197,94,0.12)";  npsColor = "#16A34A"; npsLabel = "Promotor"; }
                     }
                     const meses = countMeses(r.meses_con_contacto);
                     const cant = Number(r.cant_contactos ?? 0);
@@ -495,8 +497,8 @@ function ChurnedAccountsSection() {
                           <span style={{ background: npsBg, color: npsColor, padding: "3px 10px", borderRadius: 6, fontWeight: 700, fontSize: 13 }}>
                             {npsScore != null ? npsScore : "—"}
                           </span>
-                          {r.nps_categoria && (
-                            <div style={{ fontSize: 9.5, color: npsColor, marginTop: 2 }}>{r.nps_categoria}</div>
+                          {npsScore != null && (
+                            <div style={{ fontSize: 9.5, color: npsColor, marginTop: 2 }}>{npsLabel}</div>
                           )}
                         </td>
                         {/* Contactos */}
