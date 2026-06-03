@@ -26,21 +26,18 @@ export function Layout({ children, actions }: { children: ReactNode; actions?: R
   const d = useDerived();
   const { healthAccounts } = useDashboardData();
 
-  // BUG 4 — Sync bidireccional entre PeriodContext (Supabase) y dataset-store (mes activo)
-  const { selectedPeriod, availablePeriods, setSelectedPeriod } = usePeriod();
+  // Sync UNIDIRECCIONAL: el selector Supabase (selectedPeriod) manda.
+  // Si el período elegido también tiene datos locales importados, actualiza el store local.
+  // NUNCA forzar el selector hacia atrás por el store local.
+  const { selectedPeriod } = usePeriod();
   const mesActivoStore = useMesActivo();
   const mesesStore = useMesesDisponibles();
   useEffect(() => {
     if (selectedPeriod && selectedPeriod !== mesActivoStore && mesesStore.includes(selectedPeriod)) {
       setMesActivo(selectedPeriod);
-    } else if (
-      mesActivoStore &&
-      mesActivoStore !== selectedPeriod &&
-      availablePeriods.includes(mesActivoStore)
-    ) {
-      setSelectedPeriod(mesActivoStore);
     }
-  }, [selectedPeriod, mesActivoStore, availablePeriods, mesesStore, setSelectedPeriod]);
+    // Sin else: si el período seleccionado no tiene datos locales, no forzar nada.
+  }, [selectedPeriod, mesActivoStore, mesesStore]);
 
 
   const [q, setQ] = useState("");
