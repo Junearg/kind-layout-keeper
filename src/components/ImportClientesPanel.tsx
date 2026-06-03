@@ -83,6 +83,11 @@ export function ImportClientesPanel() {
     setFileBuffer(null);
     setError("");
     setPhase("reading");
+    // Auto-detectar archivos de bajas por nombre → forzar Append para no borrar activos
+    const nameLower = f.name.toLowerCase();
+    if (nameLower.includes("baja") || nameLower.includes("historico") || nameLower.includes("churn")) {
+      setAppendMode(true);
+    }
     // Leemos el archivo YA, mientras el permiso del navegador está vigente.
     // En archivos grandes (>20MB) el handle puede expirar si esperamos al click.
     try {
@@ -308,14 +313,24 @@ export function ImportClientesPanel() {
           </button>
 
           {/* Toggle Append */}
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, cursor: "pointer", color: appendMode ? "var(--orange)" : "var(--ink-3)" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, cursor: "pointer",
+            color: appendMode ? "var(--orange)" : "var(--ink-3)",
+            background: appendMode ? "rgba(240,90,40,0.07)" : "transparent",
+            padding: "5px 10px", borderRadius: 8, border: appendMode ? "1px solid rgba(240,90,40,0.3)" : "1px solid transparent",
+            transition: "all 0.15s",
+          }}>
             <input
               type="checkbox"
               checked={appendMode}
               onChange={e => setAppendMode(e.target.checked)}
-              style={{ cursor: "pointer" }}
+              style={{ cursor: "pointer", accentColor: "var(--orange)" }}
             />
-            Modo Append (agregar sin borrar datos previos)
+            <span>
+              <strong>{appendMode ? "✅ Modo Append" : "Modo Append"}</strong>
+              {" "}— {appendMode
+                ? "agrega bajas SIN borrar activos del período"
+                : "reemplaza todo el período (usar para activos / base_hubspot)"}
+            </span>
           </label>
         </div>
 
