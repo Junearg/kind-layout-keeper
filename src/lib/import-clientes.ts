@@ -7,6 +7,7 @@ const COLUMN_MAP: Record<string, string> = {
   "ID HubSpot": "id_hubspot",
   Nombre: "nombre",
   País: "pais",
+  "País/Región": "pais",    // base_hubspot col D → mismo campo que "País" del export mensual
   Ejecutivo: "ejecutivo",
   "Propietario HubSpot": "propietario_hubspot",
   Etapa: "etapa",
