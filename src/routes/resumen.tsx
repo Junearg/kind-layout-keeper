@@ -572,28 +572,30 @@ function MotivosStackedCard({ rows }: { rows: ChurnRowLite[] | null }) {
           </div>
         </div>
 
-        {/* Lista rankeada — nombre visible directamente */}
-        <div style={{ flex: 1, minWidth: 220, display: "flex", flexDirection: "column", gap: 11 }}>
+        {/* Lista rankeada — compacta, sin espacio vacío entre nombre y números */}
+        <div style={{ flex: 1, minWidth: 220, display: "flex", flexDirection: "column", gap: 10 }}>
           {pieData.map((d) => (
-            <div key={d.name} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div key={d.name} style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ width: 10, height: 10, borderRadius: 2, background: d.color, flexShrink: 0 }} />
               <span style={{
-                flex: 1, fontSize: 13,
+                fontSize: 13, width: 190, flexShrink: 0,
                 fontWeight: d.name === "Sin motivo" ? 700 : 400,
                 color: d.name === "Sin motivo" ? "#DC2626" : "var(--ink)",
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>
                 {d.name}
               </span>
-              <div style={{ width: 90, background: "var(--paper-2)", borderRadius: 99, height: 6, overflow: "hidden" }}>
+              {/* Barra proporcional — flex:1 con máximo para no estirar demasiado */}
+              <div style={{ flex: 1, maxWidth: 140, background: "var(--paper-2)", borderRadius: 99, height: 6, overflow: "hidden" }}>
                 <div style={{ width: `${d.pct}%`, background: d.color, height: "100%", borderRadius: 99 }} />
               </div>
               <span style={{
-                fontSize: 13, fontWeight: 600, minWidth: 48, textAlign: "right",
+                fontSize: 13, fontWeight: 600, width: 52, textAlign: "right", flexShrink: 0,
                 color: d.name === "Sin motivo" ? "#DC2626" : "var(--ink-2)",
               }}>
                 {d.pct.toFixed(1)}%
               </span>
-              <span style={{ fontSize: 11, color: "var(--ink-3)", minWidth: 58, textAlign: "right" }}>
+              <span style={{ fontSize: 11, color: "var(--ink-3)", width: 62, textAlign: "right", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>
                 {nfmt(d.value)}
               </span>
             </div>
