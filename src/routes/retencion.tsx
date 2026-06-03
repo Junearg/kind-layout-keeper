@@ -145,19 +145,17 @@ function RetencionPage() {
 
   const fechaHoy  = fechaSel || fechas?.[0] || "";
 
-  // Fecha de hace ~1 mes para comparación
-  const fechaAnt = useMemo(() => {
-    if (!fechas || !fechaHoy) return "";
-    const hoy = new Date(fechaHoy);
-    // buscar la fecha más cercana a 30 días atrás
-    let best = "";
-    let bestDiff = Infinity;
-    for (const f of fechas) {
-      if (f >= fechaHoy) continue;
-      const diff = (hoy.getTime() - new Date(f).getTime()) / 86_400_000;
-      if (Math.abs(diff - 30) < bestDiff) { bestDiff = Math.abs(diff - 30); best = f; }
-    }
-    return best;
+  // Referencia "mes anterior": último snapshot disponible del mes calendario anterior.
+  // Si importaste el último día hábil de ese mes, ese queda como baseline automático.
+  const { fechaAnt, mesPrevKey } = useMemo(() => {
+    if (!fechas || !fechaHoy) return { fechaAnt: "", mesPrevKey: "" };
+    const [y, m] = fechaHoy.split("-").map(Number);
+    const py = m === 1 ? y! - 1 : y!;
+    const pm = m === 1 ? 12 : m! - 1;
+    const mesPrev = `${py}-${String(pm).padStart(2, "0")}`;
+    // fechas está ordenado descendente → primer match es el más reciente del mes anterior
+    const best = fechas.find(f => f.startsWith(mesPrev)) ?? "";
+    return { fechaAnt: best, mesPrevKey: mesPrev };
   }, [fechas, fechaHoy]);
 
   const { data: kpis,     isLoading } = useKpiSnapshotMultipais(fechaHoy);
@@ -195,19 +193,24 @@ function RetencionPage() {
     : region.pctRetenido < 94  ? "red"
     : undefined;
 
-  const antLabel = fechaAnt ? `vs ${fechaAnt}` : "vs mes anterior";
+  const antLabel = fechaAnt
+    ? `vs ${fechaAnt} (último snapshot de ${mesPrevKey})`
+    : `vs mes anterior`;
 
   return (
     <Layout>
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: fechaAnt ? 12 : 24, flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 className="serif" style={{ fontSize: 28, margin: 0 }}>
             Retención <span className="alt">/ snapshot diario</span>
           </h1>
           <p className="fs-12 muted" style={{ marginTop: 4 }}>
             {fechas.length} snapshot{fechas.length !== 1 ? "s" : ""} · Región
-            {fechaAnt && <span style={{ marginLeft: 8, opacity: 0.6 }}>comparando con {fechaAnt}</span>}
+            {fechaAnt
+              ? <span style={{ marginLeft: 8, opacity: 0.7 }}>baseline: <strong>{fechaAnt}</strong> (último snapshot de {mesPrevKey})</span>
+              : <span style={{ marginLeft: 8, color: "var(--amber, #B45309)", opacity: 0.8 }}>⚠ Sin snapshot del mes anterior para comparar</span>
+            }
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -218,6 +221,16 @@ function RetencionPage() {
           </select>
         </div>
       </div>
+
+      {/* ── Banner: último día hábil ── */}
+      {!fechaAnt && (
+        <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 10, background: "#FFFBEB", border: "1px solid #FDE68A", fontSize: 12.5, color: "#92400E", display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 16 }}>💡</span>
+          <span>
+            <strong>Tip: baseline mensual.</strong> Para que el "vs mes anterior" funcione, importá el <code>base_hubspot</code> el <strong>último día hábil de cada mes</strong> en modo Diario. Ese snapshot queda como referencia automática para todos los días del mes siguiente.
+          </span>
+        </div>
+      )}
 
       {/* ── KPI Cards ── */}
       {isLoading ? (
