@@ -82,6 +82,10 @@ export type ChurnRow = {
   vMostrador: number;
   fechaBaja: string | null;
   scoreRiesgo: number;
+  // Submotivos y comentarios para drill-down
+  submotivo: string | null;
+  comentarios: string | null;
+  idHubspot: string | null;
 };
 
 export type GmvPoint = { key: string; mes: string; gmv: number };
@@ -152,11 +156,14 @@ function scoreRiesgo(r: {
 
 type Raw = {
   id_cuenta_dash: number | null;
+  id_hubspot: string | null;
   nombre: string | null;
   pais: string | null;
   plan: string | null;
   ejecutivo: string | null;
   motivo_baja: string | null;
+  submotivo_baja: string | null;
+  comentarios_metabase: string | null;
   gmv: number | string | null;
   cant_contactos: number | null;
   productos: number | null;
@@ -174,7 +181,7 @@ async function fetchInsights(mesActivo: string, pais: Pais = "Región"): Promise
     supabase
       .from("clientes")
       .select(
-        "id_cuenta_dash,nombre,pais,plan,ejecutivo,motivo_baja,gmv,cant_contactos,productos,usuarios,nps_score,v_salon,v_delivery,v_mostrador,fecha_baja",
+        "id_cuenta_dash,id_hubspot,nombre,pais,plan,ejecutivo,motivo_baja,submotivo_baja,comentarios_metabase,gmv,cant_contactos,productos,usuarios,nps_score,v_salon,v_delivery,v_mostrador,fecha_baja",
       )
       .eq("mes_exportacion", mesActivo)
       .eq("estado_dash", "Bloqueado")
@@ -215,6 +222,9 @@ async function fetchInsights(mesActivo: string, pais: Pais = "Región"): Promise
       vMostrador: Number(r.v_mostrador) || 0,
       fechaBaja: r.fecha_baja,
       scoreRiesgo: 0,
+      submotivo: r.submotivo_baja?.trim() || null,
+      comentarios: r.comentarios_metabase?.trim() || null,
+      idHubspot: r.id_hubspot ?? null,
     };
     row.scoreRiesgo = scoreRiesgo(row);
     rows.push(row);

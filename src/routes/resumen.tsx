@@ -379,7 +379,14 @@ function TrendCard({ trend, delta, prevLabel, latestLabel }: {
 
 
 
-type ChurnRowLite = { motivo: string; fechaBaja: string | null };
+type ChurnRowLite = {
+  motivo: string;
+  fechaBaja: string | null;
+  submotivo?: string | null;
+  comentarios?: string | null;
+  idHubspot?: string | null;
+  nombre?: string;
+};
 
 function MotivosStackedCard({ rows }: { rows: ChurnRowLite[] | null }) {
   const [from, setFrom] = useState("");
@@ -438,6 +445,20 @@ function MotivosStackedCard({ rows }: { rows: ChurnRowLite[] | null }) {
   }
 
   const { pieData, total, pctSinMotivo } = result;
+
+  // Rows filtradas para submotivos y comentarios
+  const fromEff2 = from || bounds?.min || "";
+  const toEff2   = to   || bounds?.max || "";
+  const filteredForDonut = useMemo(() => {
+    if (!rows) return [];
+    return rows.filter(r => {
+      if (!r.fechaBaja || /nps/i.test(r.motivo)) return false;
+      const d = r.fechaBaja.slice(0, 10);
+      if (fromEff2 && d < fromEff2) return false;
+      if (toEff2   && d > toEff2)   return false;
+      return true;
+    });
+  }, [rows, fromEff2, toEff2]);
 
   return (
     <div className="card lg" style={{ marginTop: 16 }}>
@@ -532,6 +553,132 @@ function MotivosStackedCard({ rows }: { rows: ChurnRowLite[] | null }) {
           ))}
         </div>
       </div>
+
+      {/* ── Submotivos más frecuentes por categoría ── */}
+      <SubMotivosSection rows={filteredForDonut} />
+
+      {/* ── Comentarios destacados ── */}
+      <ComentariosSection rows={filteredForDonut} />
+    </div>
+  );
+}
+
+/** Rows filtradas por fecha para los dos nuevos bloques */
+function useFilteredRows(rows: ChurnRowLite[] | null, from: string, to: string, bounds: {min:string;max:string} | null) {
+  return useMemo(() => {
+    if (!rows) return [];
+    const fromEff = from || bounds?.min || "";
+    const toEff   = to   || bounds?.max || "";
+    return rows.filter((r) => {
+      if (!r.fechaBaja || /nps/i.test(r.motivo)) return false;
+      const d = r.fechaBaja.slice(0, 10);
+      if (fromEff && d < fromEff) return false;
+      if (toEff   && d > toEff)   return false;
+      return true;
+    });
+  }, [rows, from, to, bounds]);
+}
+
+function SubMotivosSection({ rows }: { rows: ChurnRowLite[] }) {
+  const byCategoria = useMemo(() => {
+    const map = new Map<string, Map<string, number>>();
+    for (const r of rows) {
+      if (!r.submotivo) continue;
+      const cat = normalizarMotivo(r.motivo, null, null, null);
+      const subMap = map.get(cat) ?? new Map<string, number>();
+      subMap.set(r.submotivo, (subMap.get(r.submotivo) ?? 0) + 1);
+      map.set(cat, subMap);
+    }
+    return map;
+  }, [rows]);
+
+  if (byCategoria.size === 0) return null;
+
+  return (
+    <div style={{ marginTop: 24 }}>
+      <div className="card-eyebrow" style={{ marginBottom: 12 }}>Submotivos más frecuentes por categoría</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {[...byCategoria.entries()].sort((a, b) => {
+          const ta = [...a[1].values()].reduce((s,v)=>s+v,0);
+          const tb = [...b[1].values()].reduce((s,v)=>s+v,0);
+          return tb - ta;
+        }).map(([cat, subMap]) => {
+          const total = [...subMap.values()].reduce((s,v)=>s+v,0);
+          const top3 = [...subMap.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3);
+          const color = MOTIVO_COLORS[cat as keyof typeof MOTIVO_COLORS] ?? "#9CA3AF";
+          return (
+            <div key={cat}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <span style={{ width: 10, height: 10, borderRadius: 2, background: color, flexShrink: 0 }} />
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink)" }}>{cat}</span>
+                <span className="muted" style={{ fontSize: 11 }}>({nfmt(total)} con submotivo)</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, paddingLeft: 18 }}>
+                {top3.map(([sub, n]) => (
+                  <div key={sub} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5 }}>
+                    <div style={{ width: Math.round((n/total)*120), height: 5, background: color, opacity: 0.5, borderRadius: 99, flexShrink: 0, minWidth: 4 }} />
+                    <span style={{ color: "var(--ink-2)", flex: 1 }}>{sub}</span>
+                    <span className="mono muted" style={{ fontSize: 11 }}>{nfmt(n)} · {((n/total)*100).toFixed(0)}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ComentariosSection({ rows }: { rows: ChurnRowLite[] }) {
+  const [showAll, setShowAll] = useState(false);
+  const conComentarios = useMemo(() =>
+    rows.filter(r => r.comentarios && r.comentarios.length > 10)
+      .sort((a, b) => (b.comentarios?.length ?? 0) - (a.comentarios?.length ?? 0)),
+    [rows]
+  );
+  if (conComentarios.length === 0) return null;
+  const visible = showAll ? conComentarios : conComentarios.slice(0, 5);
+
+  return (
+    <div style={{ marginTop: 24 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div className="card-eyebrow">Comentarios destacados · {nfmt(conComentarios.length)} cuentas con comentario</div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {visible.map((r, i) => {
+          const cat = normalizarMotivo(r.motivo, null, null, null);
+          const color = MOTIVO_COLORS[cat as keyof typeof MOTIVO_COLORS] ?? "#9CA3AF";
+          return (
+            <div key={i} style={{ borderRadius: 10, border: `1px solid var(--rule)`, borderLeft: `3px solid ${color}`, padding: "12px 14px", background: "var(--paper)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6, flexWrap: "wrap", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 2, background: color, flexShrink: 0 }} />
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink)" }}>{r.nombre || "—"}</span>
+                  <span style={{ fontSize: 11.5, color: "var(--ink-3)" }}>{cat}</span>
+                </div>
+                {r.idHubspot && (
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(r.idHubspot!); }}
+                    style={{ fontSize: 10.5, padding: "3px 8px", borderRadius: 6, border: "1px solid var(--rule)", background: "var(--paper-2)", cursor: "pointer", color: "var(--ink-3)", fontFamily: "monospace" }}
+                    title="Copiar ID HubSpot"
+                  >
+                    #{r.idHubspot} 📋
+                  </button>
+                )}
+              </div>
+              <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink-2)", lineHeight: 1.5, fontStyle: "italic" }}>
+                "{r.comentarios}"
+              </p>
+            </div>
+          );
+        })}
+      </div>
+      {conComentarios.length > 5 && (
+        <button onClick={() => setShowAll(v => !v)} style={{ marginTop: 10, fontSize: 12, color: "var(--orange)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+          {showAll ? "Ver menos ↑" : `Ver los ${conComentarios.length - 5} restantes ↓`}
+        </button>
+      )}
     </div>
   );
 }
