@@ -91,15 +91,16 @@ const METRICAS: MetricaDef[] = [
   { label: "Login < 7 días (n)",                                 get: k => fmt(k.loginMenos7) },
   { label: "% Login < 7 días",                                   get: k => pct(k.loginPct),         highlight: k => k.loginPct < 85 ? "red" : k.loginPct >= 95 ? "green" : null },
 
-  // ── Churn y Plan ───────────────────────────────────────────
+  // ── Churn y Plan (fórmulas exactas GSheet columna J) ──────
   { label: "MPCs mes pasado",             group: "Churn / Plan", get: k => fmt(k.mpcsMesPasado) },
-  { label: "Churn Bruto",                                        get: k => pct2(k.churnBruto),      highlight: k => k.churnBruto > 5 ? "red" : k.churnBruto < 2 ? "green" : null },
-  { label: "Churn Neto",                                         get: k => pct2(k.churnNeto),       highlight: k => k.churnNeto > 5 ? "red" : k.churnNeto < 2 ? "green" : null },
-  { label: "Churn Plan",                                         get: k => pct(k.churnPlan) },
-  { label: "Proyectado vs Plan",                                 get: k => k.proyectadoVsPlan == null ? "—" : `${k.proyectadoVsPlan >= 0 ? "+" : ""}${k.proyectadoVsPlan.toFixed(1)}%`, highlight: k => (k.proyectadoVsPlan ?? 0) > 10 ? "red" : (k.proyectadoVsPlan ?? 0) < -5 ? "green" : null },
-  { label: "# Recuperar para on-target",                         get: k => k.nRecuperar == null ? "—" : fmt(k.nRecuperar) },
-  { label: "MPCs Retenidos (meta)",                              get: k => k.mpcsMeta == null ? "—" : fmt(k.mpcsMeta) },
-  { label: "MPCs vs Plan",                                       get: k => k.mpcsVsPlan == null ? "—" : `${k.mpcsVsPlan >= 0 ? "+" : ""}${k.mpcsVsPlan.toFixed(1)}%`, highlight: k => (k.mpcsVsPlan ?? 0) < -3 ? "red" : (k.mpcsVsPlan ?? 0) >= 0 ? "green" : null },
+  { label: "Churn Bruto Proyectado",      get: k => pct2(k.churnBruto),      highlight: k => k.churnBruto > 7 ? "red" : k.churnBruto < 3 ? "green" : null },
+  { label: "Churn Neto Proyectado",       get: k => pct2(k.churnNeto),       highlight: k => k.churnNeto > 7 ? "red" : k.churnNeto < 3 ? "green" : null },
+  { label: "Churn Plan",                  get: k => pct(k.churnPlan) },
+  { label: "Proyectado Neto vs Plan",     get: k => k.proyectadoVsPlan == null ? "—" : `${k.proyectadoVsPlan >= 0 ? "+" : ""}${k.proyectadoVsPlan.toFixed(1)}%`, highlight: k => (k.proyectadoVsPlan ?? 0) > 50 ? "red" : (k.proyectadoVsPlan ?? 0) < -10 ? "green" : null },
+  { label: "# Recuperar para on-target",  get: k => k.nRecuperar == null ? "—" : fmt(k.nRecuperar) },
+  { label: "MPCs Retenidos Proyectados",  get: k => fmt(k.mpcsRetenidosProyectados) },
+  { label: "Plan MPCs",                   get: k => fmt(k.mpcsMesPasado) },
+  { label: "MPCs vs Plan",                get: k => k.mpcsVsPlan == null ? "—" : `${k.mpcsVsPlan >= 0 ? "+" : ""}${k.mpcsVsPlan.toFixed(1)}%`, highlight: k => (k.mpcsVsPlan ?? 0) < -3 ? "red" : (k.mpcsVsPlan ?? 0) >= 0 ? "green" : null },
 ];
 
 function RetencionPage() {

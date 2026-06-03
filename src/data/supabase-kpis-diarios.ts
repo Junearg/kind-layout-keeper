@@ -47,11 +47,12 @@ export type KpiDiario = {
   churnPlan: number | null;
   proyectadoVsPlan: number | null;  // (churnNeto - churnPlan) / churnPlan × 100
 
-  // Bloque 5 — Plan
+  // Bloque 5 — Plan (fórmulas exactas GSheet)
   mpcsMesPasado: number;
-  nRecuperar: number | null;        // # cuentas para cumplir plan
-  mpcsMeta: number | null;
-  mpcsVsPlan: number | null;        // (activas - mpcsMeta) / mpcsMeta × 100
+  mpcsRetenidosProyectados: number; // Activas + C/vtas_recuperar
+  nRecuperar: number | null;        // mpcsMeta - activas
+  mpcsMeta: number | null;          // (1 - churnPlan%) × MPCs_prev
+  mpcsVsPlan: number | null;        // MPCs_retenidos / MPCs_prev - 1
 };
 
 /** Calcula los 25 KPIs para un snapshot diario y país.
@@ -182,22 +183,38 @@ export async function computeKpiDia(fecha: string, pais: Pais): Promise<KpiDiari
       }).length;
 
   const base          = mpcsMesPasado || 1;
+
+  // C/ vtas del pool A_Recuperar (usado en Churn Neto — fórmula GSheet: J9)
+  const cvtasRecuperar = recRows.filter(r => r.temas_contacto === "C/ vtas ultimos 7 dias").length;
+
+  // Fórmulas exactas del GSheet columna J:
+  // Churn Bruto = Bajas / Activas (J6/J5)
+  const churnBruto = activas > 0 ? (bajas / activas) * 100 : 0;
+
+  // Churn Neto = 1 - (Activas + C_vtas_recuperar) / MPCs_prev (1-(J5+J9)/J23)
+  // MPCs Retenidos Proyectados = Activas + C_vtas_recuperar
+  const mpcsRetenidosProyectados = activas + cvtasRecuperar;
+  const churnNeto = base > 0 ? (1 - mpcsRetenidosProyectados / base) * 100 : 0;
+
   const pct10v        = activas > 0 ? (activasConVentas / activas) * 100 : 0;
   const loginPct      = activas > 0 ? (loginMenos7 / activas) * 100 : 0;
-  const pctRetenido   = (activas / base) * 100;
-  const pctRetenido10v = (activasConVentas / base) * 100;
-  const churnNeto     = (1 - activas / base) * 100;
-  const churnBruto    = (bajas / base) * 100;
+  const pctRetenido   = (activas / base) * 100;              // Activas / MPCs_prev
+  const pctRetenido10v = (activasConVentas / base) * 100;    // Activas_10v / MPCs_prev
 
   // Plan
   const mesKey = fecha.slice(0, 7);
   const churnPlan = getChurnPlan(mesKey, pais);
-  const mpcsMeta  = churnPlan != null ? Math.round((1 - churnPlan / 100) * base) : null;
+  // Plan MPCs = MPCs_prev (mismo denominador)
+  const planMPCs = base;
+  const mpcsMeta = churnPlan != null ? Math.round((1 - churnPlan / 100) * base) : null;
+  // # Recuperar = Plan_MPCs*(1-churnPlan%) - Activas = mpcsMeta - activas
   const nRecuperar = mpcsMeta != null ? Math.max(0, mpcsMeta - activas) : null;
+  // Proyectado Neto vs Plan = Churn_Neto/Churn_Plan - 1 (J25/J26-1)
   const proyectadoVsPlan = churnPlan != null && churnPlan > 0
-    ? ((churnNeto - churnPlan) / churnPlan) * 100 : null;
-  const mpcsVsPlan = mpcsMeta != null && mpcsMeta > 0
-    ? ((activas - mpcsMeta) / mpcsMeta) * 100 : null;
+    ? (churnNeto / churnPlan - 1) * 100 : null;
+  // MPCs vs Plan = MPCs_retenidos/Plan_MPCs - 1
+  const mpcsVsPlan = planMPCs > 0
+    ? (mpcsRetenidosProyectados / planMPCs - 1) * 100 : null;
 
   return {
     fecha, pais,
@@ -205,7 +222,7 @@ export async function computeKpiDia(fecha: string, pais: Pais): Promise<KpiDiari
     activasConVentas, recuperar10v, sinVentas, loginMenos7, loginPct,
     pct10v, pctRetenido, pctRetenido10v,
     churnBruto, churnNeto, churnPlan, proyectadoVsPlan,
-    mpcsMesPasado, nRecuperar, mpcsMeta, mpcsVsPlan,
+    mpcsMesPasado, mpcsRetenidosProyectados, nRecuperar, mpcsMeta, mpcsVsPlan,
   };
 }
 
