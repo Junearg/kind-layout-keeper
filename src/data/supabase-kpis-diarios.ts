@@ -128,12 +128,13 @@ export async function computeKpiDia(fecha: string, pais: Pais): Promise<KpiDiari
         .eq("mes_exportacion", prevFecha).eq("estado_dash", "Activo"),
       pais
     ),
-    // A Recuperar con temas_contacto para calcular recuperar10v
+    // A Recuperar: usa nps_motivo (= "Estado de Cuenta" col W) = "A Recuperar"
+    // Exacto al GSheet: CONTAR.SI.CONJUNTO(Base_Hubspot!$W:$W,"A Recuperar")
     applyPais(
       supabase.from("clientes")
         .select("temas_contacto,v_salon,v_delivery,v_mostrador")
         .eq("mes_exportacion", fecha)
-        .in("etapa", ETAPAS_RECUPERAR),
+        .eq("nps_motivo", "A Recuperar"),
       pais
     ),
   ]);
@@ -144,7 +145,12 @@ export async function computeKpiDia(fecha: string, pais: Pais): Promise<KpiDiari
   const bajas       = bajasRes.count ?? 0;
   const onboarding  = onboardingRes.count ?? 0;
   const engagement  = engagementRes.count ?? 0;
-  const aRecuperar  = onboarding + engagement;
+  // aRecuperar usa Estado de Cuenta = "A Recuperar" (col W en base_hubspot)
+  // Si hay datos de nps_motivo usamos ese conteo; fallback a etapa Engagement+Onboarding
+  const aRecuperarByEstadoCuenta = recRows.length;
+  const aRecuperar  = aRecuperarByEstadoCuenta > 0
+    ? aRecuperarByEstadoCuenta
+    : (onboarding + engagement);
   const pagoPendiente = pagoPendienteRes.count ?? 0;
   const mpcsMesPasado = prevActivasRes.count ?? activas;
 
