@@ -34,6 +34,7 @@ type ContactoRow = {
 };
 
 type ChurnedRow = {
+  id_cuenta_dash: number | null;
   nombre: string | null;
   pais: string | null;
   plan: string | null;
@@ -45,6 +46,8 @@ type ChurnedRow = {
   cant_contactos: number | null;
   meses_con_contacto: string | null;
   csat_cs_promedio: number | null;
+  motivo_baja: string | null;
+  comentarios_metabase: string | null;
 };
 
 async function pageAll<T>(builder: () => any): Promise<T[]> {
@@ -127,7 +130,7 @@ function useChurnedAccountsData(periodoMes: string) {
         supabase
           .from("clientes")
           .select(
-            "nombre,pais,plan,ejecutivo,fecha_baja,nps_score,nps_categoria,nps_periodo,cant_contactos,meses_con_contacto,csat_cs_promedio",
+            "id_cuenta_dash,nombre,pais,plan,ejecutivo,fecha_baja,nps_score,nps_categoria,nps_periodo,cant_contactos,meses_con_contacto,csat_cs_promedio,motivo_baja,comentarios_metabase",
           )
           .eq("etapa", "Bajas")
           .not("fecha_baja", "is", null)
@@ -387,7 +390,7 @@ function ContactosPage() {
 
 // ── ChurnedAccountsSection ───────────────────────────────────────────────────
 
-const CHURNED_PAGE_SIZE = 25;
+const CHURNED_PAGE_SIZE = 10;
 const PLANES = ["Inicial", "Avanzado", "Pro", "Base"];
 
 type ChurnSortKey = "nombre" | "fecha_baja" | "nps_score" | "cant_contactos" | "meses_con_contacto" | "csat_cs_promedio";
@@ -642,16 +645,12 @@ function ChurnedAccountsSection() {
               <table className="tbl" style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                 <thead>
                   <tr style={{ background: "var(--paper-2)", textAlign: "left" }}>
+                    <Th>ID Cuenta</Th>
                     <Th onClick={() => toggleSort("nombre")} active={sortKey === "nombre"} dir={sortDir}>Nombre</Th>
-                    <Th>País</Th>
-                    <Th>Plan</Th>
-                    <Th>Ejecutivo</Th>
-                    <Th onClick={() => toggleSort("fecha_baja")} active={sortKey === "fecha_baja"} dir={sortDir}>Fecha Baja</Th>
+                    <Th>Motivo Baja</Th>
                     <Th onClick={() => toggleSort("nps_score")} active={sortKey === "nps_score"} dir={sortDir} align="right">NPS Score</Th>
-                    <Th>NPS Período</Th>
-                    <Th onClick={() => toggleSort("cant_contactos")} active={sortKey === "cant_contactos"} dir={sortDir} align="right">N° Contactos</Th>
-                    <Th onClick={() => toggleSort("meses_con_contacto")} active={sortKey === "meses_con_contacto"} dir={sortDir} align="right">Meses c/contacto</Th>
-                    <Th onClick={() => toggleSort("csat_cs_promedio")} active={sortKey === "csat_cs_promedio"} dir={sortDir} align="right">CSAT CS</Th>
+                    <Th>Comentarios</Th>
+                    <Th onClick={() => toggleSort("cant_contactos")} active={sortKey === "cant_contactos"} dir={sortDir} align="right">Contact Rate</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -661,37 +660,44 @@ function ChurnedAccountsSection() {
                     let npsColor = "var(--ink)";
                     if (npsScore != null) {
                       if (npsScore <= 6) { npsBg = "rgba(239,68,68,0.12)"; npsColor = "var(--red)"; }
-                      else if (npsScore <= 8) { npsBg = "rgba(245,158,11,0.12)"; npsColor = "var(--amber, #d97706)"; }
-                      else { npsBg = "rgba(34,197,94,0.12)"; npsColor = "var(--green)"; }
+                      else if (npsScore <= 8) { npsBg = "rgba(245,158,11,0.12)"; npsColor = "#D97706"; }
+                      else { npsBg = "rgba(34,197,94,0.12)"; npsColor = "#16A34A"; }
                     }
-                    const mesesCount = countMeses(r.meses_con_contacto);
+                    const meses = countMeses(r.meses_con_contacto);
+                    const cant = Number(r.cant_contactos ?? 0);
+                    const contactRate = meses > 0 ? (cant / meses).toFixed(1) : cant > 0 ? cant.toFixed(1) : "0.0";
                     return (
                       <tr key={`${r.nombre}-${i}`} style={{ borderTop: "1px solid var(--rule)" }}>
+                        <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11, color: "var(--ink-3)" }}>
+                          {r.id_cuenta_dash ?? "—"}
+                        </td>
                         <td style={tdStyle}>
                           <div className="strong" style={{ color: "var(--ink)" }}>{r.nombre ?? "—"}</div>
+                          <div style={{ fontSize: 10.5, color: "var(--ink-4)", marginTop: 1 }}>{r.pais ?? ""}{r.plan ? ` · ${r.plan}` : ""}</div>
                         </td>
-                        <td style={tdStyle}>{r.pais ?? "—"}</td>
-                        <td style={tdStyle}>{r.plan ?? "—"}</td>
-                        <td style={tdStyle}>{r.ejecutivo ?? "—"}</td>
-                        <td style={tdStyle}>{fmtDate(r.fecha_baja)}</td>
-                        <td style={{ ...tdStyle, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                        <td style={{ ...tdStyle, maxWidth: 180 }}>
+                          <span style={{ fontSize: 11.5, color: "var(--ink-2)" }} title={r.motivo_baja ?? ""}>
+                            {r.motivo_baja ? (r.motivo_baja.length > 35 ? r.motivo_baja.slice(0, 35) + "…" : r.motivo_baja) : "—"}
+                          </span>
+                        </td>
+                        <td style={{ ...tdStyle, textAlign: "center" }}>
                           {npsScore != null ? (
-                            <span style={{ background: npsBg, color: npsColor, padding: "2px 8px", borderRadius: 6, fontWeight: 600 }}>
+                            <span style={{ background: npsBg, color: npsColor, padding: "3px 10px", borderRadius: 6, fontWeight: 700, fontSize: 13 }}>
                               {npsScore}
                             </span>
-                          ) : "—"}
+                          ) : <span style={{ color: "var(--ink-4)" }}>—</span>}
                         </td>
-                        <td style={tdStyle}>{r.nps_periodo ?? "—"}</td>
-                        <td style={{ ...tdStyle, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
-                          {r.cant_contactos != null ? nfmt(r.cant_contactos) : "—"}
+                        <td style={{ ...tdStyle, maxWidth: 260 }}>
+                          {r.comentarios_metabase ? (
+                            <span style={{ fontSize: 11.5, color: "var(--ink-2)", fontStyle: "italic" }}
+                              title={r.comentarios_metabase}>
+                              "{r.comentarios_metabase.length > 60 ? r.comentarios_metabase.slice(0, 60) + "…" : r.comentarios_metabase}"
+                            </span>
+                          ) : <span style={{ color: "var(--ink-4)" }}>—</span>}
                         </td>
-                        <td style={{ ...tdStyle, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
-                          {r.meses_con_contacto ? (
-                            <span title={r.meses_con_contacto}>{mesesCount}</span>
-                          ) : "—"}
-                        </td>
-                        <td style={{ ...tdStyle, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
-                          {r.csat_cs_promedio != null ? r.csat_cs_promedio.toFixed(1) : "—"}
+                        <td style={{ ...tdStyle, textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 500 }}>
+                          {contactRate}/mes
+                          <div style={{ fontSize: 10, color: "var(--ink-4)" }}>{cant} total · {meses}m</div>
                         </td>
                       </tr>
                     );
