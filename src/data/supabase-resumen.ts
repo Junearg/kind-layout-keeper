@@ -114,36 +114,18 @@ function monthLabel(key: string): string {
 }
 
 async function fetchResumen(period: string): Promise<ResumenData> {
-  // Helper: trae bajas por etapa + bajas por estado_dash=Bloqueado (para imports sin Etapa)
-  async function fetchBajas(extraFilter?: { mes: string }): Promise<BajaRow[]> {
+  // Bajas por etapa — solo "Bajas" y "Bajas clientes" (Etapa ya incluida en todos los imports)
+  async function fetchBajas(mes: string): Promise<BajaRow[]> {
     const sel = "id,fecha_baja,motivo_baja,submotivo_baja,motivo_metabase,comentarios_metabase,pais,mes_exportacion,etapa";
-    const [byEtapa1, byEtapa2, byBloq] = await Promise.all([
-      pageAll<BajaRow>(() => {
-        let q = supabase.from("clientes").select(sel).eq("etapa", "Bajas");
-        if (extraFilter?.mes) q = q.eq("mes_exportacion", extraFilter.mes);
-        return q;
-      }),
-      pageAll<BajaRow>(() => {
-        let q = supabase.from("clientes").select(sel).eq("etapa", "Bajas clientes");
-        if (extraFilter?.mes) q = q.eq("mes_exportacion", extraFilter.mes);
-        return q;
-      }),
-      pageAll<BajaRow>(() => {
-        let q = supabase.from("clientes").select(sel)
-          .eq("estado_dash", "Bloqueado")
-          .is("etapa", null); // solo los que no tienen etapa (imports sin columna Etapa)
-        if (extraFilter?.mes) q = q.eq("mes_exportacion", extraFilter.mes);
-        return q;
-      }),
+    const [byBajas, byBajasClientes] = await Promise.all([
+      pageAll<BajaRow>(() =>
+        supabase.from("clientes").select(sel).eq("etapa", "Bajas").eq("mes_exportacion", mes)
+      ),
+      pageAll<BajaRow>(() =>
+        supabase.from("clientes").select(sel).eq("etapa", "Bajas clientes").eq("mes_exportacion", mes)
+      ),
     ]);
-    // Dedup por id para evitar contar dos veces
-    const seen = new Set<string>();
-    const all: BajaRow[] = [];
-    for (const r of [...byEtapa1, ...byEtapa2, ...byBloq]) {
-      const key = `${r.id}_${r.mes_exportacion}`;
-      if (!seen.has(key)) { seen.add(key); all.push(r); }
-    }
-    return all;
+    return [...byBajas, ...byBajasClientes];
   }
 
   const [activos, bajasRaw, bajasAllRaw, nps, csat] = await Promise.all([
@@ -152,10 +134,8 @@ async function fetchResumen(period: string): Promise<ResumenData> {
       .select("id_hubspot,productos,usuarios,v_salon,v_delivery,v_mostrador,cant_contactos,nps_score,motivo_baja,motivo_metabase,estado_dash,pais")
       .eq("mes_exportacion", period)
       .eq("estado_dash", "Activo")),
-    fetchBajas({ mes: period }),
-    // bajasAllRaw: el snapshot del período ya contiene todo el historial via fecha_baja.
-    // Reutilizamos bajasRaw en lugar de traer TODOS los meses sin filtro (crashea con 70k+ filas).
-    fetchBajas({ mes: period }),
+    fetchBajas(period),
+    fetchBajas(period), // bajasAllRaw reutiliza bajasRaw (snapshot contiene historial via fecha_baja)
     pageAll<NpsRow>(() => supabase
       .from("clientes")
       .select("nps_score,pais")
