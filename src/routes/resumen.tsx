@@ -127,11 +127,11 @@ function Resumen() {
       <div className="divider">
         <span className="kicker">Tendencia</span>
         <span className="alt">/ bajas mensuales</span>
-        <span className="sub">{r.churnTrend.length ? `${r.churnTrend[0]!.mes}–${r.churnTrend[r.churnTrend.length-1]!.mes}` : ""}</span>
+        <span className="sub">{r.churnTrend.length ? `${r.churnTrend.slice(-12)[0]!.mes}–${r.churnTrend[r.churnTrend.length-1]!.mes}` : ""}</span>
         <span className="rule" />
       </div>
 
-      <TrendCard trend={r.churnTrend.slice(-6)} delta={r.monthDeltaPct} prevLabel={r.prevClosedLabel} latestLabel={r.latestClosedLabel} />
+      <TrendCard trend={r.churnTrend.slice(-12)} delta={r.monthDeltaPct} prevLabel={r.prevClosedLabel} latestLabel={r.latestClosedLabel} />
       <MotivosStackedCard rows={insights6m?.rows ?? null} />
 
       {/* Retención vs Plan — oculto por ahora */}
