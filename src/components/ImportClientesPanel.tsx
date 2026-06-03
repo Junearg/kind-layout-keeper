@@ -34,6 +34,7 @@ export function ImportClientesPanel() {
   const logRef = useRef<HTMLDivElement>(null);
 
   const [modo, setModo] = useState<Modo>("diario");
+  const [appendMode, setAppendMode] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [fileBuffer, setFileBuffer] = useState<ArrayBuffer | null>(null);
   const [mes, setMes] = useState<string>(defaultMonth());
@@ -123,12 +124,16 @@ export function ImportClientesPanel() {
       if (mapped.length === 0)
         throw new Error("No se detectaron filas válidas con ID Cuenta (dash).");
       setPhase("uploading");
-      appendLog(`Modo reemplazo: se borrará la carga previa de ${periodoActivo} antes de insertar.`);
+      appendLog(appendMode
+        ? `Modo APPEND: se agregarán ${mapped.length} filas SIN borrar datos previos de ${periodoActivo}.`
+        : `Modo reemplazo: se borrará la carga previa de ${periodoActivo} antes de insertar.`
+      );
       const result = await replaceClientesInBatches(
         mapped,
         (u, t) => { setUploaded(u); setTotal(t); },
         500,
         appendLog,
+        appendMode,
       );
       setSummary({ inserted: result.totalInserted, failed: result.totalFailed, read: raw.length });
       appendLog(
@@ -301,6 +306,17 @@ export function ImportClientesPanel() {
           >
             Limpiar selección
           </button>
+
+          {/* Toggle Append */}
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, cursor: "pointer", color: appendMode ? "var(--orange)" : "var(--ink-3)" }}>
+            <input
+              type="checkbox"
+              checked={appendMode}
+              onChange={e => setAppendMode(e.target.checked)}
+              style={{ cursor: "pointer" }}
+            />
+            Modo Append (agregar sin borrar datos previos)
+          </label>
         </div>
 
         {/* Progress / status */}

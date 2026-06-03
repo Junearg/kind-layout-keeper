@@ -368,6 +368,7 @@ export async function replaceClientesInBatches(
   onProgress: (uploaded: number, total: number) => void,
   batchSize = 500,
   onLog?: (line: string) => void,
+  appendMode = false,   // Si true: no borra datos previos, solo inserta/actualiza
 ): Promise<ImportSummary> {
   // Clave de dedupe: SOLO ID Cuenta (dash). El archivo no tiene columna `mes`;
   // mes_exportacion lo elige el usuario al importar y es el mismo para todas las filas.
@@ -508,10 +509,12 @@ export async function replaceClientesInBatches(
   );
   onLog?.(`Inicio: ${rows.length} leídas, ${total} únicas tras dedupe. Batch=${batchSize}.`);
 
-  // Borrado completo del mes antes de insertar: no hacemos upsert para evitar
-  // que queden pegados motivos/fechas viejas de cargas anteriores.
+  // Borrado completo del mes antes de insertar (salvo modo append).
   const mesesAfectados = Array.from(new Set(deduped.map((r) => String(r.mes_exportacion))));
-  for (const mes of mesesAfectados) {
+  if (appendMode) {
+    onLog?.(`Modo APPEND: no se borra la carga previa. Se agregan ${deduped.length} filas sobre las existentes.`);
+  }
+  for (const mes of appendMode ? [] : mesesAfectados) {
     onLog?.(`Borrando carga previa completa de ${mes}…`);
     const { count, error: delErr } = await supabase
       .from("clientes")
