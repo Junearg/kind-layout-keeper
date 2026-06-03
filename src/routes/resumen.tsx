@@ -483,17 +483,7 @@ function MotivosStackedCard({ rows }: { rows: ChurnRowLite[] | null }) {
     return { pieData, total, pctSinMotivo };
   }, [rows, from, to, bounds]);
 
-  if (!result) {
-    return (
-      <div className="card lg" style={{ display: "grid", placeItems: "center", minHeight: 300 }}>
-        <div className="muted fs-12">Cargando motivos…</div>
-      </div>
-    );
-  }
-
-  const { pieData, total, pctSinMotivo } = result;
-
-  // Rows filtradas para submotivos y comentarios
+  // Rows filtradas — DEBE estar antes del early return (Rules of Hooks)
   const fromEff2 = from || bounds?.min || "";
   const toEff2   = to   || bounds?.max || "";
   const filteredForDonut = useMemo(() => {
@@ -506,6 +496,16 @@ function MotivosStackedCard({ rows }: { rows: ChurnRowLite[] | null }) {
       return true;
     });
   }, [rows, fromEff2, toEff2]);
+
+  if (!result) {
+    return (
+      <div className="card lg" style={{ display: "grid", placeItems: "center", minHeight: 300 }}>
+        <div className="muted fs-12">Cargando motivos…</div>
+      </div>
+    );
+  }
+
+  const { pieData, total, pctSinMotivo } = result;
 
   return (
     <div className="card lg" style={{ marginTop: 16 }}>
