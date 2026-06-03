@@ -35,7 +35,9 @@ const COLUMN_MAP: Record<string, string> = {
   "Primera fecha contacto": "primera_fecha_contacto",
   "Última fecha contacto": "ultima_fecha_contacto",
   "Temas contacto": "temas_contacto",
+  "Temas de Contacto": "temas_contacto",      // variante con "de"
   "Motivos contacto": "motivos_contacto",
+  "Motivos de Contacto": "motivos_contacto",  // variante con "de"
   "CSAT ONB (promedio gral)": "csat_onb_promedio",
   "CSAT ONB (N respuestas)": "csat_onb_n",
   "CSAT CS+Soporte (promedio gral)": "csat_cs_promedio",
