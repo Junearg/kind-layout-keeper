@@ -153,7 +153,9 @@ async function fetchResumen(period: string): Promise<ResumenData> {
       .eq("mes_exportacion", period)
       .eq("estado_dash", "Activo")),
     fetchBajas({ mes: period }),
-    fetchBajas(),
+    // bajasAllRaw: el snapshot del período ya contiene todo el historial via fecha_baja.
+    // Reutilizamos bajasRaw en lugar de traer TODOS los meses sin filtro (crashea con 70k+ filas).
+    fetchBajas({ mes: period }),
     pageAll<NpsRow>(() => supabase
       .from("clientes")
       .select("nps_score,pais")
