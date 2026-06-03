@@ -48,6 +48,8 @@ type ChurnedRow = {
   csat_cs_promedio: number | null;
   motivo_baja: string | null;
   comentarios_metabase: string | null;
+  motivos_contacto: string | null;
+  temas_contacto: string | null;
 };
 
 async function pageAll<T>(builder: () => any): Promise<T[]> {
@@ -126,17 +128,25 @@ function useChurnedAccountsData(periodoMes: string) {
       if (!periodoMes) return [];
       const start = `${periodoMes}-01`;
       const end = `${nextMonth(periodoMes)}-01`;
-      const rows = await pageAll<ChurnedRow>(() =>
-        supabase
-          .from("clientes")
-          .select(
-            "id_cuenta_dash,nombre,pais,plan,ejecutivo,fecha_baja,nps_score,nps_categoria,nps_periodo,cant_contactos,meses_con_contacto,csat_cs_promedio,motivo_baja,comentarios_metabase",
-          )
-          .eq("etapa", "Bajas")
-          .not("fecha_baja", "is", null)
-          .gte("fecha_baja", start)
-          .lt("fecha_baja", end),
-      );
+      // Incluye etapa=Bajas Y estado_dash=Bloqueado (para imports sin columna Etapa)
+      const [byEtapa, byBloqueado] = await Promise.all([
+        pageAll<ChurnedRow>(() =>
+          supabase.from("clientes")
+            .select("id_cuenta_dash,nombre,pais,plan,ejecutivo,fecha_baja,nps_score,nps_categoria,nps_periodo,cant_contactos,meses_con_contacto,csat_cs_promedio,motivo_baja,comentarios_metabase,motivos_contacto,temas_contacto")
+            .eq("etapa", "Bajas").not("fecha_baja","is",null).gte("fecha_baja",start).lt("fecha_baja",end)
+        ),
+        pageAll<ChurnedRow>(() =>
+          supabase.from("clientes")
+            .select("id_cuenta_dash,nombre,pais,plan,ejecutivo,fecha_baja,nps_score,nps_categoria,nps_periodo,cant_contactos,meses_con_contacto,csat_cs_promedio,motivo_baja,comentarios_metabase,motivos_contacto,temas_contacto")
+            .eq("estado_dash","Bloqueado").is("etapa",null).not("fecha_baja","is",null).gte("fecha_baja",start).lt("fecha_baja",end)
+        ),
+      ]);
+      const seen = new Set<string>();
+      const rows: ChurnedRow[] = [];
+      for (const r of [...byEtapa, ...byBloqueado]) {
+        const key = `${r.id_cuenta_dash}`;
+        if (!seen.has(key)) { seen.add(key); rows.push(r); }
+      }
       return rows;
     },
     enabled: Boolean(periodoMes),
@@ -488,9 +498,15 @@ function ChurnedAccountsSection() {
                             </span>
                           ) : <span style={{ color: "var(--ink-4)" }}>—</span>}
                         </td>
-                        <td style={{ ...tdStyle, textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 500 }}>
-                          {contactRate}/mes
+                        <td style={{ ...tdStyle, textAlign: "right" }}>
+                          <span style={{ fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>{contactRate}/mes</span>
                           <div style={{ fontSize: 10, color: "var(--ink-4)" }}>{cant} total · {meses}m</div>
+                          {r.motivos_contacto && (
+                            <div style={{ fontSize: 10, color: "var(--ink-3)", marginTop: 2, fontStyle: "italic", textAlign: "left" }}
+                              title={r.motivos_contacto}>
+                              {r.motivos_contacto.length > 40 ? r.motivos_contacto.slice(0, 40) + "…" : r.motivos_contacto}
+                            </div>
+                          )}
                         </td>
                       </tr>
                     );
