@@ -379,27 +379,22 @@ function ChurnedAccountsSection() {
       </div>
 
       {/* KPI Cards */}
-      <div className="bento cols-4">
+      <div style={{ display: "flex", gap: 16, marginBottom: 0 }}>
         <KpiCard
           label="Total churneados"
           value={nfmt(kpis.total)}
           sub={`en ${formatMonthLabel(activePeriodo)}`}
         />
-        <KpiCard
-          label="Con NPS"
-          value={`${nfmt(kpis.conNPS)} · ${kpis.total > 0 ? ((kpis.conNPS / kpis.total) * 100).toFixed(0) : 0}%`}
-          sub="cuentas con score registrado"
-        />
-        <KpiCard
-          label="NPS Promedio"
-          value={kpis.npsPromedio != null ? kpis.npsPromedio.toFixed(1) : "—"}
-          sub="promedio de cuentas con NPS"
-        />
-        <KpiCard
-          label="Con contactos"
-          value={`${nfmt(kpis.conContactos)} · prom ${kpis.avgContactos.toFixed(1)}`}
-          sub="cuentas con ≥1 contacto registrado"
-        />
+        {/* Con NPS — % en naranja como el Dashboard */}
+        <div className="card orange" style={{ padding: "20px 22px", minWidth: 220 }}>
+          <div className="card-eyebrow" style={{ color: "rgba(255,255,255,0.75)", marginBottom: 8 }}>Respondieron NPS</div>
+          <div className="bignum" style={{ fontSize: 44, letterSpacing: "-0.03em" }}>
+            {kpis.total > 0 ? `${((kpis.conNPS / kpis.total) * 100).toFixed(0)}%` : "—"}
+          </div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 6 }}>
+            {nfmt(kpis.conNPS)} de {nfmt(kpis.total)} cuentas
+          </div>
+        </div>
       </div>
 
       {/* Charts row */}
