@@ -21,17 +21,27 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
   async function loadPeriods() {
     setLoading(true);
     try {
-      // Una sola query con limit alto — solo traemos mes_exportacion (string ligero)
-      // Filtramos a YYYY-MM (len=7) para excluir snapshots diarios (YYYY-MM-DD)
-      const { data, error } = await supabase
-        .from("clientes")
-        .select("mes_exportacion")
-        .not("mes_exportacion", "is", null)
-        .limit(50000);
-      if (error) throw error;
-      const uniq = Array.from(
-        new Set((data ?? []).map((r) => r.mes_exportacion as string).filter((p) => p?.length === 7)),
-      ).sort((a, b) => b.localeCompare(a));
+      // Generamos los últimos 36 meses y hacemos COUNT por mes (queries livianas)
+      // Esto evita el límite de 1000 filas de PostgREST
+      const today = new Date();
+      const candidates: string[] = [];
+      for (let i = 0; i < 36; i++) {
+        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        candidates.push(
+          `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+        );
+      }
+      const results = await Promise.all(
+        candidates.map((m) =>
+          supabase
+            .from("clientes")
+            .select("*", { count: "exact", head: true })
+            .eq("mes_exportacion", m),
+        ),
+      );
+      const uniq = candidates
+        .filter((_, i) => (results[i].count ?? 0) > 0)
+        .sort((a, b) => b.localeCompare(a));
 
       setAvailable(uniq);
       const stored = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
