@@ -120,15 +120,18 @@ async function fetchResumen(period: string): Promise<ResumenData> {
       .select("id_hubspot,productos,usuarios,v_salon,v_delivery,v_mostrador,cant_contactos,nps_score,motivo_baja,motivo_metabase,estado_dash,pais")
       .eq("mes_exportacion", period)
       .eq("estado_dash", "Activo")),
+    // bajasRaw: bajas del período. Incluye etapa IN ETAPAS_BAJA O estado_dash=Bloqueado
+    // (el segundo caso cubre imports de base_hubspot que no tienen columna Etapa)
     pageAll<BajaRow>(() => supabase
       .from("clientes")
       .select("id,fecha_baja,motivo_baja,submotivo_baja,motivo_metabase,comentarios_metabase,pais,mes_exportacion,etapa")
       .eq("mes_exportacion", period)
-      .in("etapa", ETAPAS_BAJA)),
+      .or(`etapa.in.(${ETAPAS_BAJA.join(",")}),estado_dash.eq.Bloqueado`)),
+    // bajasAllRaw: todas las bajas históricas (sin filtro de mes)
     pageAll<BajaRow>(() => supabase
       .from("clientes")
       .select("id,fecha_baja,motivo_baja,submotivo_baja,motivo_metabase,comentarios_metabase,pais,mes_exportacion,etapa")
-      .in("etapa", ETAPAS_BAJA)),
+      .or(`etapa.in.(${ETAPAS_BAJA.join(",")}),estado_dash.eq.Bloqueado`)),
     pageAll<NpsRow>(() => supabase
       .from("clientes")
       .select("nps_score,pais")
