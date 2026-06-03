@@ -117,9 +117,10 @@ function monthLabel(key: string): string {
 }
 
 async function fetchResumen(period: string): Promise<ResumenData> {
-  // Bajas por etapa — solo "Bajas" y "Bajas clientes" (Etapa ya incluida en todos los imports)
-  async function fetchBajas(mes: string): Promise<BajaRow[]> {
-    const sel = "id,fecha_baja,motivo_baja,submotivo_baja,motivo_metabase,comentarios_metabase,pais,mes_exportacion,etapa,estado_dash";
+  const sel = "id,fecha_baja,motivo_baja,submotivo_baja,motivo_metabase,comentarios_metabase,pais,mes_exportacion,etapa,estado_dash";
+
+  // Bajas del período actual — para métricas del mes (motivos, YTD, CVR)
+  async function fetchBajasPeriod(mes: string): Promise<BajaRow[]> {
     const [byBajas, byBajasClientes, byBloqueadoSinEtapa] = await Promise.all([
       pageAll<BajaRow>(() =>
         supabase.from("clientes").select(sel).eq("etapa", "Bajas").eq("mes_exportacion", mes)
@@ -127,10 +128,32 @@ async function fetchResumen(period: string): Promise<ResumenData> {
       pageAll<BajaRow>(() =>
         supabase.from("clientes").select(sel).eq("etapa", "Bajas clientes").eq("mes_exportacion", mes)
       ),
-      // Filas importadas antes del fix: etapa null + Bloqueado + fecha_baja → son bajas reales
+      // Filas sin etapa (importadas antes del fix): Bloqueado + fecha_baja presente
       pageAll<BajaRow>(() =>
         supabase.from("clientes").select(sel)
           .eq("mes_exportacion", mes)
+          .is("etapa", null)
+          .eq("estado_dash", "Bloqueado")
+          .not("fecha_baja", "is", null)
+      ),
+    ]);
+    return [...byBajas, ...byBajasClientes, ...byBloqueadoSinEtapa];
+  }
+
+  // Todas las bajas históricas — SIN filtro de período, para el gráfico de tendencia.
+  // El historico se sube una sola vez y queda en la DB en un período determinado.
+  // Las bajas mensuales se suben en archivos separados.
+  // Usando todas garantizamos que el trend siempre muestra el historial completo.
+  async function fetchBajasAll(): Promise<BajaRow[]> {
+    const [byBajas, byBajasClientes, byBloqueadoSinEtapa] = await Promise.all([
+      pageAll<BajaRow>(() =>
+        supabase.from("clientes").select(sel).eq("etapa", "Bajas")
+      ),
+      pageAll<BajaRow>(() =>
+        supabase.from("clientes").select(sel).eq("etapa", "Bajas clientes")
+      ),
+      pageAll<BajaRow>(() =>
+        supabase.from("clientes").select(sel)
           .is("etapa", null)
           .eq("estado_dash", "Bloqueado")
           .not("fecha_baja", "is", null)
@@ -145,8 +168,8 @@ async function fetchResumen(period: string): Promise<ResumenData> {
       .select("id_hubspot,productos,usuarios,v_salon,v_delivery,v_mostrador,cant_contactos,nps_score,motivo_baja,motivo_metabase,estado_dash,pais")
       .eq("mes_exportacion", period)
       .eq("estado_dash", "Activo")),
-    fetchBajas(period),
-    fetchBajas(period), // bajasAllRaw reutiliza bajasRaw (snapshot contiene historial via fecha_baja)
+    fetchBajasPeriod(period),   // métricas del mes actual
+    fetchBajasAll(),            // todas las bajas históricas (para tendencia)
     pageAll<NpsRow>(() => supabase
       .from("clientes")
       .select("nps_score,pais")
