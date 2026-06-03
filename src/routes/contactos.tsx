@@ -448,19 +448,21 @@ function ChurnedAccountsSection() {
               <table className="tbl" style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                 <thead>
                   <tr style={{ background: "var(--paper-2)", textAlign: "left" }}>
-                    <Th>ID Cuenta</Th>
-                    <Th onClick={() => toggleSort("nombre")} active={sortKey === "nombre"} dir={sortDir}>Nombre</Th>
+                    <Th onClick={() => toggleSort("nombre")} active={sortKey === "nombre"} dir={sortDir}>Cuenta</Th>
+                    <Th>País</Th>
+                    <Th>Plan</Th>
+                    <Th>Ejecutivo</Th>
                     <Th>Motivo Baja</Th>
-                    <Th onClick={() => toggleSort("nps_score")} active={sortKey === "nps_score"} dir={sortDir} align="right">NPS Score</Th>
-                    <Th>Comentarios</Th>
-                    <Th onClick={() => toggleSort("cant_contactos")} active={sortKey === "cant_contactos"} dir={sortDir} align="right">Contact Rate</Th>
+                    <Th onClick={() => toggleSort("nps_score")} active={sortKey === "nps_score"} dir={sortDir} align="center">NPS</Th>
+                    <Th onClick={() => toggleSort("cant_contactos")} active={sortKey === "cant_contactos"} dir={sortDir} align="right">Contactos</Th>
+                    <Th>Motivos de Contacto</Th>
                   </tr>
                 </thead>
                 <tbody>
                   {pageRows.map((r, i) => {
                     const npsScore = r.nps_score;
                     let npsBg = "transparent";
-                    let npsColor = "var(--ink)";
+                    let npsColor = "var(--ink-3)";
                     if (npsScore != null) {
                       if (npsScore <= 6) { npsBg = "rgba(239,68,68,0.12)"; npsColor = "var(--red)"; }
                       else if (npsScore <= 8) { npsBg = "rgba(245,158,11,0.12)"; npsColor = "#D97706"; }
@@ -468,45 +470,48 @@ function ChurnedAccountsSection() {
                     }
                     const meses = countMeses(r.meses_con_contacto);
                     const cant = Number(r.cant_contactos ?? 0);
-                    const contactRate = meses > 0 ? (cant / meses).toFixed(1) : cant > 0 ? cant.toFixed(1) : "0.0";
                     return (
                       <tr key={`${r.nombre}-${i}`} style={{ borderTop: "1px solid var(--rule)" }}>
-                        <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11, color: "var(--ink-3)" }}>
-                          {r.id_cuenta_dash ?? "—"}
-                        </td>
+                        {/* Cuenta */}
                         <td style={tdStyle}>
-                          <div className="strong" style={{ color: "var(--ink)" }}>{r.nombre ?? "—"}</div>
-                          <div style={{ fontSize: 10.5, color: "var(--ink-4)", marginTop: 1 }}>{r.pais ?? ""}{r.plan ? ` · ${r.plan}` : ""}</div>
+                          <div className="strong" style={{ color: "var(--ink)", fontSize: 12.5 }}>{r.nombre ?? "—"}</div>
+                          <div style={{ fontSize: 10.5, color: "var(--ink-4)", fontFamily: "monospace" }}>#{r.id_cuenta_dash ?? "—"}</div>
                         </td>
-                        <td style={{ ...tdStyle, maxWidth: 180 }}>
-                          <span style={{ fontSize: 11.5, color: "var(--ink-2)" }} title={r.motivo_baja ?? ""}>
-                            {r.motivo_baja ? (r.motivo_baja.length > 35 ? r.motivo_baja.slice(0, 35) + "…" : r.motivo_baja) : "—"}
+                        {/* País */}
+                        <td style={tdStyle}>{r.pais ?? "—"}</td>
+                        {/* Plan */}
+                        <td style={tdStyle}>
+                          {r.plan ? <span className="tag outline" style={{ fontSize: 11 }}>{r.plan}</span> : "—"}
+                        </td>
+                        {/* Ejecutivo */}
+                        <td style={{ ...tdStyle, fontSize: 12 }}>{r.ejecutivo ?? "—"}</td>
+                        {/* Motivo Baja */}
+                        <td style={{ ...tdStyle, maxWidth: 160 }}>
+                          <span style={{ fontSize: 12, color: "var(--ink-2)" }} title={r.motivo_baja ?? ""}>
+                            {r.motivo_baja ? (r.motivo_baja.length > 28 ? r.motivo_baja.slice(0, 28) + "…" : r.motivo_baja) : "—"}
                           </span>
                         </td>
+                        {/* NPS Score */}
                         <td style={{ ...tdStyle, textAlign: "center" }}>
-                          {npsScore != null ? (
-                            <span style={{ background: npsBg, color: npsColor, padding: "3px 10px", borderRadius: 6, fontWeight: 700, fontSize: 13 }}>
-                              {npsScore}
-                            </span>
-                          ) : <span style={{ color: "var(--ink-4)" }}>—</span>}
+                          <span style={{ background: npsBg, color: npsColor, padding: "3px 10px", borderRadius: 6, fontWeight: 700, fontSize: 13 }}>
+                            {npsScore != null ? npsScore : "—"}
+                          </span>
+                          {r.nps_categoria && (
+                            <div style={{ fontSize: 9.5, color: npsColor, marginTop: 2 }}>{r.nps_categoria}</div>
+                          )}
                         </td>
-                        <td style={{ ...tdStyle, maxWidth: 260 }}>
-                          {r.comentarios_metabase ? (
-                            <span style={{ fontSize: 11.5, color: "var(--ink-2)", fontStyle: "italic" }}
-                              title={r.comentarios_metabase}>
-                              "{r.comentarios_metabase.length > 60 ? r.comentarios_metabase.slice(0, 60) + "…" : r.comentarios_metabase}"
-                            </span>
-                          ) : <span style={{ color: "var(--ink-4)" }}>—</span>}
+                        {/* Contactos */}
+                        <td style={{ ...tdStyle, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                          <span style={{ fontWeight: 600, fontSize: 13 }}>{cant}</span>
+                          <div style={{ fontSize: 10, color: "var(--ink-4)" }}>{meses}m con contacto</div>
                         </td>
-                        <td style={{ ...tdStyle, textAlign: "right" }}>
-                          <span style={{ fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>{contactRate}/mes</span>
-                          <div style={{ fontSize: 10, color: "var(--ink-4)" }}>{cant} total · {meses}m</div>
-                          <div style={{ fontSize: 10, color: "var(--ink-3)", marginTop: 2, fontStyle: "italic", textAlign: "left" }}
-                            title={r.motivos_contacto ?? ""}>
+                        {/* Motivos de Contacto */}
+                        <td style={{ ...tdStyle, maxWidth: 220 }}>
+                          <span style={{ fontSize: 11.5, color: "var(--ink-2)" }} title={r.motivos_contacto ?? ""}>
                             {r.motivos_contacto
-                              ? (r.motivos_contacto.length > 40 ? r.motivos_contacto.slice(0, 40) + "…" : r.motivos_contacto)
-                              : "—"}
-                          </div>
+                              ? (r.motivos_contacto.length > 45 ? r.motivos_contacto.slice(0, 45) + "…" : r.motivos_contacto)
+                              : <span style={{ color: "var(--ink-4)" }}>—</span>}
+                          </span>
                         </td>
                       </tr>
                     );
