@@ -389,12 +389,15 @@ function MotivosStackedCard({ rows }: { rows: ChurnRowLite[] | null }) {
   const bounds = useMemo(() => {
     if (!rows) return null;
     let min = "9999-12-31", max = "0000-01-01";
+
     for (const r of rows) {
       if (!r.fechaBaja) continue;
       const d = r.fechaBaja.slice(0, 10);
       if (d < min) min = d;
       if (d > max) max = d;
     }
+    // Si no se encontró ninguna fecha válida, retornar null
+    if (min === "9999-12-31") return null;
     return { min, max };
   }, [rows]);
 
