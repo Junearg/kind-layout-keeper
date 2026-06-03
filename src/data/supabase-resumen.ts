@@ -114,24 +114,46 @@ function monthLabel(key: string): string {
 }
 
 async function fetchResumen(period: string): Promise<ResumenData> {
+  // Helper: trae bajas por etapa + bajas por estado_dash=Bloqueado (para imports sin Etapa)
+  async function fetchBajas(extraFilter?: { mes: string }): Promise<BajaRow[]> {
+    const sel = "id,fecha_baja,motivo_baja,submotivo_baja,motivo_metabase,comentarios_metabase,pais,mes_exportacion,etapa";
+    const [byEtapa1, byEtapa2, byBloq] = await Promise.all([
+      pageAll<BajaRow>(() => {
+        let q = supabase.from("clientes").select(sel).eq("etapa", "Bajas");
+        if (extraFilter?.mes) q = q.eq("mes_exportacion", extraFilter.mes);
+        return q;
+      }),
+      pageAll<BajaRow>(() => {
+        let q = supabase.from("clientes").select(sel).eq("etapa", "Bajas clientes");
+        if (extraFilter?.mes) q = q.eq("mes_exportacion", extraFilter.mes);
+        return q;
+      }),
+      pageAll<BajaRow>(() => {
+        let q = supabase.from("clientes").select(sel)
+          .eq("estado_dash", "Bloqueado")
+          .is("etapa", null); // solo los que no tienen etapa (imports sin columna Etapa)
+        if (extraFilter?.mes) q = q.eq("mes_exportacion", extraFilter.mes);
+        return q;
+      }),
+    ]);
+    // Dedup por id para evitar contar dos veces
+    const seen = new Set<string>();
+    const all: BajaRow[] = [];
+    for (const r of [...byEtapa1, ...byEtapa2, ...byBloq]) {
+      const key = `${r.id}_${r.mes_exportacion}`;
+      if (!seen.has(key)) { seen.add(key); all.push(r); }
+    }
+    return all;
+  }
+
   const [activos, bajasRaw, bajasAllRaw, nps, csat] = await Promise.all([
     pageAll<ScoreRow>(() => supabase
       .from("clientes")
       .select("id_hubspot,productos,usuarios,v_salon,v_delivery,v_mostrador,cant_contactos,nps_score,motivo_baja,motivo_metabase,estado_dash,pais")
       .eq("mes_exportacion", period)
       .eq("estado_dash", "Activo")),
-    // bajasRaw: bajas del período. Incluye etapa IN ETAPAS_BAJA O estado_dash=Bloqueado
-    // (el segundo caso cubre imports de base_hubspot que no tienen columna Etapa)
-    pageAll<BajaRow>(() => supabase
-      .from("clientes")
-      .select("id,fecha_baja,motivo_baja,submotivo_baja,motivo_metabase,comentarios_metabase,pais,mes_exportacion,etapa")
-      .eq("mes_exportacion", period)
-      .or(`etapa.in.(${ETAPAS_BAJA.join(",")}),estado_dash.eq.Bloqueado`)),
-    // bajasAllRaw: todas las bajas históricas (sin filtro de mes)
-    pageAll<BajaRow>(() => supabase
-      .from("clientes")
-      .select("id,fecha_baja,motivo_baja,submotivo_baja,motivo_metabase,comentarios_metabase,pais,mes_exportacion,etapa")
-      .or(`etapa.in.(${ETAPAS_BAJA.join(",")}),estado_dash.eq.Bloqueado`)),
+    fetchBajas({ mes: period }),
+    fetchBajas(),
     pageAll<NpsRow>(() => supabase
       .from("clientes")
       .select("nps_score,pais")
