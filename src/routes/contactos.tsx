@@ -128,28 +128,26 @@ function useChurnedAccountsData(periodoMes: string) {
       if (!periodoMes) return [];
       const start = `${periodoMes}-01`;
       const end = `${nextMonth(periodoMes)}-01`;
-      // Churneados del período: etapa="Bajas" o "Bajas clientes" + fecha_baja en el mes
-      const [byBajas, byBajasClientes] = await Promise.all([
+      const SEL = "id_cuenta_dash,nombre,pais,plan,ejecutivo,fecha_baja,nps_score,nps_categoria,nps_periodo,cant_contactos,meses_con_contacto,csat_cs_promedio,motivo_baja,comentarios_metabase,motivos_contacto,temas_contacto";
+      // Churneados = etapa Bajas/Bajas clientes (historico) OU Bloqueado+fecha_baja (archivo de bajas)
+      const [byBajas, byBajasClientes, byBloqueadoConFecha] = await Promise.all([
         pageAll<ChurnedRow>(() =>
-          supabase.from("clientes")
-            .select("id_cuenta_dash,nombre,pais,plan,ejecutivo,fecha_baja,nps_score,nps_categoria,nps_periodo,cant_contactos,meses_con_contacto,csat_cs_promedio,motivo_baja,comentarios_metabase,motivos_contacto,temas_contacto")
-            .eq("etapa", "Bajas")
-            .not("fecha_baja", "is", null)
-            .gte("fecha_baja", start)
-            .lt("fecha_baja", end)
+          supabase.from("clientes").select(SEL)
+            .eq("etapa", "Bajas").not("fecha_baja","is",null).gte("fecha_baja",start).lt("fecha_baja",end)
         ),
         pageAll<ChurnedRow>(() =>
-          supabase.from("clientes")
-            .select("id_cuenta_dash,nombre,pais,plan,ejecutivo,fecha_baja,nps_score,nps_categoria,nps_periodo,cant_contactos,meses_con_contacto,csat_cs_promedio,motivo_baja,comentarios_metabase,motivos_contacto,temas_contacto")
-            .eq("etapa", "Bajas clientes")
-            .not("fecha_baja", "is", null)
-            .gte("fecha_baja", start)
-            .lt("fecha_baja", end)
+          supabase.from("clientes").select(SEL)
+            .eq("etapa", "Bajas clientes").not("fecha_baja","is",null).gte("fecha_baja",start).lt("fecha_baja",end)
+        ),
+        // Bloqueado con fecha_baja en el período = churneado del archivo de bajas
+        pageAll<ChurnedRow>(() =>
+          supabase.from("clientes").select(SEL)
+            .eq("estado_dash", "Bloqueado").not("fecha_baja","is",null).gte("fecha_baja",start).lt("fecha_baja",end)
         ),
       ]);
       const seen = new Set<string>();
       const rows: ChurnedRow[] = [];
-      for (const r of [...byBajas, ...byBajasClientes]) {
+      for (const r of [...byBajas, ...byBajasClientes, ...byBloqueadoConFecha]) {
         const key = `${r.id_cuenta_dash}`;
         if (!seen.has(key)) { seen.add(key); rows.push(r); }
       }
@@ -168,8 +166,8 @@ function useChurnedMonths() {
         supabase
           .from("clientes")
           .select("fecha_baja")
-          .in("etapa", ["Bajas", "Bajas clientes"])
-          .not("fecha_baja", "is", null),
+          .not("fecha_baja", "is", null)
+          .or("etapa.eq.Bajas,etapa.eq.Bajas clientes,estado_dash.eq.Bloqueado"),
       );
       const months = Array.from(
         new Set(rows.map((r) => (r.fecha_baja ? yyyyMM(r.fecha_baja) : null)).filter(Boolean) as string[]),
