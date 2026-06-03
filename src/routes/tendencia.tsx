@@ -110,7 +110,7 @@ function Tendencia() {
   const mesActivo = useMesActivo();
   const { selectedPeriod } = usePeriod();
   const { selectedPais } = useCountry();
-  const { data: insights6m } = useSupabaseChurnInsights(mesActivo, selectedPais);
+  const { data: insights6m } = useSupabaseChurnInsights(selectedPeriod || mesActivo, selectedPais);
   const { data: ret } = useRetention(selectedPeriod, selectedPais);
   const { data: snapshotRows, isLoading: snapshotLoading } = useSnapshot(selectedPeriod, selectedPais);
 
