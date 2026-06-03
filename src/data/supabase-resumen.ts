@@ -101,6 +101,8 @@ export type ResumenData = {
   pctSinMotivo: number;
   totalBajasHist: number;
   criticalCount: number;
+  // Filas individuales de bajas (históricas) para MotivosStackedCard
+  bajasRows: { motivo: string; fechaBaja: string | null; submotivo: string | null; comentarios: string | null }[];
   sinFechaHist: number; // Bloqueados reales sin fecha_baja — no asignables a un mes
   alertas: { tone: "red" | "amber"; titulo: string; link: string }[];
 };
@@ -314,6 +316,14 @@ async function fetchResumen(period: string): Promise<ResumenData> {
     alertas.push({ tone: "red", titulo: `${criticalCount} cuentas en tier Critical — intervención urgente`, link: "/health" });
   }
 
+  // Filas individuales para MotivosStackedCard — usa bajasAll (históricas vía fecha_baja)
+  const bajasRows = bajasAll.map((b) => ({
+    motivo: b.motivo_baja?.trim() || "Sin motivo",
+    fechaBaja: b.fecha_baja ?? null,
+    submotivo: b.submotivo_baja?.trim() || null,
+    comentarios: b.comentarios_metabase?.trim() || null,
+  }));
+
   return {
     period,
     activeAccounts: activosUnicos.length,
@@ -333,6 +343,7 @@ async function fetchResumen(period: string): Promise<ResumenData> {
     criticalCount,
     sinFechaHist,
     alertas,
+    bajasRows,
   };
 }
 
