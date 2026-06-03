@@ -579,14 +579,18 @@ function useFilteredRows(rows: ChurnRowLite[] | null, from: string, to: string, 
   }, [rows, from, to, bounds]);
 }
 
+const truncate = (s: string, max = 22) =>
+  s.length > max ? s.slice(0, max).trimEnd() + "…" : s;
+
 function SubMotivosSection({ rows }: { rows: ChurnRowLite[] }) {
   const byCategoria = useMemo(() => {
     const map = new Map<string, Map<string, number>>();
     for (const r of rows) {
-      if (!r.submotivo) continue;
+      if (!r.submotivo || r.submotivo === "-" || r.submotivo === ".") continue;
       const cat = normalizarMotivo(r.motivo, null, null, null);
+      const clean = r.submotivo.trim().replace(/^otro sub-motivo$/i, "Otro");
       const subMap = map.get(cat) ?? new Map<string, number>();
-      subMap.set(r.submotivo, (subMap.get(r.submotivo) ?? 0) + 1);
+      subMap.set(clean, (subMap.get(clean) ?? 0) + 1);
       map.set(cat, subMap);
     }
     return map;
@@ -594,31 +598,47 @@ function SubMotivosSection({ rows }: { rows: ChurnRowLite[] }) {
 
   if (byCategoria.size === 0) return null;
 
+  const sorted = [...byCategoria.entries()].sort((a, b) => {
+    const ta = [...a[1].values()].reduce((s,v)=>s+v,0);
+    const tb = [...b[1].values()].reduce((s,v)=>s+v,0);
+    return tb - ta;
+  });
+
   return (
     <div style={{ marginTop: 24 }}>
-      <div className="card-eyebrow" style={{ marginBottom: 12 }}>Submotivos más frecuentes por categoría</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {[...byCategoria.entries()].sort((a, b) => {
-          const ta = [...a[1].values()].reduce((s,v)=>s+v,0);
-          const tb = [...b[1].values()].reduce((s,v)=>s+v,0);
-          return tb - ta;
-        }).map(([cat, subMap]) => {
+      <div className="card-eyebrow" style={{ marginBottom: 14 }}>Submotivos más frecuentes por categoría</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+        {sorted.map(([cat, subMap]) => {
           const total = [...subMap.values()].reduce((s,v)=>s+v,0);
           const top3 = [...subMap.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3);
           const color = MOTIVO_COLORS[cat as keyof typeof MOTIVO_COLORS] ?? "#9CA3AF";
+          const max = top3[0]?.[1] ?? 1;
           return (
-            <div key={cat}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                <span style={{ width: 10, height: 10, borderRadius: 2, background: color, flexShrink: 0 }} />
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink)" }}>{cat}</span>
-                <span className="muted" style={{ fontSize: 11 }}>({nfmt(total)} con submotivo)</span>
+            <div key={cat} style={{ borderRadius: 12, border: "1px solid var(--rule)", padding: "12px 14px", background: "var(--paper)" }}>
+              {/* Header */}
+              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
+                <span style={{ width: 9, height: 9, borderRadius: 2, background: color, flexShrink: 0 }} />
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ink)" }}>{cat}</span>
+                <span style={{ fontSize: 10.5, color: "var(--ink-4)", marginLeft: "auto" }}>{nfmt(total)}</span>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4, paddingLeft: 18 }}>
+              {/* Top 3 submotivos como chips con barra */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {top3.map(([sub, n]) => (
-                  <div key={sub} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5 }}>
-                    <div style={{ width: Math.round((n/total)*120), height: 5, background: color, opacity: 0.5, borderRadius: 99, flexShrink: 0, minWidth: 4 }} />
-                    <span style={{ color: "var(--ink-2)", flex: 1 }}>{sub}</span>
-                    <span className="mono muted" style={{ fontSize: 11 }}>{nfmt(n)} · {((n/total)*100).toFixed(0)}%</span>
+                  <div key={sub} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+                        <span style={{ fontSize: 11.5, color: "var(--ink-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                          title={sub}>
+                          {truncate(sub, 24)}
+                        </span>
+                        <span style={{ fontSize: 11, color: "var(--ink-3)", marginLeft: 8, flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>
+                          {nfmt(n)}
+                        </span>
+                      </div>
+                      <div style={{ height: 4, background: "var(--paper-2)", borderRadius: 99, overflow: "hidden" }}>
+                        <div style={{ width: `${(n/max)*100}%`, height: "100%", background: color, opacity: 0.65, borderRadius: 99 }} />
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
