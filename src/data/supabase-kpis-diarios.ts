@@ -182,7 +182,9 @@ export async function computeKpiDia(fecha: string, pais: Pais): Promise<KpiDiari
         return (Date.now() - new Date(r.ultima_fecha_contacto).getTime()) / 86_400_000 < 7;
       }).length;
 
-  const base          = mpcsMesPasado || 1;
+  // Guard: si no hay datos del día anterior, las métricas relativas quedan como null
+  const hasPrevData = mpcsMesPasado > 0;
+  const base = mpcsMesPasado || 1; // fallback solo para no dividir por 0
 
   // C/ vtas del pool A_Recuperar (usado en Churn Neto — fórmula GSheet: J9)
   const cvtasRecuperar = recRows.filter(r => r.temas_contacto === "C/ vtas ultimos 7 dias").length;
@@ -194,27 +196,25 @@ export async function computeKpiDia(fecha: string, pais: Pais): Promise<KpiDiari
   // Churn Neto = 1 - (Activas + C_vtas_recuperar) / MPCs_prev (1-(J5+J9)/J23)
   // MPCs Retenidos Proyectados = Activas + C_vtas_recuperar
   const mpcsRetenidosProyectados = activas + cvtasRecuperar;
-  const churnNeto = base > 0 ? (1 - mpcsRetenidosProyectados / base) * 100 : 0;
+  const churnNeto = hasPrevData ? (1 - mpcsRetenidosProyectados / base) * 100 : 0;
 
   const pct10v        = activas > 0 ? (activasConVentas / activas) * 100 : 0;
   const loginPct      = activas > 0 ? (loginMenos7 / activas) * 100 : 0;
-  const pctRetenido   = (activas / base) * 100;              // Activas / MPCs_prev
-  const pctRetenido10v = (activasConVentas / base) * 100;    // Activas_10v / MPCs_prev
+  // % Retenido y >=10v solo son válidas si hay datos previos
+  const pctRetenido   = hasPrevData ? (activas / base) * 100 : 0;
+  const pctRetenido10v = hasPrevData ? (activasConVentas / base) * 100 : 0;
 
   // Plan
   const mesKey = fecha.slice(0, 7);
   const churnPlan = getChurnPlan(mesKey, pais);
-  // Plan MPCs = MPCs_prev (mismo denominador)
-  const planMPCs = base;
-  const mpcsMeta = churnPlan != null ? Math.round((1 - churnPlan / 100) * base) : null;
-  // # Recuperar = Plan_MPCs*(1-churnPlan%) - Activas = mpcsMeta - activas
+  const mpcsMeta = (hasPrevData && churnPlan != null) ? Math.round((1 - churnPlan / 100) * base) : null;
   const nRecuperar = mpcsMeta != null ? Math.max(0, mpcsMeta - activas) : null;
   // Proyectado Neto vs Plan = Churn_Neto/Churn_Plan - 1 (J25/J26-1)
-  const proyectadoVsPlan = churnPlan != null && churnPlan > 0
+  const proyectadoVsPlan = (hasPrevData && churnPlan != null && churnPlan > 0)
     ? (churnNeto / churnPlan - 1) * 100 : null;
   // MPCs vs Plan = MPCs_retenidos/Plan_MPCs - 1
-  const mpcsVsPlan = planMPCs > 0
-    ? (mpcsRetenidosProyectados / planMPCs - 1) * 100 : null;
+  const mpcsVsPlan = hasPrevData
+    ? (mpcsRetenidosProyectados / base - 1) * 100 : null;
 
   return {
     fecha, pais,
