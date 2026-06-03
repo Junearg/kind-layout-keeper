@@ -132,8 +132,8 @@ function Resumen() {
       <TrendCard trend={r.churnTrend.slice(-6)} delta={r.monthDeltaPct} prevLabel={r.prevClosedLabel} latestLabel={r.latestClosedLabel} />
       <MotivosStackedCard rows={insights6m?.rows ?? null} />
 
-      {/* Retención vs Plan */}
-      {ret && (
+      {/* Retención vs Plan — oculto por ahora */}
+      {false && ret && (
         <>
         <div className="divider">
           <span className="kicker">Retención</span>
