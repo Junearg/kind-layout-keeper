@@ -181,36 +181,95 @@ function PaisTab({ data }: { data: SegmentacionData }) {
     }
     const total = Object.values(curr).reduce((s, v) => s + v, 0);
     const top = [...PAISES_ORDER].sort((a, b) => (curr[b] ?? 0) - (curr[a] ?? 0))[0];
-    const rates = PAISES_ORDER.map((p) => {
+    const paisRates = PAISES_ORDER.filter(p => p !== "Otros").map((p) => {
       const base = data.activeBase.pais[p] ?? 0;
-      return { name: p as string, rate: base > 0 ? ((curr[p] ?? 0) / base) * 100 : 0 };
-    }).filter((r) => r.rate > 0);
-    const worstRate = [...rates].sort((a, b) => b.rate - a.rate)[0];
+      const bajas = curr[p] ?? 0;
+      return { name: p as string, rate: base > 0 ? (bajas / base) * 100 : 0, bajas, base };
+    }).filter((r) => r.base > 0).sort((a, b) => b.rate - a.rate);
+    const worstRate = paisRates[0];
     const totalBase = Object.values(data.activeBase.pais).reduce((s, v) => s + v, 0);
     const totalRate = totalBase > 0 ? (total / totalBase) * 100 : 0;
-    return { curr, total, top, worstRate, totalRate };
+    const maxRate = Math.max(...paisRates.map(r => r.rate), 0.01);
+    return { curr, total, top, worstRate, totalRate, paisRates, maxRate };
   }, [data, latestKey]);
 
   const getPais = (r: BajaRow) => r.pais as string;
 
   return (
     <>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 20 }}>
         <KpiCard label="Mayor volumen" value={m.top ?? "—"}
           sub={m.top ? `${nfmt(m.curr[m.top] ?? 0)} bajas · ${latestLabel}` : ""} />
         <KpiCard label="Mayor tasa" value={m.worstRate?.name ?? "—"}
           sub={m.worstRate ? pctfmt(m.worstRate.rate) : ""} tone="orange" />
         <KpiCard label="Churn rate total" value={pctfmt(m.totalRate)}
           sub={`${nfmt(m.total)} bajas · ${latestLabel}`} />
-        <KpiCard label="Tasa por base" value={m.worstRate ? pctfmt(m.worstRate.rate) : "—"}
-          sub={`${m.worstRate?.name ?? ""} · mayor tasa`} tone="ink" />
       </div>
+
+      {/* Tasa de churn por país sobre base activa */}
+      <div style={{ marginBottom: 20 }}>
+        <div className="card-eyebrow" style={{ marginBottom: 12 }}>
+          Tasa de churn por país · bajas / base activa · {latestLabel}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+          {m.paisRates.map((r) => {
+            const accent = COUNTRY_COLORS[r.name] ?? "var(--orange)";
+            const isHigh = r.rate > 5;
+            return (
+              <div key={r.name} style={{
+                borderRadius: 14, padding: "16px 18px",
+                border: `2px solid ${accent}`, background: "var(--paper)",
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, color: accent, marginBottom: 6 }}>
+                  {r.name}
+                </div>
+                <div style={{ fontSize: 32, fontWeight: 800, lineHeight: 1, color: isHigh ? "#DC2626" : "var(--ink)", fontFamily: "'Inter', sans-serif", letterSpacing: "-0.02em" }}>
+                  {pctfmt(r.rate)}
+                </div>
+                <div style={{ marginTop: 8, fontSize: 11, color: "var(--ink-3)" }}>
+                  {nfmt(r.bajas)} bajas
+                </div>
+                <div style={{ fontSize: 11, color: "var(--ink-4)" }}>
+                  de {nfmt(r.base)} activas
+                </div>
+              </div>
+            );
+          })}
+
+          {/* País más afectado */}
+          {(() => {
+            const worst = m.paisRates[0];
+            const best  = m.paisRates[m.paisRates.length - 1];
+            if (!worst || !best || worst.name === best.name) return null;
+            const ratio = best.rate > 0 ? (worst.rate / best.rate) : null;
+            return (
+              <div style={{ borderRadius: 14, padding: "16px 18px", background: "#FEF2F2", border: "2px solid #FECACA" }}>
+                <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, color: "#DC2626", marginBottom: 6 }}>
+                  MÁS AFECTADO
+                </div>
+                <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1, color: "#DC2626", fontFamily: "'Inter', sans-serif", letterSpacing: "-0.02em" }}>
+                  {worst.name}
+                </div>
+                <div style={{ marginTop: 8, fontSize: 12, color: "#991B1B", fontWeight: 600 }}>
+                  {pctfmt(worst.rate)} de su base se da de baja
+                </div>
+                {ratio != null && (
+                  <div style={{ marginTop: 4, fontSize: 11, color: "#B91C1C" }}>
+                    {ratio.toFixed(1)}× más que {best.name} ({pctfmt(best.rate)})
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      </div>
+
       <StackedEvolution
         data={data}
         dimensionKeys={[...PAISES_ORDER] as string[]}
         getKey={getPais}
         colors={COUNTRY_COLORS}
-        title="Bajas por país"
+        title="Composición de bajas por país"
       />
     </>
   );
