@@ -119,6 +119,45 @@ function Resumen() {
           </div>
           <TierMiniBars tierDist={r.tierDist} />
         </div>
+
+        {/* Churn Bruto + Churn Neto con sparkline */}
+        {ret && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
+            {[
+              { label: "Churn Bruto", val: ret.churnBruto, prev: r.monthDeltaPct },
+              { label: "Churn Neto",  val: ret.churnNeto,  prev: null },
+            ].map(({ label, val }) => {
+              const isHigh = val > 5;
+              // sparkline: últimas 6 bajas del trend como proxy de evolución
+              const sparkData = r.churnTrend.slice(-6).map((t, i) => ({
+                i, v: t.bajas,
+              }));
+              return (
+                <div key={label} style={{ flex: 1, border: "1px solid var(--rule)", borderRadius: 12, padding: "10px 14px", background: "var(--paper)", minWidth: 180 }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--ink-3)", marginBottom: 4 }}>{label}</div>
+                  <div style={{ display: "flex", alignItems: "flex-end", gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, color: isHigh ? "#DC2626" : "var(--ink)", fontFamily: "'Inter', sans-serif", letterSpacing: "-0.02em" }}>
+                        {val.toFixed(2)}%
+                      </div>
+                      <div style={{ fontSize: 10, color: "var(--ink-4)", marginTop: 3 }}>
+                        vs {r.prevClosedLabel}
+                      </div>
+                    </div>
+                    {/* Sparkline mini */}
+                    <div style={{ flex: 1, height: 40 }}>
+                      <ResponsiveContainer width="100%" height={40}>
+                        <ComposedChart data={sparkData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+                          <Line type="monotone" dataKey="v" stroke={isHigh ? "#DC2626" : ORANGE} strokeWidth={1.5} dot={false} />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Snapshot diario → ver pestaña Retención */}
