@@ -34,9 +34,10 @@ function Resumen() {
   const { data: r, isLoading, error } = useSupabaseResumen(selectedPeriod);
   const mesActivo = useMesActivo();
   const { selectedPais } = useCountry();
-  // Usar selectedPeriod (Supabase) en lugar de mesActivo (Excel local)
-  // para que el donut de motivos refleje el mes importado en Supabase
-  const { data: insights6m } = useSupabaseChurnInsights(selectedPeriod || mesActivo, selectedPais);
+  // Usar selectedPeriod si tiene datos (r != null), sino mesActivo como fallback
+  // Evita que el donut quede vacío cuando el período seleccionado no tiene datos
+  const periodoParaMotivos = (r != null ? selectedPeriod : null) || mesActivo || selectedPeriod;
+  const { data: insights6m } = useSupabaseChurnInsights(periodoParaMotivos, selectedPais);
   const { data: ret } = useRetention(selectedPeriod, selectedPais);
 
 
