@@ -501,12 +501,12 @@ function ChurnedAccountsSection() {
                         <td style={{ ...tdStyle, textAlign: "right" }}>
                           <span style={{ fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>{contactRate}/mes</span>
                           <div style={{ fontSize: 10, color: "var(--ink-4)" }}>{cant} total · {meses}m</div>
-                          {r.motivos_contacto && (
-                            <div style={{ fontSize: 10, color: "var(--ink-3)", marginTop: 2, fontStyle: "italic", textAlign: "left" }}
-                              title={r.motivos_contacto}>
-                              {r.motivos_contacto.length > 40 ? r.motivos_contacto.slice(0, 40) + "…" : r.motivos_contacto}
-                            </div>
-                          )}
+                          <div style={{ fontSize: 10, color: "var(--ink-3)", marginTop: 2, fontStyle: "italic", textAlign: "left" }}
+                            title={r.motivos_contacto ?? ""}>
+                            {r.motivos_contacto
+                              ? (r.motivos_contacto.length > 40 ? r.motivos_contacto.slice(0, 40) + "…" : r.motivos_contacto)
+                              : "—"}
+                          </div>
                         </td>
                       </tr>
                     );
