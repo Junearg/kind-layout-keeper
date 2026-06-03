@@ -129,8 +129,8 @@ function useChurnedAccountsData(periodoMes: string) {
       const start = `${periodoMes}-01`;
       const end = `${nextMonth(periodoMes)}-01`;
       const SEL = "id_cuenta_dash,nombre,pais,plan,ejecutivo,fecha_baja,nps_score,nps_categoria,nps_periodo,cant_contactos,meses_con_contacto,csat_cs_promedio,motivo_baja,comentarios_metabase,motivos_contacto,temas_contacto";
-      // Churneados = etapa Bajas/Bajas clientes (historico) OU Bloqueado+fecha_baja (archivo de bajas)
-      const [byBajas, byBajasClientes, byBloqueadoConFecha] = await Promise.all([
+      // Churneados = etapa "Bajas" o "Bajas clientes" con fecha_baja en el período
+      const [byBajas, byBajasClientes] = await Promise.all([
         pageAll<ChurnedRow>(() =>
           supabase.from("clientes").select(SEL)
             .eq("etapa", "Bajas").not("fecha_baja","is",null).gte("fecha_baja",start).lt("fecha_baja",end)
@@ -139,15 +139,10 @@ function useChurnedAccountsData(periodoMes: string) {
           supabase.from("clientes").select(SEL)
             .eq("etapa", "Bajas clientes").not("fecha_baja","is",null).gte("fecha_baja",start).lt("fecha_baja",end)
         ),
-        // Bloqueado con fecha_baja en el período = churneado del archivo de bajas
-        pageAll<ChurnedRow>(() =>
-          supabase.from("clientes").select(SEL)
-            .eq("estado_dash", "Bloqueado").not("fecha_baja","is",null).gte("fecha_baja",start).lt("fecha_baja",end)
-        ),
       ]);
       const seen = new Set<string>();
       const rows: ChurnedRow[] = [];
-      for (const r of [...byBajas, ...byBajasClientes, ...byBloqueadoConFecha]) {
+      for (const r of [...byBajas, ...byBajasClientes]) {
         const key = `${r.id_cuenta_dash}`;
         if (!seen.has(key)) { seen.add(key); rows.push(r); }
       }
@@ -166,8 +161,8 @@ function useChurnedMonths() {
         supabase
           .from("clientes")
           .select("fecha_baja")
-          .not("fecha_baja", "is", null)
-          .or("etapa.eq.Bajas,etapa.eq.Bajas clientes,estado_dash.eq.Bloqueado"),
+          .in("etapa", ["Bajas", "Bajas clientes"])
+          .not("fecha_baja", "is", null),
       );
       const months = Array.from(
         new Set(rows.map((r) => (r.fecha_baja ? yyyyMM(r.fecha_baja) : null)).filter(Boolean) as string[]),
