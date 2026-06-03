@@ -43,13 +43,14 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+      <div style={{ maxWidth: 600, width: "100%" }}>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground" style={{ marginBottom: 12 }}>
+          Error — {error?.name ?? "Unknown"}
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
-        </p>
+        <pre style={{ background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 8, padding: 16, fontSize: 13, whiteSpace: "pre-wrap", wordBreak: "break-all", color: "#b91c1c", marginBottom: 12 }}>
+          {error?.message ?? String(error)}
+          {error?.stack ? `\n\n${error.stack}` : ""}
+        </pre>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {
