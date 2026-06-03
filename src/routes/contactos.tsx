@@ -634,10 +634,16 @@ function Th({ children, onClick, active, dir, align }: { children: React.ReactNo
 
 function KpiCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="card" style={{ padding: 16 }}>
-      <div className="card-eyebrow">{label}</div>
-      <div className="mono" style={{ fontSize: 26, fontWeight: 500, marginTop: 6 }}>{value}</div>
-      {sub && <div className="muted fs-11" style={{ marginTop: 4 }}>{sub}</div>}
+    <div className="card" style={{ padding: "18px 20px" }}>
+      <div style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.6, color: "var(--ink-4)", marginBottom: 10 }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 32, fontWeight: 800, lineHeight: 1, fontFamily: "'Inter', sans-serif", letterSpacing: "-0.02em", color: "var(--ink)" }}>
+        {value}
+      </div>
+      {sub && (
+        <div style={{ fontSize: 11.5, color: "var(--ink-3)", marginTop: 8 }}>{sub}</div>
+      )}
     </div>
   );
 }
