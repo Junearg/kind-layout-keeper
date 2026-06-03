@@ -354,6 +354,12 @@ export function mapRowsToClientes(
       out.motivo_baja = null;
       out.fecha_baja = null;
     }
+    // Si la fila tiene fecha_baja + estado_dash=Bloqueado pero etapa vacía,
+    // inferir etapa="Bajas". Ocurre cuando el historial de bajas se agrega sin
+    // completar la columna Etapa (las últimas filas del historico final).
+    if (!out.etapa && out.estado_dash === "Bloqueado" && out.fecha_baja) {
+      out.etapa = "Bajas";
+    }
     mapped.push(out);
   }
   return mapped;

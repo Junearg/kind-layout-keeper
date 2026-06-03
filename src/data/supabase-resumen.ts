@@ -45,6 +45,7 @@ type BajaRow = {
   pais: string | null;
   mes_exportacion: string | null;
   etapa: string | null;
+  estado_dash: string | null;
 };
 
 type NpsRow = { nps_score: number | null; pais: string | null };
@@ -118,16 +119,24 @@ function monthLabel(key: string): string {
 async function fetchResumen(period: string): Promise<ResumenData> {
   // Bajas por etapa — solo "Bajas" y "Bajas clientes" (Etapa ya incluida en todos los imports)
   async function fetchBajas(mes: string): Promise<BajaRow[]> {
-    const sel = "id,fecha_baja,motivo_baja,submotivo_baja,motivo_metabase,comentarios_metabase,pais,mes_exportacion,etapa";
-    const [byBajas, byBajasClientes] = await Promise.all([
+    const sel = "id,fecha_baja,motivo_baja,submotivo_baja,motivo_metabase,comentarios_metabase,pais,mes_exportacion,etapa,estado_dash";
+    const [byBajas, byBajasClientes, byBloqueadoSinEtapa] = await Promise.all([
       pageAll<BajaRow>(() =>
         supabase.from("clientes").select(sel).eq("etapa", "Bajas").eq("mes_exportacion", mes)
       ),
       pageAll<BajaRow>(() =>
         supabase.from("clientes").select(sel).eq("etapa", "Bajas clientes").eq("mes_exportacion", mes)
       ),
+      // Filas importadas antes del fix: etapa null + Bloqueado + fecha_baja → son bajas reales
+      pageAll<BajaRow>(() =>
+        supabase.from("clientes").select(sel)
+          .eq("mes_exportacion", mes)
+          .is("etapa", null)
+          .eq("estado_dash", "Bloqueado")
+          .not("fecha_baja", "is", null)
+      ),
     ]);
-    return [...byBajas, ...byBajasClientes];
+    return [...byBajas, ...byBajasClientes, ...byBloqueadoSinEtapa];
   }
 
   const [activos, bajasRaw, bajasAllRaw, nps, csat] = await Promise.all([
