@@ -26,6 +26,10 @@ const COLUMN_MAP: Record<string, string> = {
   "Motivo Metabase": "motivo_metabase",
   "Comentarios Metabase": "comentarios_metabase",
   "NPS Período": "nps_periodo",
+  "NPS Score (0-10)": "nps_score",       // variante del Cruce Bajas × NPS
+  "Grupo NPS": "nps_categoria",           // Prom/Pas/Det
+  "Propietario CS": "ejecutivo",          // alias de Ejecutivo en ese archivo
+  "NPS Comentario": "comentarios_metabase",
   "NPS Score (LTR)": "nps_score",
   "NPS Categoría": "nps_categoria",
   "NPS Motivo": "nps_motivo",

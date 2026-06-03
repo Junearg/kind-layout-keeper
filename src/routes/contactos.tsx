@@ -9,8 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { NpsSection } from "@/components/NpsSection";
 import { CsatSection } from "@/components/CsatSection";
 import {
-  ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Legend,
+  ComposedChart, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Legend, PieChart, Pie, Cell,
 } from "recharts";
 
 export const Route = createFileRoute("/contactos")({
@@ -402,36 +402,107 @@ function ChurnedAccountsSection() {
         />
       </div>
 
-      {/* Chart */}
-      {chartData.length > 0 && (
-        <div className="card" style={{ padding: 16 }}>
-          <div className="card-eyebrow" style={{ marginBottom: 12 }}>Contactos y NPS por País</div>
-          <ResponsiveContainer width="100%" height={220}>
-            <ComposedChart data={chartData} margin={{ top: 4, right: 24, left: 0, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--rule)" />
-              <XAxis dataKey="pais" tick={{ fontSize: 11, fill: "var(--ink-3)" }} />
-              <YAxis
-                yAxisId="left"
-                tick={{ fontSize: 11, fill: "var(--ink-3)" }}
-                label={{ value: "Cant. Contactos", angle: -90, position: "insideLeft", offset: 10, style: { fontSize: 10, fill: "var(--ink-3)" } }}
-              />
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                tick={{ fontSize: 11, fill: "var(--ink-3)" }}
-                label={{ value: "NPS", angle: 90, position: "insideRight", offset: 10, style: { fontSize: 10, fill: "var(--ink-3)" } }}
-              />
-              <Tooltip
-                contentStyle={{ fontSize: 12, background: "var(--paper)", border: "1px solid var(--rule)", borderRadius: 8 }}
-                labelStyle={{ fontWeight: 600, color: "var(--ink)" }}
-              />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar yAxisId="left" dataKey="avgContactos" name="Avg Contactos" fill="var(--orange)" radius={[3, 3, 0, 0]} />
-              <Line yAxisId="right" type="monotone" dataKey="avgNPS" name="Avg NPS" stroke="#2563EB" strokeWidth={2} dot={{ r: 3 }} connectNulls />
-            </ComposedChart>
-          </ResponsiveContainer>
+      {/* Charts row */}
+      <div style={{ display: "grid", gridTemplateColumns: "300px 1fr 1fr", gap: 16, marginBottom: 4 }}>
+
+        {/* 1. Donut NPS — solo churneados que votaron */}
+        {(() => {
+          const voters = filtered.filter(r => r.nps_score != null);
+          const prom = voters.filter(r => (r.nps_score ?? 0) >= 9).length;
+          const pas  = voters.filter(r => (r.nps_score ?? 0) >= 7 && (r.nps_score ?? 0) <= 8).length;
+          const det  = voters.filter(r => (r.nps_score ?? 0) <= 6).length;
+          const donutData = [
+            { name: "Promotor",  value: prom, color: "#16A34A" },
+            { name: "Pasivo",    value: pas,  color: "#D97706" },
+            { name: "Detractor", value: det,  color: "#DC2626" },
+          ].filter(d => d.value > 0);
+          return (
+            <div className="card" style={{ padding: 16 }}>
+              <div className="card-eyebrow" style={{ marginBottom: 4 }}>NPS — churneados que votaron</div>
+              <div style={{ fontSize: 11, color: "var(--ink-3)", marginBottom: 8 }}>{voters.length} de {filtered.length} respondieron</div>
+              {voters.length === 0 ? (
+                <div style={{ color: "var(--ink-4)", fontSize: 12, textAlign: "center", padding: "20px 0" }}>Sin datos NPS aún</div>
+              ) : (
+                <div style={{ position: "relative" }}>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <PieChart>
+                      <Pie data={donutData} dataKey="value" cx="50%" cy="50%" innerRadius={52} outerRadius={80} paddingAngle={2} stroke="white" strokeWidth={2}>
+                        {donutData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                      </Pie>
+                      <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} formatter={(v: any) => [`${v}`, ""]} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", flexDirection: "column" }}>
+                    <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1 }}>{voters.length}</div>
+                    <div style={{ fontSize: 10, color: "var(--ink-4)" }}>votaron</div>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 4, flexWrap: "wrap" }}>
+                    {donutData.map(d => (
+                      <span key={d.name} style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: 2, background: d.color }} />
+                        {d.name} {d.value}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* 2. NPS promedio por ejecutivo */}
+        {(() => {
+          const byEj: Record<string, { sum: number; count: number; prom: number; pas: number; det: number }> = {};
+          for (const r of filtered) {
+            const ej = r.ejecutivo ?? "Sin asignar";
+            if (!byEj[ej]) byEj[ej] = { sum: 0, count: 0, prom: 0, pas: 0, det: 0 };
+            if (r.nps_score != null) {
+              byEj[ej].sum += r.nps_score;
+              byEj[ej].count++;
+              if (r.nps_score >= 9) byEj[ej].prom++;
+              else if (r.nps_score >= 7) byEj[ej].pas++;
+              else byEj[ej].det++;
+            }
+          }
+          const ejData = Object.entries(byEj)
+            .filter(([, v]) => v.count > 0)
+            .map(([ej, v]) => ({ ej: ej.split(" ")[0] ?? ej, ejFull: ej, avg: +(v.sum / v.count).toFixed(1), prom: v.prom, pas: v.pas, det: v.det, total: v.count }))
+            .sort((a, b) => b.avg - a.avg);
+          return (
+            <div className="card" style={{ padding: 16 }}>
+              <div className="card-eyebrow" style={{ marginBottom: 12 }}>NPS promedio por ejecutivo</div>
+              {ejData.length === 0 ? (
+                <div style={{ color: "var(--ink-4)", fontSize: 12, textAlign: "center", padding: "20px 0" }}>Sin datos NPS aún</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={ejData} layout="vertical" margin={{ top: 4, right: 40, left: 4, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--rule)" horizontal={false} />
+                    <XAxis type="number" domain={[0, 10]} tick={{ fontSize: 10 }} />
+                    <YAxis type="category" dataKey="ej" width={70} tick={{ fontSize: 10, fill: "var(--ink-2)" }} />
+                    <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }}
+                      formatter={(v: any, _: any, p: any) => [`${v} (${p?.payload?.total} resp.)`, "Avg NPS"]}
+                      labelFormatter={(_: any, p: any) => p?.[0]?.payload?.ejFull ?? ""}
+                    />
+                    <Bar dataKey="avg" radius={[0, 4, 4, 0]} barSize={18}>
+                      {ejData.map((d, i) => (
+                        <Cell key={i} fill={d.avg >= 9 ? "#16A34A" : d.avg >= 7 ? "#D97706" : "#DC2626"} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* 3. Contacto vs NPS — próximamente */}
+        <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", opacity: 0.5 }}>
+          <div className="card-eyebrow" style={{ marginBottom: 8 }}>Contacto vs NPS</div>
+          <div style={{ fontSize: 28, marginBottom: 8 }}>📊</div>
+          <div style={{ fontSize: 12, color: "var(--ink-3)", textAlign: "center" }}>Sin datos disponibles aún</div>
         </div>
-      )}
+
+      </div>
 
       {/* Table */}
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
