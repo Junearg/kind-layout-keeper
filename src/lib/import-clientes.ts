@@ -547,7 +547,13 @@ export async function replaceClientesInBatches(
 
     while (attempts < 3 && !ok) {
       attempts++;
-      const { error } = await supabase.from("clientes").insert(batch as never);
+      // En modo append usamos upsert para actualizar filas existentes y agregar nuevas
+      const { error } = appendMode
+        ? await supabase.from("clientes").upsert(batch as never, {
+            onConflict: "id_cuenta_dash,mes_exportacion",
+            ignoreDuplicates: false,
+          })
+        : await supabase.from("clientes").insert(batch as never);
       if (!error) {
         ok = true;
         break;
