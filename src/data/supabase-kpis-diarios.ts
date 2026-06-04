@@ -205,15 +205,21 @@ export async function computeKpiDia(fecha: string, pais: Pais): Promise<KpiDiari
   const hasPrevData = mpcsMesPasado > 0;
   const base = mpcsMesPasado || 1; // fallback solo para no dividir por 0
 
-  // C/ vtas del pool A_Recuperar (usado en Churn Neto — fórmula GSheet: J9)
+  // C/ vtas del pool A_Recuperar (GSheet J9) — para Churn Neto
   const cvtasRecuperar = recRows.filter(r => r.temas_contacto === "C/ vtas ultimos 7 dias").length;
 
-  // Fórmulas exactas del GSheet columna J:
-  // Churn Bruto = Bajas / Activas (J6/J5)
-  const churnBruto = activas > 0 ? (bajas / activas) * 100 : 0;
+  // S/ vtas del pool A_Recuperar (GSheet J10) — para Churn Bruto
+  // J10 es S/vtas de las Cuentas a Recuperar (recRows), NO de activas
+  const svtasRecuperar = hasVentasRec
+    ? recRows.filter(r => r.temas_contacto === "S/ vtas ultimos 7 dias").length
+    : recRows.filter(r => ((r.v_salon ?? 0) + (r.v_delivery ?? 0) + (r.v_mostrador ?? 0)) === 0).length;
 
-  // Churn Neto = 1 - (Activas + C_vtas_recuperar) / MPCs_prev (1-(J5+J9)/J23)
-  // MPCs Retenidos Proyectados = Activas + C_vtas_recuperar
+  // Fórmulas exactas del GSheet columna J:
+  // Churn Bruto = (Bajas + S/vtas_recuperar) / MPCs_mes_pasado  →  (J7+J10)/J23
+  const churnBruto = hasPrevData ? ((bajas + svtasRecuperar) / base) * 100 : 0;
+
+  // Churn Neto = 1 - (Activas + C/vtas_recuperar) / MPCs_mes_pasado  →  1-(J5+J9)/J23
+  // MPCs Retenidos Proyectados = Activas + C/vtas_recuperar
   const mpcsRetenidosProyectados = activas + cvtasRecuperar;
   const churnNeto = hasPrevData ? (1 - mpcsRetenidosProyectados / base) * 100 : 0;
 
