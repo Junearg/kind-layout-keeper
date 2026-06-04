@@ -83,9 +83,18 @@ export async function computeKpiDia(fecha: string, pais: Pais): Promise<KpiDiari
     v_mostrador: number | null;
   };
 
+  // prevFecha = ayer (para deltas diarios si se necesitaran)
   const d = new Date(fecha);
   d.setUTCDate(d.getUTCDate() - 1);
   const prevFecha = d.toISOString().slice(0, 10);
+
+  // prevMonthKey = mes anterior en formato YYYY-MM — base para MPCs mes pasado
+  // Fórmula GSheet J13 = J5/J23 = Activas_hoy / Activas_snapshot_mensual_mes_anterior
+  const fy = d.getUTCFullYear();  // d ya apunta a ayer pero el mes es el mismo
+  const fm = new Date(fecha).getUTCMonth(); // 0-indexed: mes actual
+  const prevMonthY = fm === 0 ? fy - 1 : fy;
+  const prevMonthM = fm === 0 ? 12 : fm;   // fm=0 → enero → prev=diciembre del año anterior
+  const prevMonthKey = `${prevMonthY}-${String(prevMonthM).padStart(2, "0")}`;
 
   // Paginación completa para superar el límite de 1000 filas de PostgREST
   async function fetchAllRows<T>(builder: () => any): Promise<T[]> {
@@ -133,8 +142,10 @@ export async function computeKpiDia(fecha: string, pais: Pais): Promise<KpiDiari
       .eq("mes_exportacion", fecha).eq("etapa", "Engagement"), pais),
     applyPais(supabase.from("clientes").select("*", { count: "exact", head: true })
       .eq("mes_exportacion", fecha).eq("estado_dash", "Aviso de Pago"), pais),
+    // MPCs mes pasado = activas del snapshot mensual del mes anterior (YYYY-MM)
+    // Fórmula exacta GSheet: J13 = J5/J23 = activas_hoy / activas_mes_anterior
     applyPais(supabase.from("clientes").select("*", { count: "exact", head: true })
-      .eq("mes_exportacion", prevFecha).eq("estado_dash", "Activo"), pais),
+      .eq("mes_exportacion", prevMonthKey).eq("estado_dash", "Activo"), pais),
   ]);
   const activas     = rows.length;
   const bajas       = bajasRes.count ?? 0;
