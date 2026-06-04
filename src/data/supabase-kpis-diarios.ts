@@ -165,14 +165,15 @@ export async function computeKpiDia(fecha: string, pais: Pais): Promise<KpiDiari
   const bajas       = bajasRes.count ?? 0;
   const onboarding  = onboardingRes.count ?? 0;
   const engagement  = engagementRes.count ?? 0;
-  // aRecuperar usa Estado de Cuenta = "A Recuperar" (col W en base_hubspot)
-  // Si hay datos de nps_motivo usamos ese conteo; fallback a etapa Engagement+Onboarding
   const aRecuperarByEstadoCuenta = recRows.length;
   const aRecuperar  = aRecuperarByEstadoCuenta > 0
     ? aRecuperarByEstadoCuenta
     : (onboarding + engagement);
   const pagoPendiente = pagoPendienteRes.count ?? 0;
   const mpcsMesPasado = prevActivasRes.count ?? activas;
+
+  // DIAGNÓSTICO — visible en consola del browser (F12 → Console)
+  console.log(`[KpiDia][${pais}][${fecha}] activas=${activas} | mpcsMesPasado=${mpcsMesPasado} (de snapshot: ${prevDailyDate}) | pctRetenido=${activas && mpcsMesPasado ? ((activas/mpcsMesPasado)*100).toFixed(2) : "n/a"}%`);
 
   // C/ vtas últimos 7 días: usa la columna "temas_contacto" que importa "ventas?"
   // Si temas_contacto es null (import mensual sin este campo) → fallback a ventas mensuales ≥10
