@@ -88,13 +88,26 @@ export async function computeKpiDia(fecha: string, pais: Pais): Promise<KpiDiari
   d.setUTCDate(d.getUTCDate() - 1);
   const prevFecha = d.toISOString().slice(0, 10);
 
-  // prevMonthKey = mes anterior en formato YYYY-MM — base para MPCs mes pasado
-  // Fórmula GSheet J13 = J5/J23 = Activas_hoy / Activas_snapshot_mensual_mes_anterior
-  const fy = d.getUTCFullYear();  // d ya apunta a ayer pero el mes es el mismo
-  const fm = new Date(fecha).getUTCMonth(); // 0-indexed: mes actual
-  const prevMonthY = fm === 0 ? fy - 1 : fy;
-  const prevMonthM = fm === 0 ? 12 : fm;   // fm=0 → enero → prev=diciembre del año anterior
+  // prevMonthKey = mes anterior YYYY-MM (para fallback mensual)
+  const fm = new Date(fecha).getUTCMonth(); // 0-indexed
+  const fy2 = new Date(fecha).getUTCFullYear();
+  const prevMonthY = fm === 0 ? fy2 - 1 : fy2;
+  const prevMonthM = fm === 0 ? 12 : fm;
   const prevMonthKey = `${prevMonthY}-${String(prevMonthM).padStart(2, "0")}`;
+  const currentMonthKey = `${fy2}-${String(fm + 1).padStart(2, "0")}`;
+
+  // Buscar el último snapshot DIARIO del mes anterior (formato YYYY-MM-DD).
+  // El GSheet usa las activas del base_hubspot importado en el mes anterior, no el snapshot mensual.
+  // Los diarios tienen mes_exportacion >= "YYYY-MM-01" y < "YYYY-MM+1-01"
+  const lastDailyPrevRes = await supabase
+    .from("clientes")
+    .select("mes_exportacion")
+    .gte("mes_exportacion", `${prevMonthKey}-01`)
+    .lt("mes_exportacion", `${currentMonthKey}-01`)
+    .order("mes_exportacion", { ascending: false })
+    .limit(1);
+  // Si hay snapshot diario del mes anterior → usarlo; si no → fallback al mensual
+  const prevDailyDate = lastDailyPrevRes.data?.[0]?.mes_exportacion ?? prevMonthKey;
 
   // Paginación completa para superar el límite de 1000 filas de PostgREST
   async function fetchAllRows<T>(builder: () => any): Promise<T[]> {
@@ -142,10 +155,11 @@ export async function computeKpiDia(fecha: string, pais: Pais): Promise<KpiDiari
       .eq("mes_exportacion", fecha).eq("etapa", "Engagement"), pais),
     applyPais(supabase.from("clientes").select("*", { count: "exact", head: true })
       .eq("mes_exportacion", fecha).eq("estado_dash", "Aviso de Pago"), pais),
-    // MPCs mes pasado = activas del snapshot mensual del mes anterior (YYYY-MM)
-    // Fórmula exacta GSheet: J13 = J5/J23 = activas_hoy / activas_mes_anterior
+    // MPCs mes pasado = activas del último snapshot diario del mes anterior.
+    // Fórmula GSheet J23: activas del base_hubspot importado en el mes anterior.
+    // prevDailyDate = último YYYY-MM-DD del mes prev (o YYYY-MM si no hay diario).
     applyPais(supabase.from("clientes").select("*", { count: "exact", head: true })
-      .eq("mes_exportacion", prevMonthKey).eq("estado_dash", "Activo"), pais),
+      .eq("mes_exportacion", prevDailyDate).eq("estado_dash", "Activo"), pais),
   ]);
   const activas     = rows.length;
   const bajas       = bajasRes.count ?? 0;
