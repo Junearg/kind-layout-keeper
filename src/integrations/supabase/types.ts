@@ -335,6 +335,33 @@ export type Database = {
         }
         Relationships: []
       }
+      mpc_referencia: {
+        Row: {
+          id: string
+          mes: string
+          mpcs: number
+          nota: string | null
+          pais: string
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          mes: string
+          mpcs: number
+          nota?: string | null
+          pais?: string
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          mes?: string
+          mpcs?: number
+          nota?: string | null
+          pais?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
