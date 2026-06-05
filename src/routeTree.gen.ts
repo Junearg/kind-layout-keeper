@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TendenciaRouteImport } from './routes/tendencia'
+import { Route as RetencionRouteImport } from './routes/retencion'
 import { Route as ResumenRouteImport } from './routes/resumen'
 import { Route as LabsRouteImport } from './routes/labs'
 import { Route as KpisRouteImport } from './routes/kpis'
@@ -23,6 +24,11 @@ import { Route as ApiChatRouteImport } from './routes/api/chat'
 const TendenciaRoute = TendenciaRouteImport.update({
   id: '/tendencia',
   path: '/tendencia',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RetencionRoute = RetencionRouteImport.update({
+  id: '/retencion',
+  path: '/retencion',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResumenRoute = ResumenRouteImport.update({
@@ -80,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/kpis': typeof KpisRoute
   '/labs': typeof LabsRoute
   '/resumen': typeof ResumenRoute
+  '/retencion': typeof RetencionRoute
   '/tendencia': typeof TendenciaRoute
   '/api/chat': typeof ApiChatRoute
 }
@@ -92,6 +99,7 @@ export interface FileRoutesByTo {
   '/kpis': typeof KpisRoute
   '/labs': typeof LabsRoute
   '/resumen': typeof ResumenRoute
+  '/retencion': typeof RetencionRoute
   '/tendencia': typeof TendenciaRoute
   '/api/chat': typeof ApiChatRoute
 }
@@ -105,6 +113,7 @@ export interface FileRoutesById {
   '/kpis': typeof KpisRoute
   '/labs': typeof LabsRoute
   '/resumen': typeof ResumenRoute
+  '/retencion': typeof RetencionRoute
   '/tendencia': typeof TendenciaRoute
   '/api/chat': typeof ApiChatRoute
 }
@@ -119,6 +128,7 @@ export interface FileRouteTypes {
     | '/kpis'
     | '/labs'
     | '/resumen'
+    | '/retencion'
     | '/tendencia'
     | '/api/chat'
   fileRoutesByTo: FileRoutesByTo
@@ -131,6 +141,7 @@ export interface FileRouteTypes {
     | '/kpis'
     | '/labs'
     | '/resumen'
+    | '/retencion'
     | '/tendencia'
     | '/api/chat'
   id:
@@ -143,6 +154,7 @@ export interface FileRouteTypes {
     | '/kpis'
     | '/labs'
     | '/resumen'
+    | '/retencion'
     | '/tendencia'
     | '/api/chat'
   fileRoutesById: FileRoutesById
@@ -156,6 +168,7 @@ export interface RootRouteChildren {
   KpisRoute: typeof KpisRoute
   LabsRoute: typeof LabsRoute
   ResumenRoute: typeof ResumenRoute
+  RetencionRoute: typeof RetencionRoute
   TendenciaRoute: typeof TendenciaRoute
   ApiChatRoute: typeof ApiChatRoute
 }
@@ -167,6 +180,13 @@ declare module '@tanstack/react-router' {
       path: '/tendencia'
       fullPath: '/tendencia'
       preLoaderRoute: typeof TendenciaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/retencion': {
+      id: '/retencion'
+      path: '/retencion'
+      fullPath: '/retencion'
+      preLoaderRoute: typeof RetencionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/resumen': {
@@ -244,6 +264,7 @@ const rootRouteChildren: RootRouteChildren = {
   KpisRoute: KpisRoute,
   LabsRoute: LabsRoute,
   ResumenRoute: ResumenRoute,
+  RetencionRoute: RetencionRoute,
   TendenciaRoute: TendenciaRoute,
   ApiChatRoute: ApiChatRoute,
 }
