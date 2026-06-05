@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -8,6 +8,130 @@ import {
   useKpiSnapshotMultipais,
   type KpiDiario,
 } from "@/data/supabase-kpis-diarios";
+
+// ── Panel de MPCs de referencia ───────────────────────────────────────────────
+type MpcRow = { id: string; mes: string; pais: string; mpcs: number; nota: string | null };
+
+function MpcReferenciaPanel() {
+  const qc = useQueryClient();
+  const [newMes, setNewMes] = useState(() => {
+    const d = new Date(); d.setMonth(d.getMonth() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [newPais, setNewPais]   = useState("Región");
+  const [newMpcs, setNewMpcs]   = useState("");
+  const [newNota, setNewNota]   = useState("");
+  const [saving, setSaving]     = useState(false);
+  const [msg, setMsg]           = useState("");
+
+  const { data: rows, isLoading } = useQuery<MpcRow[]>({
+    queryKey: ["mpc_referencia"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("mpc_referencia").select("*").order("mes", { ascending: false });
+      if (error) throw error;
+      return data as MpcRow[];
+    },
+    staleTime: 30_000,
+  });
+
+  async function save() {
+    if (!newMes || !newMpcs) return;
+    setSaving(true); setMsg("");
+    const { error } = await supabase.from("mpc_referencia").upsert(
+      { mes: newMes, pais: newPais, mpcs: Number(newMpcs), nota: newNota || null },
+      { onConflict: "mes,pais" }
+    );
+    setSaving(false);
+    if (error) { setMsg(`Error: ${error.message}`); return; }
+    setMsg(`✓ Guardado: ${newMes} · ${newPais} = ${Number(newMpcs).toLocaleString("es-AR")}`);
+    setNewMpcs(""); setNewNota("");
+    qc.invalidateQueries({ queryKey: ["mpc_referencia"] });
+    qc.invalidateQueries({ queryKey: ["kpi-snapshot-multipais"] });
+    qc.invalidateQueries({ queryKey: ["kpi-dia"] });
+  }
+
+  async function del(id: string) {
+    await supabase.from("mpc_referencia").delete().eq("id", id);
+    qc.invalidateQueries({ queryKey: ["mpc_referencia"] });
+  }
+
+  const PAISES = ["Región","Argentina","Chile","México","Colombia","Brasil","Others"];
+
+  return (
+    <details style={{ marginBottom: 16 }}>
+      <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", padding: "10px 0", display: "flex", alignItems: "center", gap: 8 }}>
+        ⚙ MPCs de referencia oficial
+        <span style={{ fontSize: 11, fontWeight: 400, color: "var(--ink-3)" }}>
+          — valores del GSheet usados como denominador de % Retención y Churn
+        </span>
+      </summary>
+
+      <div className="card" style={{ padding: 16, marginTop: 8 }}>
+        {/* Form */}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 16 }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span className="fs-11 muted">Mes (YYYY-MM)</span>
+            <input type="month" value={newMes} onChange={e => setNewMes(e.target.value)}
+              style={{ fontSize: 12, padding: "5px 8px", borderRadius: 6, border: "1px solid var(--rule)", fontFamily: "inherit" }} />
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span className="fs-11 muted">País</span>
+            <select value={newPais} onChange={e => setNewPais(e.target.value)}
+              style={{ fontSize: 12, padding: "5px 8px", borderRadius: 6, border: "1px solid var(--rule)", fontFamily: "inherit" }}>
+              {PAISES.map(p => <option key={p}>{p}</option>)}
+            </select>
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span className="fs-11 muted">MPCs (activas al cierre)</span>
+            <input type="number" value={newMpcs} onChange={e => setNewMpcs(e.target.value)}
+              placeholder="ej: 32338"
+              style={{ fontSize: 12, padding: "5px 8px", borderRadius: 6, border: "1px solid var(--rule)", width: 120, fontFamily: "inherit" }} />
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minWidth: 160 }}>
+            <span className="fs-11 muted">Nota (opcional)</span>
+            <input type="text" value={newNota} onChange={e => setNewNota(e.target.value)}
+              placeholder="ej: GSheet J23"
+              style={{ fontSize: 12, padding: "5px 8px", borderRadius: 6, border: "1px solid var(--rule)", fontFamily: "inherit" }} />
+          </label>
+          <button onClick={save} disabled={saving || !newMpcs}
+            style={{ padding: "6px 16px", borderRadius: 8, background: "var(--orange)", color: "white", border: "none", fontFamily: "inherit", fontSize: 12.5, fontWeight: 600, cursor: "pointer", alignSelf: "flex-end" }}>
+            {saving ? "Guardando…" : "Guardar"}
+          </button>
+        </div>
+
+        {msg && <div style={{ fontSize: 12, color: msg.startsWith("Error") ? "#DC2626" : "#16A34A", marginBottom: 12 }}>{msg}</div>}
+
+        {/* Tabla */}
+        {isLoading ? <div className="fs-12 muted">Cargando…</div> : (
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+            <thead>
+              <tr style={{ background: "var(--paper-2)" }}>
+                {["Mes","País","MPCs","Nota",""].map(h => (
+                  <th key={h} style={{ padding: "6px 12px", textAlign: "left", fontSize: 11, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: 0.4, fontWeight: 500 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {(rows ?? []).map(r => (
+                <tr key={r.id} style={{ borderTop: "1px solid var(--rule)" }}>
+                  <td style={{ padding: "7px 12px", fontFamily: "monospace" }}>{r.mes}</td>
+                  <td style={{ padding: "7px 12px" }}>{r.pais}</td>
+                  <td style={{ padding: "7px 12px", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{r.mpcs.toLocaleString("es-AR")}</td>
+                  <td style={{ padding: "7px 12px", color: "var(--ink-3)" }}>{r.nota ?? "—"}</td>
+                  <td style={{ padding: "7px 12px" }}>
+                    <button onClick={() => del(r.id)} style={{ fontSize: 11, color: "#DC2626", background: "none", border: "none", cursor: "pointer" }}>✕</button>
+                  </td>
+                </tr>
+              ))}
+              {!rows?.length && <tr><td colSpan={5} style={{ padding: 12, color: "var(--ink-3)", fontSize: 12 }}>Sin valores cargados</td></tr>}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </details>
+  );
+}
 
 export const Route = createFileRoute("/retencion")({
   head: () => ({ meta: [{ title: "Retención · Churn Hub" }] }),
@@ -221,6 +345,9 @@ function RetencionPage() {
           </select>
         </div>
       </div>
+
+      {/* ── MPCs de referencia ── */}
+      <MpcReferenciaPanel />
 
       {/* ── Banner: último día hábil ── */}
       {!fechaAnt && (

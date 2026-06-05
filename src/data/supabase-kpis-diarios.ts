@@ -96,9 +96,16 @@ export async function computeKpiDia(fecha: string, pais: Pais): Promise<KpiDiari
   const prevMonthKey = `${prevMonthY}-${String(prevMonthM).padStart(2, "0")}`;
   const currentMonthKey = `${fy2}-${String(fm + 1).padStart(2, "0")}`;
 
-  // Buscar el último snapshot DIARIO del mes anterior (formato YYYY-MM-DD).
-  // El GSheet usa las activas del base_hubspot importado en el mes anterior, no el snapshot mensual.
-  // Los diarios tienen mes_exportacion >= "YYYY-MM-01" y < "YYYY-MM+1-01"
+  // 1) Buscar MPCs oficiales en mpc_referencia (valor del GSheet)
+  const mpcRefRes = await supabase
+    .from("mpc_referencia")
+    .select("mpcs")
+    .eq("mes", prevMonthKey)
+    .eq("pais", pais === "Región" ? "Región" : pais)
+    .maybeSingle();
+  const mpcOficial = mpcRefRes.data?.mpcs ?? null;
+
+  // 2) Fallback: último snapshot DIARIO del mes anterior (YYYY-MM-DD)
   const lastDailyPrevRes = await supabase
     .from("clientes")
     .select("mes_exportacion")
@@ -106,7 +113,6 @@ export async function computeKpiDia(fecha: string, pais: Pais): Promise<KpiDiari
     .lt("mes_exportacion", `${currentMonthKey}-01`)
     .order("mes_exportacion", { ascending: false })
     .limit(1);
-  // Si hay snapshot diario del mes anterior → usarlo; si no → fallback al mensual
   const prevDailyDate = lastDailyPrevRes.data?.[0]?.mes_exportacion ?? prevMonthKey;
 
   // Paginación completa para superar el límite de 1000 filas de PostgREST
@@ -170,10 +176,11 @@ export async function computeKpiDia(fecha: string, pais: Pais): Promise<KpiDiari
     ? aRecuperarByEstadoCuenta
     : (onboarding + engagement);
   const pagoPendiente = pagoPendienteRes.count ?? 0;
-  const mpcsMesPasado = prevActivasRes.count ?? activas;
+  // mpcsMesPasado: prioridad → mpc_referencia → snapshot diario → snapshot mensual
+  const mpcsMesPasado = mpcOficial ?? prevActivasRes.count ?? activas;
+  const mpcSource = mpcOficial != null ? `mpc_referencia(${prevMonthKey})` : `snapshot(${prevDailyDate})`;
 
-  // DIAGNÓSTICO — visible en consola del browser (F12 → Console)
-  console.log(`[KpiDia][${pais}][${fecha}] activas=${activas} | mpcsMesPasado=${mpcsMesPasado} (de snapshot: ${prevDailyDate}) | pctRetenido=${activas && mpcsMesPasado ? ((activas/mpcsMesPasado)*100).toFixed(2) : "n/a"}%`);
+  console.log(`[KpiDia][${pais}][${fecha}] activas=${activas} | mpcsMesPasado=${mpcsMesPasado} (fuente: ${mpcSource}) | pctRetenido=${activas && mpcsMesPasado ? ((activas/mpcsMesPasado)*100).toFixed(2) : "n/a"}%`);
 
   // C/ vtas últimos 7 días: usa la columna "temas_contacto" que importa "ventas?"
   // Si temas_contacto es null (import mensual sin este campo) → fallback a ventas mensuales ≥10
