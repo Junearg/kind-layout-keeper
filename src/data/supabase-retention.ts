@@ -70,6 +70,15 @@ export type RetentionData = {
   mpcsMeta: number | null;      // (1 - churnPlan/100) × mpcsMesPasado
 };
 
+/** Retorna el primer día del mes siguiente como string "YYYY-MM-DD". */
+function nextMonthStart(period: string): string {
+  const [y, m] = period.split("-").map(Number);
+  if (!y || !m) return `${period}-01`;
+  const ny = m === 12 ? y + 1 : y;
+  const nm = m === 12 ? 1 : m + 1;
+  return `${ny}-${String(nm).padStart(2, "0")}-01`;
+}
+
 async function fetchRetention(period: string, pais: Pais): Promise<RetentionData> {
   // Período anterior
   const [y, m] = period.split("-").map(Number);
@@ -101,12 +110,15 @@ async function fetchRetention(period: string, pais: Pais): Promise<RetentionData
         .eq("estado_dash", "Activo"),
       pais
     ),
-    // Bajas brutas período actual
+    // Bajas brutas período actual — filtrar por fecha_baja dentro del mes
+    // para no contar bajas históricas acumuladas en el snapshot.
     applyPaisFilter(
       supabase.from("clientes")
         .select("*", { count: "exact", head: true })
         .eq("mes_exportacion", period)
-        .in("etapa", ETAPAS_BAJA),
+        .in("etapa", ETAPAS_BAJA)
+        .gte("fecha_baja", `${period}-01`)
+        .lt("fecha_baja", nextMonthStart(period)),
       pais
     ),
     // A Recuperar (Engagement + Onboarding)

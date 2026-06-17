@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TendenciaRouteImport } from './routes/tendencia'
+import { Route as RetencionRouteImport } from './routes/retencion'
 import { Route as ResumenRouteImport } from './routes/resumen'
 import { Route as LabsRouteImport } from './routes/labs'
 import { Route as KpisRouteImport } from './routes/kpis'
@@ -17,12 +18,18 @@ import { Route as ImportarRouteImport } from './routes/importar'
 import { Route as HealthRouteImport } from './routes/health'
 import { Route as ContactosRouteImport } from './routes/contactos'
 import { Route as ColaRouteImport } from './routes/cola'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 
 const TendenciaRoute = TendenciaRouteImport.update({
   id: '/tendencia',
   path: '/tendencia',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RetencionRoute = RetencionRouteImport.update({
+  id: '/retencion',
+  path: '/retencion',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResumenRoute = ResumenRouteImport.update({
@@ -60,6 +67,11 @@ const ColaRoute = ColaRouteImport.update({
   path: '/cola',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -73,6 +85,7 @@ const ApiChatRoute = ApiChatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/cola': typeof ColaRoute
   '/contactos': typeof ContactosRoute
   '/health': typeof HealthRoute
@@ -80,11 +93,13 @@ export interface FileRoutesByFullPath {
   '/kpis': typeof KpisRoute
   '/labs': typeof LabsRoute
   '/resumen': typeof ResumenRoute
+  '/retencion': typeof RetencionRoute
   '/tendencia': typeof TendenciaRoute
   '/api/chat': typeof ApiChatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/cola': typeof ColaRoute
   '/contactos': typeof ContactosRoute
   '/health': typeof HealthRoute
@@ -92,12 +107,14 @@ export interface FileRoutesByTo {
   '/kpis': typeof KpisRoute
   '/labs': typeof LabsRoute
   '/resumen': typeof ResumenRoute
+  '/retencion': typeof RetencionRoute
   '/tendencia': typeof TendenciaRoute
   '/api/chat': typeof ApiChatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/cola': typeof ColaRoute
   '/contactos': typeof ContactosRoute
   '/health': typeof HealthRoute
@@ -105,6 +122,7 @@ export interface FileRoutesById {
   '/kpis': typeof KpisRoute
   '/labs': typeof LabsRoute
   '/resumen': typeof ResumenRoute
+  '/retencion': typeof RetencionRoute
   '/tendencia': typeof TendenciaRoute
   '/api/chat': typeof ApiChatRoute
 }
@@ -112,6 +130,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/cola'
     | '/contactos'
     | '/health'
@@ -119,11 +138,13 @@ export interface FileRouteTypes {
     | '/kpis'
     | '/labs'
     | '/resumen'
+    | '/retencion'
     | '/tendencia'
     | '/api/chat'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
     | '/cola'
     | '/contactos'
     | '/health'
@@ -131,11 +152,13 @@ export interface FileRouteTypes {
     | '/kpis'
     | '/labs'
     | '/resumen'
+    | '/retencion'
     | '/tendencia'
     | '/api/chat'
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/cola'
     | '/contactos'
     | '/health'
@@ -143,12 +166,14 @@ export interface FileRouteTypes {
     | '/kpis'
     | '/labs'
     | '/resumen'
+    | '/retencion'
     | '/tendencia'
     | '/api/chat'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
   ColaRoute: typeof ColaRoute
   ContactosRoute: typeof ContactosRoute
   HealthRoute: typeof HealthRoute
@@ -156,6 +181,7 @@ export interface RootRouteChildren {
   KpisRoute: typeof KpisRoute
   LabsRoute: typeof LabsRoute
   ResumenRoute: typeof ResumenRoute
+  RetencionRoute: typeof RetencionRoute
   TendenciaRoute: typeof TendenciaRoute
   ApiChatRoute: typeof ApiChatRoute
 }
@@ -167,6 +193,13 @@ declare module '@tanstack/react-router' {
       path: '/tendencia'
       fullPath: '/tendencia'
       preLoaderRoute: typeof TendenciaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/retencion': {
+      id: '/retencion'
+      path: '/retencion'
+      fullPath: '/retencion'
+      preLoaderRoute: typeof RetencionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/resumen': {
@@ -218,6 +251,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ColaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -237,6 +277,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
   ColaRoute: ColaRoute,
   ContactosRoute: ContactosRoute,
   HealthRoute: HealthRoute,
@@ -244,9 +285,20 @@ const rootRouteChildren: RootRouteChildren = {
   KpisRoute: KpisRoute,
   LabsRoute: LabsRoute,
   ResumenRoute: ResumenRoute,
+  RetencionRoute: RetencionRoute,
   TendenciaRoute: TendenciaRoute,
   ApiChatRoute: ApiChatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

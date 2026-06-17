@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { Layout } from "@/components/Layout";
 import { ExportButton } from "@/components/ExportButton";
 import { SectionDivider } from "@/components/SectionDivider";
@@ -9,8 +10,69 @@ import { mesLargo } from "@/data/schema";
 
 export const Route = createFileRoute("/kpis")({
   head: () => ({ meta: [{ title: "KPIs · Churn Hub" }] }),
-  component: Kpis,
+  component: KpisGated,
 });
+
+const KPIS_KEY = "kpis_unlocked";
+const KPIS_PWD = "Carla777";
+
+function KpisGated() {
+  const [unlocked, setUnlocked] = useState(() => localStorage.getItem(KPIS_KEY) === "1");
+  const [input, setInput] = useState("");
+  const [error, setError] = useState(false);
+
+  if (unlocked) return <Kpis />;
+
+  function attempt() {
+    if (input === KPIS_PWD) {
+      localStorage.setItem(KPIS_KEY, "1");
+      setUnlocked(true);
+    } else {
+      setError(true);
+      setInput("");
+    }
+  }
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9999,
+      background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+    }}>
+      <div className="card" style={{ width: 360, padding: "36px 32px", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.18)" }}>
+        <div style={{ fontSize: 44, marginBottom: 16 }}>🚧</div>
+        <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 8 }}>Hola Fuder!</div>
+        <div style={{ fontSize: 14, color: "var(--ink-2)", marginBottom: 28, lineHeight: 1.5 }}>
+          Esta sección aún se encuentra en desarrollo.
+        </div>
+        <input
+          type="password"
+          placeholder="Contraseña de acceso"
+          value={input}
+          onChange={e => { setInput(e.target.value); setError(false); }}
+          onKeyDown={e => e.key === "Enter" && attempt()}
+          autoFocus
+          style={{
+            width: "100%", padding: "10px 14px", borderRadius: 8, fontSize: 14,
+            border: `1px solid ${error ? "#DC2626" : "var(--rule-2)"}`,
+            background: "var(--paper)", color: "var(--ink)", outline: "none",
+            boxSizing: "border-box", marginBottom: 8,
+          }}
+        />
+        {error && <div style={{ fontSize: 12, color: "#DC2626", marginBottom: 8 }}>Contraseña incorrecta</div>}
+        <button
+          onClick={attempt}
+          style={{
+            width: "100%", padding: "10px 0", borderRadius: 8, background: "var(--orange-fill)",
+            color: "#fff", border: "none", fontWeight: 600, fontSize: 14, cursor: "pointer",
+          }}
+        >
+          Ingresar
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // Parse a numeric value (current/baseline/target) from the messy strings in mockData
 function parseNum(s: string): number | null {

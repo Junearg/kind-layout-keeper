@@ -8,6 +8,7 @@ import {
   useKpiSnapshotMultipais,
   type KpiDiario,
 } from "@/data/supabase-kpis-diarios";
+import { useSheetsDashboard } from "@/data/google-sheets";
 
 // ── Panel de MPCs de referencia ───────────────────────────────────────────────
 type MpcRow = { id: string; mes: string; pais: string; mpcs: number; nota: string | null };
@@ -284,12 +285,42 @@ function RetencionPage() {
 
   const { data: kpis,     isLoading } = useKpiSnapshotMultipais(fechaHoy);
   const { data: kpisAnt               } = useKpiSnapshotMultipais(fechaAnt);
+  const { data: sheets, isLoading: sheetsLoading } = useSheetsDashboard();
 
-  const kpiMap    = useMemo(() => { const m = new Map<string, KpiDiario>(); if (kpis)    for (const k of kpis)    m.set(k.pais, k); return m; }, [kpis]);
+  const kpiMapRaw = useMemo(() => { const m = new Map<string, KpiDiario>(); if (kpis)    for (const k of kpis)    m.set(k.pais, k); return m; }, [kpis]);
   const kpiAntMap = useMemo(() => { const m = new Map<string, KpiDiario>(); if (kpisAnt) for (const k of kpisAnt) m.set(k.pais, k); return m; }, [kpisAnt]);
+
+  // Merge GSheet encima de Supabase: GSheet tiene prioridad para los campos que trae
+  const kpiMap = useMemo(() => {
+    if (!sheets) return kpiMapRaw;
+    const m = new Map<string, KpiDiario>();
+    for (const [pais, k] of kpiMapRaw) {
+      const gs = sheets.byCountry[pais];
+      if (!gs) { m.set(pais, k); continue; }
+      m.set(pais, {
+        ...k,
+        ...(gs.activas          != null && { activas: gs.activas }),
+        ...(gs.bajasConfirmadas != null && { bajas: gs.bajasConfirmadas }),
+        ...(gs.cuentasARecuperar != null && { aRecuperar: gs.cuentasARecuperar }),
+        ...(gs.cvtasUltimos7d   != null && { activasConVentas: gs.cvtasUltimos7d }),
+        ...(gs.svtasUltimos7d   != null && { sinVentas: gs.svtasUltimos7d }),
+        ...(gs.pctRetenido      != null && { pctRetenido: gs.pctRetenido }),
+        ...(gs.mpcsMesPasado    != null && { mpcsMesPasado: gs.mpcsMesPasado }),
+        ...(gs.churnBruto       != null && { churnBruto: gs.churnBruto }),
+        ...(gs.churnNeto        != null && { churnNeto: gs.churnNeto }),
+        ...(gs.churnPlan        != null && { churnPlan: gs.churnPlan }),
+        ...(gs.proyectadoVsPlan != null && { proyectadoVsPlan: gs.proyectadoVsPlan }),
+        ...(gs.nRecuperar       != null && { nRecuperar: gs.nRecuperar }),
+      });
+    }
+    return m;
+  }, [kpiMapRaw, sheets]);
 
   const region    = kpiMap.get("Región");
   const regionAnt = kpiAntMap.get("Región");
+
+  // GSheet "Región" — fuente viva para los KPI cards principales
+  const gs = sheets?.byCountry?.["Región"];
 
   if (fechasLoading) return <Layout><div className="card" style={{ padding: 20 }}>Cargando…</div></Layout>;
 
@@ -324,23 +355,17 @@ function RetencionPage() {
   return (
     <Layout>
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: fechaAnt ? 12 : 24, flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 className="serif" style={{ fontSize: 28, margin: 0 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+          <h1 className="serif" style={{ fontSize: 24, margin: 0 }}>
             Retención <span className="alt">/ snapshot diario</span>
           </h1>
-          <p className="fs-12 muted" style={{ marginTop: 4 }}>
-            {fechas.length} snapshot{fechas.length !== 1 ? "s" : ""} · Región
-            {fechaAnt
-              ? <span style={{ marginLeft: 8, opacity: 0.7 }}>baseline: <strong>{fechaAnt}</strong> (último snapshot de {mesPrevKey})</span>
-              : <span style={{ marginLeft: 8, color: "var(--amber, #B45309)", opacity: 0.8 }}>⚠ Sin snapshot del mes anterior para comparar</span>
-            }
-          </p>
+          {fechaAnt && <span className="fs-11 muted">baseline: <strong>{fechaAnt}</strong></span>}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span className="fs-12 muted">Fecha:</span>
           <select value={fechaHoy} onChange={e => setFechaSel(e.target.value)}
-            style={{ fontSize: 13, padding: "7px 12px", borderRadius: 8, border: "1px solid var(--rule-2)", background: "var(--paper)", fontFamily: "inherit", fontWeight: 500 }}>
+            style={{ fontSize: 13, padding: "6px 10px", borderRadius: 8, border: "1px solid var(--rule-2)", background: "var(--paper)", fontFamily: "inherit", fontWeight: 500 }}>
             {fechas.map(f => <option key={f} value={f}>{f}</option>)}
           </select>
         </div>
@@ -349,93 +374,115 @@ function RetencionPage() {
       {/* ── MPCs de referencia ── */}
       <MpcReferenciaPanel />
 
-      {/* ── Banner: último día hábil ── */}
-      {!fechaAnt && (
-        <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 10, background: "#FFFBEB", border: "1px solid #FDE68A", fontSize: 12.5, color: "#92400E", display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 16 }}>💡</span>
-          <span>
-            <strong>Tip: baseline mensual.</strong> Para que el "vs mes anterior" funcione, importá el <code>base_hubspot</code> el <strong>último día hábil de cada mes</strong> en modo Diario. Ese snapshot queda como referencia automática para todos los días del mes siguiente.
-          </span>
-        </div>
-      )}
 
       {/* ── KPI Cards ── */}
-      {isLoading ? (
-        <div className="card" style={{ padding: 20, marginBottom: 20 }}>
+      {(isLoading || sheetsLoading) ? (
+        <div className="card" style={{ padding: 16, marginBottom: 16 }}>
           <div className="fs-12 muted">Calculando métricas…</div>
         </div>
       ) : (
-        <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 24 }}>
-          {/* Principal — % Retención */}
-          <div className="card" style={{
-            padding: "22px 28px", minWidth: 220, flex: "0 0 auto",
-            borderLeft: `4px solid ${retTone === "green" ? "#16A34A" : retTone === "red" ? "#DC2626" : "var(--orange)"}`,
-          }}>
-            <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--ink-3)", marginBottom: 2 }}>
-              % Retención
+        <>
+          {sheets?.fecha && (
+            <div style={{ marginBottom: 8, fontSize: 11, color: "var(--ink-3)", display: "flex", gap: 6, alignItems: "center" }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22C55E", display: "inline-block" }} />
+              GSheet · actualizado {sheets.fecha}
             </div>
-            <div style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 10 }}>Región · {fechaHoy}</div>
-            <div style={{ fontSize: 52, fontWeight: 800, lineHeight: 1, color: retTone === "green" ? "#16A34A" : retTone === "red" ? "#DC2626" : "var(--ink)", fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em" }}>
-              {region ? pct(region.pctRetenido) : "—"}
-            </div>
-            <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6, minHeight: 22 }}>
-              {deltaRet != null ? (
-                <>
-                  <span style={{
-                    fontSize: 13, fontWeight: 700,
-                    color: deltaRet > 0 ? "#16A34A" : deltaRet < 0 ? "#DC2626" : "var(--ink-3)",
-                  }}>
-                    {deltaRet > 0 ? "▲ +" : deltaRet < 0 ? "▼ " : "= "}{Math.abs(deltaRet).toFixed(1)}%
-                  </span>
-                  <span style={{ fontSize: 11, color: "var(--ink-3)" }}>{antLabel}</span>
-                </>
-              ) : (
-                <span style={{ fontSize: 11, color: "var(--ink-4)", fontStyle: "italic" }}>
-                  Sin snapshot anterior — importá más fechas para ver tendencia
-                </span>
-              )}
-            </div>
-            <div style={{ marginTop: 6, fontSize: 11, color: "var(--ink-4)" }}>
-              {region ? `${fmt(region.activas)} activas · base ${fmt(region.mpcsMesPasado)}` : ""}
-            </div>
-          </div>
+          )}
+          {(() => {
+            const retVal  = gs?.pctRetenido        ?? region?.pctRetenido  ?? null;
+            const churnB  = gs?.churnBruto         ?? region?.churnBruto   ?? null;
+            const churnN  = gs?.churnNeto          ?? region?.churnNeto    ?? null;
+            const activas = gs?.activas            ?? region?.activas      ?? null;
+            const aRecup  = gs?.cuentasARecuperar  ?? region?.aRecuperar   ?? null;
+            const mpcs    = gs?.mpcsMesPasado      ?? region?.mpcsMesPasado ?? null;
+            const churnBColor = churnB == null ? "var(--ink)" : churnB > 7 ? "#DC2626" : churnB < 3 ? "#16A34A" : "var(--ink)";
+            const churnNColor = churnN == null ? "var(--ink)" : churnN > 7 ? "#DC2626" : churnN < 3 ? "#16A34A" : "var(--ink)";
+            return (
+              <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
+                {/* % Retención — hero card */}
+                <div className="card orange" style={{ width: 220, minHeight: 200, padding: "16px 20px", flexShrink: 0 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div>
+                      <div className="card-eyebrow" style={{ fontSize: 11 }}>% Retención</div>
+                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 2 }}>{sheets?.fecha ?? fechaHoy} · Región</div>
+                    </div>
+                    <span style={{ fontSize: 16, opacity: 0.6 }}>↗</span>
+                  </div>
+                  <div style={{ fontSize: 42, fontWeight: 700, marginTop: 8, lineHeight: 1, fontFamily: "'Inter', sans-serif", letterSpacing: "-0.02em" }}>
+                    {retVal != null ? pct(retVal) : "—"}
+                  </div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 6 }}>
+                    {activas != null && mpcs != null ? `${fmt(activas)} activas · base ${fmt(mpcs)}` : ""}
+                  </div>
+                  {deltaRet != null && (
+                    <div style={{ marginTop: 10 }}>
+                      <span className="callout" style={{ fontSize: 11 }}>
+                        {deltaRet >= 0 ? "↑" : "↓"} {Math.abs(deltaRet).toFixed(1)}% vs {antLabel}
+                      </span>
+                    </div>
+                  )}
+                </div>
 
-          {/* Churn Bruto */}
-          <KpiCard
-            label="Churn Bruto"
-            sub={`Proyectado · ${fechaHoy}`}
-            value={region ? pct2(region.churnBruto) : "—"}
-            delta={deltaChurnB != null ? -deltaChurnB : null}
-            deltaLabel={antLabel}
-            tone={region == null ? undefined : region.churnBruto > 7 ? "red" : region.churnBruto < 3 ? "green" : undefined}
-          />
+                {/* Churn Bruto */}
+                <div className="card" style={{ width: 220, minHeight: 200, padding: "16px 20px", flexShrink: 0 }}>
+                  <div className="card-eyebrow" style={{ fontSize: 11 }}>Churn Bruto</div>
+                  <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>Proyectado</div>
+                  <div style={{ fontSize: 42, fontWeight: 700, marginTop: 8, lineHeight: 1, fontFamily: "'Inter', sans-serif", letterSpacing: "-0.02em", color: churnBColor }}>
+                    {churnB != null ? pct(churnB) : "—"}
+                  </div>
+                  {deltaChurnB != null && (
+                    <div style={{ marginTop: 10 }}>
+                      <span className="callout line" style={{ fontSize: 11 }}>
+                        {deltaChurnB >= 0 ? "↑" : "↓"} {Math.abs(deltaChurnB).toFixed(1)}% vs {antLabel}
+                      </span>
+                    </div>
+                  )}
+                </div>
 
-          {/* Churn Neto */}
-          <KpiCard
-            label="Churn Neto"
-            sub={`Proyectado · ${fechaHoy}`}
-            value={region ? pct2(region.churnNeto) : "—"}
-            delta={deltaChurnN != null ? -deltaChurnN : null}
-            deltaLabel={antLabel}
-            tone={region == null ? undefined : region.churnNeto > 7 ? "red" : region.churnNeto < 3 ? "green" : undefined}
-          />
+                {/* Churn Neto */}
+                <div className="card" style={{ width: 220, minHeight: 200, padding: "16px 20px", flexShrink: 0 }}>
+                  <div className="card-eyebrow" style={{ fontSize: 11 }}>Churn Neto</div>
+                  <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>Proyectado</div>
+                  <div style={{ fontSize: 42, fontWeight: 700, marginTop: 8, lineHeight: 1, fontFamily: "'Inter', sans-serif", letterSpacing: "-0.02em", color: churnNColor }}>
+                    {churnN != null ? pct(churnN) : "—"}
+                  </div>
+                  {deltaChurnN != null && (
+                    <div style={{ marginTop: 10 }}>
+                      <span className="callout line" style={{ fontSize: 11 }}>
+                        {deltaChurnN >= 0 ? "↑" : "↓"} {Math.abs(deltaChurnN).toFixed(1)}% vs {antLabel}
+                      </span>
+                    </div>
+                  )}
+                </div>
 
-          {/* Cuentas activas */}
-          <KpiCard
-            label="Cuentas Activas"
-            sub="Estado Activo"
-            value={region ? fmt(region.activas) : "—"}
-            delta={deltaActivas}
-            deltaLabel={antLabel}
-          />
+                {/* Cuentas Activas */}
+                <div className="card" style={{ width: 220, minHeight: 200, padding: "16px 20px", flexShrink: 0 }}>
+                  <div className="card-eyebrow" style={{ fontSize: 11 }}>Cuentas Activas</div>
+                  <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>Estado Activo</div>
+                  <div style={{ fontSize: 42, fontWeight: 700, marginTop: 8, lineHeight: 1, fontFamily: "'Inter', sans-serif", letterSpacing: "-0.02em" }}>
+                    {activas != null ? fmt(activas) : "—"}
+                  </div>
+                  {deltaActivas != null && (
+                    <div style={{ marginTop: 10 }}>
+                      <span className="callout line" style={{ fontSize: 11 }}>
+                        {deltaActivas >= 0 ? "↑ +" : "↓ "}{Math.abs(deltaActivas).toFixed(1)}% vs {antLabel}
+                      </span>
+                    </div>
+                  )}
+                </div>
 
-          {/* A Recuperar */}
-          <KpiCard
-            label="A Recuperar"
-            sub="Engagement + Onboarding"
-            value={region ? fmt(region.aRecuperar) : "—"}
-          />
-        </div>
+                {/* A Recuperar */}
+                <div className="card" style={{ width: 220, minHeight: 200, padding: "16px 20px", flexShrink: 0 }}>
+                  <div className="card-eyebrow" style={{ fontSize: 11 }}>A Recuperar</div>
+                  <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>Engagement + Onboarding</div>
+                  <div style={{ fontSize: 42, fontWeight: 700, marginTop: 8, lineHeight: 1, fontFamily: "'Inter', sans-serif", letterSpacing: "-0.02em", color: "var(--orange)" }}>
+                    {aRecup != null ? fmt(aRecup) : "—"}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </>
       )}
 
       {/* ── Tabla colapsable ── */}
@@ -464,12 +511,28 @@ function RetencionPage() {
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
                 <thead>
-                  <tr style={{ background: "var(--paper-2)" }}>
-                    <th style={{ padding: "12px 20px", textAlign: "left", fontWeight: 500, fontSize: 11, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: 0.5, minWidth: 240, position: "sticky", left: 0, background: "var(--paper-2)", borderRight: "2px solid var(--rule)" }}>
+                  <tr>
+                    <th style={{
+                      padding: "14px 20px", textAlign: "left", fontWeight: 600, fontSize: 11,
+                      color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: 0.8,
+                      minWidth: 220, position: "sticky", left: 0,
+                      background: "var(--paper-2)",
+                      borderBottom: "2px solid var(--rule-2)",
+                      boxShadow: "2px 0 6px -2px rgba(0,0,0,0.08)",
+                    }}>
                       Métrica
                     </th>
                     {PAISES_COLS.map(p => (
-                      <th key={p} style={{ padding: "12px 20px", textAlign: "right", fontSize: 13, fontWeight: p === "Región" ? 700 : 500, color: p === "Región" ? "var(--orange)" : "var(--ink)", minWidth: 120, borderLeft: "1px solid var(--rule)" }}>
+                      <th key={p} style={{
+                        padding: "14px 18px", textAlign: "right",
+                        fontSize: p === "Región" ? 13 : 12, fontWeight: p === "Región" ? 700 : 500,
+                        color: p === "Región" ? "var(--orange)" : "var(--ink-2)",
+                        minWidth: 110,
+                        borderBottom: "2px solid var(--rule-2)",
+                        borderLeft: p === "Región" ? "2px solid var(--orange)" : "1px solid var(--rule)",
+                        background: p === "Región" ? "rgba(251,102,2,0.03)" : "var(--paper-2)",
+                        letterSpacing: p === "Región" ? 0 : 0.2,
+                      }}>
                         {p}
                       </th>
                     ))}
@@ -479,26 +542,78 @@ function RetencionPage() {
                   {METRICAS.map((m, i) => {
                     const prevGroup = i > 0 ? METRICAS[i - 1]?.group : undefined;
                     const showGroupHeader = m.group !== undefined && m.group !== prevGroup;
+                    const isSub = m.label.startsWith("  ·");
+                    const label = isSub ? m.label.replace("  ·", "") : m.label;
                     return (
                       <>
                         {showGroupHeader && (
                           <tr key={`grp-${m.group}`}>
-                            <td colSpan={PAISES_COLS.length + 1} style={{ padding: "10px 20px 4px", fontSize: 10.5, textTransform: "uppercase", letterSpacing: 1, color: "var(--ink-4)", fontWeight: 600, background: "var(--paper-2)", borderTop: "2px solid var(--rule)" }}>
+                            <td colSpan={PAISES_COLS.length + 1} style={{
+                              padding: "8px 20px 6px",
+                              fontSize: 10, textTransform: "uppercase", letterSpacing: 1.2,
+                              color: "var(--ink-4)", fontWeight: 700,
+                              background: "var(--paper-2)",
+                              borderTop: i === 0 ? undefined : "2px solid var(--rule)",
+                              borderBottom: "1px solid var(--rule)",
+                            }}>
                               {m.group}
                             </td>
                           </tr>
                         )}
                         <tr key={m.label} style={{ borderTop: "1px solid var(--rule)" }}>
-                          <td style={{ padding: "10px 20px", color: m.label.startsWith("  ·") ? "var(--ink-3)" : "var(--ink-2)", fontSize: m.label.startsWith("  ·") ? 11.5 : 12.5, position: "sticky", left: 0, background: "var(--paper)", borderRight: "2px solid var(--rule)" }}>
-                            {m.label.startsWith("  ·") ? m.label.replace("  ·", "↳") : m.label}
+                          <td style={{
+                            padding: isSub ? "8px 20px 8px 32px" : "10px 20px",
+                            position: "sticky", left: 0,
+                            background: "var(--paper)",
+                            boxShadow: "2px 0 6px -2px rgba(0,0,0,0.06)",
+                          }}>
+                            {isSub ? (
+                              <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ width: 14, height: 1, background: "var(--rule-2)", flexShrink: 0 }} />
+                                <span style={{ fontSize: 11.5, color: "var(--ink-4)" }}>{label}</span>
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: 12.5, color: "var(--ink-2)", fontWeight: 500 }}>{label}</span>
+                            )}
                           </td>
                           {PAISES_COLS.map(p => {
                             const k = kpiMap.get(p);
                             const val = k ? m.get(k) : "—";
                             const tone = k ? (m.highlight?.(k) ?? null) : null;
+                            const isRegion = p === "Región";
                             return (
-                              <td key={p} style={{ padding: "10px 20px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: tone === "red" ? "#DC2626" : tone === "green" ? "#16A34A" : p === "Región" ? "var(--ink)" : "var(--ink-2)", fontWeight: tone ? 700 : p === "Región" ? 600 : 400, background: tone === "red" ? "rgba(220,38,38,0.04)" : tone === "green" ? "rgba(22,163,74,0.04)" : undefined, borderLeft: "1px solid var(--rule)" }}>
-                                {val}
+                              <td key={p} style={{
+                                padding: "10px 18px", textAlign: "right",
+                                fontVariantNumeric: "tabular-nums",
+                                fontFamily: "'JetBrains Mono', monospace",
+                                borderLeft: isRegion ? "2px solid var(--orange)" : "1px solid var(--rule)",
+                                background: tone === "red"   ? "rgba(220,38,38,0.05)"
+                                          : tone === "green" ? "rgba(22,163,74,0.05)"
+                                          : isRegion         ? "rgba(251,102,2,0.02)"
+                                          : undefined,
+                              }}>
+                                {tone ? (
+                                  <span style={{
+                                    display: "inline-flex", alignItems: "center", justifyContent: "flex-end",
+                                    gap: 5, fontSize: 12,
+                                    color: tone === "red" ? "#DC2626" : "#16A34A",
+                                    fontWeight: 700,
+                                  }}>
+                                    <span style={{
+                                      width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
+                                      background: tone === "red" ? "#DC2626" : "#16A34A",
+                                    }} />
+                                    {val}
+                                  </span>
+                                ) : (
+                                  <span style={{
+                                    fontSize: isSub ? 12 : 12.5,
+                                    color: "var(--ink-2)",
+                                    fontWeight: isRegion ? 600 : 400,
+                                  }}>
+                                    {val}
+                                  </span>
+                                )}
                               </td>
                             );
                           })}

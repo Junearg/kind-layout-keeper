@@ -181,6 +181,28 @@ export function useSupabaseSegmentacion(mesActivo: string) {
   });
 }
 
+/** Lista los períodos MENSUALES disponibles en Supabase (formato YYYY-MM),
+ *  ordenados de más reciente a más antiguo. */
+async function fetchPeriodosDisponibles(): Promise<string[]> {
+  const { data } = await supabase
+    .from("clientes")
+    .select("mes_exportacion")
+    .order("mes_exportacion", { ascending: false });
+
+  const all = (data ?? []).map((r: { mes_exportacion: string }) => r.mes_exportacion as string);
+  // Solo mensuales: exactamente "YYYY-MM" (10 chars = diarios, 7 = mensuales)
+  const monthly = Array.from(new Set(all.filter((m) => m && m.length === 7)));
+  return monthly.sort().reverse();
+}
+
+export function usePeriodosDisponibles() {
+  return useQuery({
+    queryKey: ["periodos-disponibles"],
+    queryFn:  fetchPeriodosDisponibles,
+    staleTime: 5 * 60_000,
+  });
+}
+
 export const PAISES_ORDER: PaisSeg[] = [...COUNTRIES, "Otros"];
 export const PLANES_ORDER: PlanBase[] = ["Inicial", "Avanzado", "Pro", "Base"];
 export const GMVS_ORDER: GmvSeg[] = ["Alto", "Medio", "Bajo"];

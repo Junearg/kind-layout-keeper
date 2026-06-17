@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SegmentacionChurn } from "@/components/SegmentacionChurn";
+import { ChurnFeedbackGroup } from "@/components/ChurnFeedbackGroup";
 import { useMemo, useState } from "react";
 import { Layout } from "@/components/Layout";
 
@@ -278,6 +279,14 @@ function Resumen() {
         <span className="rule" />
       </div>
       <SegmentacionChurn />
+
+      {/* ── Contact Churn ── */}
+      <div className="divider" style={{ marginTop: 24 }}>
+        <span className="kicker">Contact Churn</span>
+        <span className="alt">/ NPS · motivos · cuentas churneadas</span>
+        <span className="rule" />
+      </div>
+      <ChurnFeedbackGroup />
       </div>
       )}
     </Layout>
@@ -378,7 +387,7 @@ function TrendCard({ trend, delta, prevLabel, latestLabel }: {
       </div>
 
       <div className="chart-wrap" style={{ height: 320 }}>
-        <ResponsiveContainer>
+        <ResponsiveContainer debounce={50}>
           <ComposedChart data={data} margin={{ top: 24, right: 16, left: -8, bottom: 0 }}>
             <CartesianGrid stroke="#E8E6DC" vertical={false} />
             <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} />

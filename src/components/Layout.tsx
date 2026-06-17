@@ -12,8 +12,7 @@ const TABS = [
 
   { to: "/resumen",    label: "Dashboard" },
   { to: "/health",     label: "Health Score" },
-  { to: "/contactos",  label: "Contact Churn" },
-  { to: "/retencion",  label: "Retención" },
+  { to: "/retencion",  label: "Daily Retention" },
   { to: "/kpis",       label: "KPI´s" },
   { to: "/labs",       label: "⚗ Labs", beta: true },
 ] as const;
@@ -322,6 +321,23 @@ function UserMenu() {
               {user?.email}
             </div>
           </div>
+          {user?.email === "camed@fu.do" && (
+            <Link
+              to="/admin"
+              onClick={() => setOpen(false)}
+              style={{
+                display: "block", width: "100%", textAlign: "left",
+                padding: "10px 14px", background: "transparent", border: 0,
+                cursor: "pointer", fontSize: 13, color: "var(--orange)",
+                fontFamily: "inherit", fontWeight: 600, textDecoration: "none",
+                boxSizing: "border-box",
+              }}
+              onMouseEnter={(e) => ((e.target as HTMLElement).style.background = "var(--paper-2)")}
+              onMouseLeave={(e) => ((e.target as HTMLElement).style.background = "transparent")}
+            >
+              Panel de accesos
+            </Link>
+          )}
           <button
             onClick={() => { setOpen(false); signOut(); }}
             style={{

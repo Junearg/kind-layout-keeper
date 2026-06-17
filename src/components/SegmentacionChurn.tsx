@@ -1,16 +1,16 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   LineChart, Line, Cell, LabelList,
 } from "recharts";
 import { ORANGE } from "@/data/mockData";
-import { useMesActivo } from "@/data/dataset-store";
-import { useState } from "react";
 import {
   useSupabaseSegmentacion,
+  usePeriodosDisponibles,
   PAISES_ORDER, PLANES_ORDER, GMVS_ORDER,
   type SegmentacionData, type BajaRow, type GmvSeg,
 } from "@/data/supabase-segmentacion";
+import { mesLargo } from "@/data/schema";
 
 const COUNTRY_COLORS: Record<string, string> = {
   Argentina: "#F4A07A", Chile: "#7BAEE8", México: "#6FCFB2",
@@ -33,21 +33,66 @@ const pctfmt = (n: number, d = 2) => `${n.toFixed(d)}%`;
 type Tab = "pais" | "plan" | "gmv" | "ejecutivo";
 
 export function SegmentacionChurn() {
-  const mesActivo = useMesActivo();
-  const { data, isLoading, error } = useSupabaseSegmentacion(mesActivo);
-  const [tab, setTab] = useState<Tab>("pais");
+  const { data: periodos } = usePeriodosDisponibles();
+  const [periodo, setPeriodo] = useState<string>("");
+  const [tab, setTab]         = useState<Tab>("pais");
+
+  const activePeriodo = periodo || periodos?.[0] || "";
+
+  const { data, isLoading, error } = useSupabaseSegmentacion(activePeriodo);
+
+  const TABS: [Tab, string][] = [
+    ["pais", "Por país"], ["plan", "Por plan"],
+    ["gmv", "Por GMV"],   ["ejecutivo", "Por ejecutivo"],
+  ];
 
   return (
     <div className="card lg" style={{ marginBottom: 20 }}>
+      {/* ── Header con título + selector de período ── */}
       <div className="minihead" style={{ marginBottom: 14 }}>
         <div>
           <div className="card-eyebrow">Segmentación</div>
           <div className="card-title">Bajas por dimensión</div>
         </div>
+
+        {/* Selector de período */}
+        {periodos && periodos.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 11, color: "var(--ink-3)", whiteSpace: "nowrap" }}>
+              Período:
+            </span>
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+              {periodos.slice(0, 6).map((p) => {
+                const active = p === activePeriodo;
+                return (
+                  <button
+                    key={p}
+                    onClick={() => setPeriodo(p)}
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                      border: active ? "1px solid var(--orange)" : "1px solid var(--rule)",
+                      background: active ? "var(--orange)" : "white",
+                      color: active ? "white" : "var(--ink-2)",
+                      fontSize: 12,
+                      fontWeight: active ? 600 : 400,
+                      cursor: "pointer",
+                      transition: "all 0.15s",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {mesLargo(p)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* ── Tabs de dimensión ── */}
       <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
-        {([ ["pais", "Por país"], ["plan", "Por plan"], ["gmv", "Por GMV"], ["ejecutivo", "Por ejecutivo"] ] as [Tab, string][]).map(([k, label]) => {
+        {TABS.map(([k, label]) => {
           const active = tab === k;
           return (
             <button key={k} onClick={() => setTab(k)} style={{
@@ -63,7 +108,7 @@ export function SegmentacionChurn() {
         })}
       </div>
 
-      {isLoading && <div className="fs-12 muted">Cargando segmentación…</div>}
+      {(!activePeriodo || isLoading) && <div className="fs-12 muted">Cargando segmentación…</div>}
       {error && <div className="fs-12" style={{ color: "#DC2626" }}>Error cargando datos</div>}
       {data && (
         <>
@@ -122,7 +167,7 @@ function StackedEvolution({
     <div>
       <div className="card-eyebrow" style={{ marginBottom: 8 }}>{title} · composición mensual</div>
       <div style={{ height: 260 }}>
-        <ResponsiveContainer>
+        <ResponsiveContainer debounce={50}>
           <BarChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
             <CartesianGrid stroke="#E8E6DC" vertical={false} />
             <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
@@ -451,7 +496,7 @@ function GmvTab({ data }: { data: SegmentacionData }) {
       <div style={{ marginTop: 20 }}>
         <div className="card-eyebrow" style={{ marginBottom: 8 }}>GMV en riesgo ($M) · acumulado</div>
         <div style={{ height: 180 }}>
-          <ResponsiveContainer>
+          <ResponsiveContainer debounce={50}>
             <LineChart data={m.lineData} margin={{ top: 8, right: 24, left: 0, bottom: 8 }}>
               <CartesianGrid stroke="#E8E6DC" vertical={false} />
               <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
@@ -533,7 +578,7 @@ function EjecutivoTab({ data }: { data: SegmentacionData }) {
       {/* Evolución de tasa % por ejecutivo */}
       <div className="card-eyebrow" style={{ marginBottom: 8 }}>Churn rate % · 6 meses · top 10 ejecutivos</div>
       <div style={{ height: 240 }}>
-        <ResponsiveContainer>
+        <ResponsiveContainer debounce={50}>
           <LineChart data={m.lineData} margin={{ top: 12, right: 24, left: 0, bottom: 8 }}>
             <CartesianGrid stroke="#E8E6DC" vertical={false} />
             <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#6E6D66" }} axisLine={false} tickLine={false} />
