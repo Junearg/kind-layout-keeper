@@ -1,12 +1,11 @@
-import { copyFileSync, existsSync } from "fs";
+import { existsSync } from "fs";
 
-// SPA routing on Cloudflare Pages: copy index.html as 404.html.
-// When a route has no matching static file, Cloudflare serves 404.html,
-// which bootstraps React and lets the client-side router take over.
-if (!existsSync("dist/client/index.html")) {
-  console.error("ERROR: dist/client/index.html not found");
+// With @cloudflare/vite-plugin in Pages mode (pages_build_output_dir set in wrangler.jsonc),
+// vite build writes _worker.js directly into dist/client. Just verify it landed.
+if (!existsSync("dist/client/_worker.js")) {
+  console.error("ERROR: dist/client/_worker.js not found");
+  console.error("Make sure wrangler.jsonc has pages_build_output_dir: dist/client");
   process.exit(1);
 }
-copyFileSync("dist/client/index.html", "dist/client/404.html");
-console.log("✓ 404.html created for SPA routing");
+console.log("✓ _worker.js present — SSR routing ready");
 console.log("✓ Pages deployment ready");
