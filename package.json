@@ -6,9 +6,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
-    "start": "node dist/server/index.js",
-    "build:pages": "vite build && node scripts/prepare-pages.mjs",
-    "build:docker": "vite build --config vite.docker.config.ts && node scripts/generate-index.mjs",
+    "build:docker": "vite build && node scripts/generate-index.mjs",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
@@ -86,7 +84,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
-    "@lovable.dev/vite-tanstack-config": "^1.7.0",
     "@types/node": "^22.16.5",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
