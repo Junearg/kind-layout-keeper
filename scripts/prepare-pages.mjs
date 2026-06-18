@@ -14,11 +14,13 @@ if (existsSync("dist/server")) {
   console.log("  (not found)");
 }
 
-// Find _worker.js: prefer index.js, else look for worker-entry in assets
-let workerContent;
+// Find _worker.js: prefer index.js, then server.js, else look for worker-entry in assets
 if (existsSync("dist/server/index.js")) {
   copyFileSync("dist/server/index.js", "dist/client/_worker.js");
   console.log("✓ _worker.js from dist/server/index.js");
+} else if (existsSync("dist/server/server.js")) {
+  copyFileSync("dist/server/server.js", "dist/client/_worker.js");
+  console.log("✓ _worker.js from dist/server/server.js");
 } else {
   // Find worker-entry file in assets
   const assets = existsSync("dist/server/assets") ? readdirSync("dist/server/assets") : [];
