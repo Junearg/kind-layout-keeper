@@ -20,7 +20,9 @@ if (existsSync("dist/server/index.js")) {
   console.log("✓ _worker.js from dist/server/index.js");
 } else if (existsSync("dist/server/server.js")) {
   copyFileSync("dist/server/server.js", "dist/client/_worker.js");
-  console.log("✓ _worker.js from dist/server/server.js");
+  // Assets import "../server.js" relative to their location, so this must also exist
+  copyFileSync("dist/server/server.js", "dist/client/server.js");
+  console.log("✓ _worker.js and server.js from dist/server/server.js");
 } else {
   // Find worker-entry file in assets
   const assets = existsSync("dist/server/assets") ? readdirSync("dist/server/assets") : [];
