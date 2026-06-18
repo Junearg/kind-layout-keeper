@@ -162,14 +162,13 @@ async function fetchResumen(period: string): Promise<ResumenData> {
     return [...byBajas, ...byBajasClientes, ...byBloqueadoSinEtapa];
   }
 
-  const [activos, bajasRaw, bajasAllRaw, nps, csat] = await Promise.all([
+  const [activos, bajasRaw, nps, csat] = await Promise.all([
     pageAll<ScoreRow>(() => supabase
       .from("clientes")
       .select("id_hubspot,productos,usuarios,v_salon,v_delivery,v_mostrador,cant_contactos,nps_score,motivo_baja,motivo_metabase,estado_dash,pais")
       .eq("mes_exportacion", period)
       .eq("estado_dash", "Activo")),
-    fetchBajasPeriod(period),   // métricas del mes actual
-    fetchBajasAll(),            // todas las bajas históricas (para tendencia)
+    fetchBajasPeriod(period),
     pageAll<NpsRow>(() => supabase
       .from("clientes")
       .select("nps_score,pais")
@@ -208,23 +207,13 @@ async function fetchResumen(period: string): Promise<ResumenData> {
     tier, count: tierCount[tier], pct: (tierCount[tier] / totalAct) * 100, color: TIER_COLORS[tier],
   }));
 
-  // --- Trend histórico: dedup por cliente, asignar mes por fecha_baja o por snapshot más antiguo.
-  // Todo Bloqueado es una baja real. Si tiene fecha_baja la usamos como mes de la baja.
-  // Si no tiene fecha_baja, el snapshot más antiguo donde aparece Bloqueado es el mejor proxy.
-  const trendDedup = new Map<number, BajaRow>();
-  for (const b of bajasAllRaw) {
-    if (!b.id || !b.mes_exportacion) continue;
-    const existing = trendDedup.get(b.id);
-    // Nos quedamos con el snapshot más antiguo (primer mes en que apareció como Bloqueado)
-    if (!existing || b.mes_exportacion < existing.mes_exportacion!) trendDedup.set(b.id, b);
-  }
-  const bajasAll = Array.from(trendDedup.values())
-    .filter((b) => !isOperationalChurn(b.motivo_baja));
-  // sinFechaHist: Bloqueados sin fecha_baja (bajas reales pero sin fecha asignable a un mes)
+  // --- Trend histórico: agrupa el snapshot actual por fecha_baja.
+  // El snapshot del período acumula todos los churns históricos con su fecha_baja correcta,
+  // por lo que agrupar por fecha_baja da el historial completo sin necesidad de dedup cross-período.
   let sinFechaHist = 0;
   const byMonthAll = new Map<string, { bajas: number; conMotivo: number }>();
-  for (const b of bajasAll) {
-    if (!b.fecha_baja) { sinFechaHist++; continue; } // real pero sin fecha → no asignable
+  for (const b of bajas) {
+    if (!b.fecha_baja) { sinFechaHist++; continue; }
     const k = monthKey(new Date(b.fecha_baja));
     if (k > period) continue;
     const slot = byMonthAll.get(k) ?? { bajas: 0, conMotivo: 0 };
@@ -355,8 +344,8 @@ async function fetchResumen(period: string): Promise<ResumenData> {
     alertas.push({ tone: "red", titulo: `${criticalCount} cuentas en tier Critical — intervención urgente`, link: "/health" });
   }
 
-  // Filas individuales para MotivosStackedCard — usa bajasAll (históricas vía fecha_baja)
-  const bajasRows = bajasAll.map((b) => ({
+  // Filas individuales para MotivosStackedCard
+  const bajasRows = bajas.map((b) => ({
     motivo: b.motivo_baja?.trim() || "Sin motivo",
     fechaBaja: b.fecha_baja ?? null,
     submotivo: b.submotivo_baja?.trim() || null,
