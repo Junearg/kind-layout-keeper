@@ -40,7 +40,7 @@ type ColFilters = {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const CHURNED_PAGE_SIZE = 20;
+const CHURNED_PAGE_SIZE = 10;
 const PLANES = ["Inicial", "Avanzado", "Pro", "Base"];
 const NPS_OPTS = ["Promotor", "Pasivo", "Detractor", "Sin NPS"];
 const EMPTY_FILTERS: ColFilters = {
