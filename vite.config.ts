@@ -7,7 +7,10 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   plugins: [
     tanstackStart({
-      spa: { enabled: true },
+      // Native SSR: build the server entry (src/server.ts) into a
+      // Web-standard { fetch } handler. No Cloudflare adapter — the
+      // output runs on plain Node via server/node-server.mjs.
+      server: { entry: "server" },
     }),
     react(),
     tailwindcss(),
