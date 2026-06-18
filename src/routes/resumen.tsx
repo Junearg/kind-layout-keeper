@@ -9,6 +9,7 @@ import { usePeriod, periodLabel } from "@/contexts/PeriodContext";
 import { useSupabaseResumen } from "@/data/supabase-resumen";
 import { useSupabaseChurnInsights } from "@/data/supabase-churn-insights";
 import { useRetention } from "@/data/supabase-retention";
+import { getTableauChurn, getTableauTrend } from "@/data/tableau-static";
 import { useCountry } from "@/contexts/CountryContext";
 import { useMesActivo } from "@/data/dataset-store";
 import { useKpisDiarios, useKpiDelta, listFechasDiarias, useKpiSnapshotMultipais, type KpiDiario } from "@/data/supabase-kpis-diarios";
@@ -122,6 +123,46 @@ function Resumen() {
           <TierMiniBars tierDist={r.tierDist} />
         </div>
 
+        {/* Churn Bruto + Churn Neto — fuente: Tableau */}
+        {(() => {
+          const tableau = getTableauChurn(period);
+          const sparkData = getTableauTrend(period, 7).map(d => ({ mes: d.mes.slice(0, 7), bruto: d.bruto, neto: d.neto }));
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
+              {([ { label: "CHURN BRUTO", val: tableau.churnBruto }, { label: "CHURN NETO", val: tableau.churnNeto } ] as const).map(({ label, val }) => {
+                const isHigh = val != null && val > 5;
+                const color = isHigh ? "#DC2626" : ORANGE;
+                const dataKey = label === "CHURN BRUTO" ? "bruto" : "neto";
+                return (
+                  <div key={label} style={{ flex: 1, border: "1px solid var(--rule)", borderRadius: 12, padding: "10px 14px 6px", background: "var(--paper)", minWidth: 200 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <div style={{ flexShrink: 0 }}>
+                        <div style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--ink-3)", marginBottom: 2 }}>{label}</div>
+                        <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1, color: isHigh ? "#DC2626" : "var(--ink)", fontFamily: "'Inter', sans-serif", letterSpacing: "-0.02em" }}>
+                          {val != null ? `${val.toFixed(2)}%` : "—"}
+                        </div>
+                        <div style={{ fontSize: 10, color: "var(--ink-4)", marginTop: 2 }}>
+                          {label === "CHURN BRUTO"
+                            ? `${tableau.bajas != null ? nfmt(tableau.bajas) : "—"} bajas · ${tableau.mpcsPrev != null ? nfmt(tableau.mpcsPrev) : "—"} MPCs`
+                            : `neto: ${tableau.bajas != null && tableau.recuperadas != null ? nfmt(tableau.bajas - tableau.recuperadas) : "—"} · ${tableau.recuperadas != null ? nfmt(tableau.recuperadas) : "—"} recup.`}
+                        </div>
+                      </div>
+                      <div style={{ flex: 1, height: 52 }}>
+                        <ResponsiveContainer width="100%" height={52}>
+                          <ComposedChart data={sparkData} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
+                            <XAxis dataKey="mes" tick={{ fontSize: 9, fill: "#9CA3AF" }} axisLine={false} tickLine={false} interval={0}
+                              tickFormatter={v => { const parts = v.split("-"); return parts[1] ? `${["","Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][parseInt(parts[1])] ?? ""} ${String(parts[0]).slice(2)}` : v; }} />
+                            <Line type="monotone" dataKey={dataKey} stroke={color} strokeWidth={1.5} dot={{ r: 2, fill: color }} connectNulls />
+                          </ComposedChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Snapshot diario → ver pestaña Retención */}
