@@ -12,7 +12,7 @@ ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_PUBLISHABLE_KEY
 ARG VITE_SUPABASE_PROJECT_ID
 
-RUN npm run build
+RUN npm run build:docker
 
 FROM nginx:alpine
 COPY --from=builder /app/dist/client /usr/share/nginx/html
