@@ -7,15 +7,8 @@ RUN npm ci
 
 COPY . .
 
-# VITE_* vars are baked into the client bundle at build time, so they must be
-# present as env during `vite build`. Dokploy passes them as build args.
-ARG VITE_SUPABASE_URL
-ARG VITE_SUPABASE_PUBLISHABLE_KEY
-ARG VITE_SUPABASE_PROJECT_ID
-ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL \
-    VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY \
-    VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID
-
+# No build args needed: Supabase config is injected at runtime by the SSR
+# server (src/server.ts) from process.env. The build is config-agnostic.
 RUN npm run build
 
 # ---- Runner: serve the SSR build on Node ----

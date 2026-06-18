@@ -50,6 +50,42 @@ function isCatastrophicSsrErrorBody(body: string, responseStatus: number): boole
   );
 }
 
+// Public Supabase config the browser needs. Injected into the SSR HTML at
+// runtime from process.env so it never has to be baked into the client bundle
+// at build time (no build args, no rebuild to change config). The publishable
+// key and URL are public by design — safe to embed in the page.
+function serializeRuntimeConfig(): string {
+  const config = {
+    url: process.env.SUPABASE_URL ?? "",
+    key: process.env.SUPABASE_PUBLISHABLE_KEY ?? "",
+  };
+  // Escape "<" so a value can never break out of the <script> tag.
+  const json = JSON.stringify(config).replace(/</g, "\\u003c");
+  return `<script>window.__SUPABASE_CONFIG__=${json}</script>`;
+}
+
+// Inject the runtime config as the first element inside <head>, so it runs
+// before the deferred app bundle creates the Supabase client. Only touches
+// HTML responses — JSON/streaming API responses pass through untouched.
+async function injectRuntimeConfig(response: Response): Promise<Response> {
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("text/html")) return response;
+
+  const html = await response.text();
+  const script = serializeRuntimeConfig();
+  const injected = html.includes("<head>")
+    ? html.replace("<head>", `<head>${script}`)
+    : `${script}${html}`;
+
+  const headers = new Headers(response.headers);
+  headers.delete("content-length"); // body length changed
+  return new Response(injected, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 // h3 swallows in-handler throws into a normal 500 Response with body
 // {"unhandled":true,"message":"HTTPError"} — try/catch alone never fires for those.
 async function normalizeCatastrophicSsrResponse(response: Response): Promise<Response> {
@@ -71,7 +107,8 @@ export default {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      const normalized = await normalizeCatastrophicSsrResponse(response);
+      return await injectRuntimeConfig(normalized);
     } catch (error) {
       console.error(error);
       return brandedErrorResponse();
