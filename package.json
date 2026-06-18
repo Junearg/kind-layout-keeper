@@ -8,7 +8,7 @@
     "build": "vite build",
     "start": "node dist/server/index.js",
     "build:pages": "vite build && node scripts/prepare-pages.mjs",
-    "build:docker": "vite build && node scripts/generate-index.mjs",
+    "build:docker": "vite build --config vite.docker.config.ts && node scripts/generate-index.mjs",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
