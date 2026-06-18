@@ -15,6 +15,10 @@ if (!existsSync("dist/server/server.js")) {
 copyFileSync("dist/server/server.js", "dist/client/_worker.js");
 console.log("✓ _worker.js copied from dist/server/server.js");
 
+// Some server chunks import "../server.js" — keep a copy at that path too
+copyFileSync("dist/server/server.js", "dist/client/server.js");
+console.log("✓ server.js copied (referenced by SSR chunks as ../server.js)");
+
 if (existsSync("dist/server/assets")) {
   const files = readdirSync("dist/server/assets");
   mkdirSync("dist/client/assets", { recursive: true });
