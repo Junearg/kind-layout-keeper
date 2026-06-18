@@ -214,7 +214,7 @@ async function fetchResumen(period: string): Promise<ResumenData> {
   const byMonthAll = new Map<string, { bajas: number; conMotivo: number }>();
   for (const b of bajas) {
     if (!b.fecha_baja) { sinFechaHist++; continue; }
-    const k = monthKey(new Date(b.fecha_baja));
+    const k = b.fecha_baja.slice(0, 7); // "YYYY-MM" — string slice evita ambigüedad de timezone
     if (k > period) continue;
     const slot = byMonthAll.get(k) ?? { bajas: 0, conMotivo: 0 };
     slot.bajas++;
@@ -254,14 +254,7 @@ async function fetchResumen(period: string): Promise<ResumenData> {
   // Bajas del mes: Bloqueados con fecha_baja en el período, más los sin fecha asignados
   // al primer snapshot en que aparecen como Bloqueado (proxy del mes real de baja).
   // Activos con fecha_baja nunca llegan aquí (filtrado por estado_dash = Bloqueado).
-  const [latestY, latestM] = (latest ?? "").split("-").map(Number);
-  const latestStart = latest ? `${latest}-01` : "";
-  const latestEnd = latest && latestM && latestY
-    ? latestM === 12 ? `${latestY + 1}-01-01` : `${latestY}-${String(latestM + 1).padStart(2, "0")}-01`
-    : "";
-  const bajasMesActual = latestStart
-    ? bajasRaw.filter(b => b.fecha_baja && b.fecha_baja >= latestStart && b.fecha_baja < latestEnd).length
-    : 0;
+  const bajasMesActual = byMonthAll.get(latest)?.bajas ?? 0;
   const bajasMesPrev = prev ? (byMonthAll.get(prev)?.bajas ?? 0) : 0;
   const monthDeltaPct = bajasMesPrev ? ((bajasMesActual - bajasMesPrev) / bajasMesPrev) * 100 : null;
 

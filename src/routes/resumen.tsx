@@ -122,51 +122,6 @@ function Resumen() {
           <TierMiniBars tierDist={r.tierDist} />
         </div>
 
-        {/* Churn Bruto + Churn Neto con sparkline */}
-        {ret && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
-            {[
-              { label: "Churn Bruto", val: ret.churnBruto, prev: r.monthDeltaPct },
-              { label: "Churn Neto",  val: ret.churnNeto,  prev: null },
-            ].map(({ label, val }) => {
-              const isHigh = val > 5;
-              // sparkline: últimas 6 meses del trend con etiquetas
-              const sparkData = r.churnTrend.slice(-6).map((t) => ({
-                mes: t.mes, v: t.bajas,
-              }));
-              const lineColor = isHigh ? "#DC2626" : ORANGE;
-              return (
-                <div key={label} style={{ flex: 1, border: "1px solid var(--rule)", borderRadius: 12, padding: "10px 14px 6px", background: "var(--paper)", minWidth: 200 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    {/* Número */}
-                    <div style={{ flexShrink: 0 }}>
-                      <div style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--ink-3)", marginBottom: 2 }}>{label}</div>
-                      <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1, color: isHigh ? "#DC2626" : "var(--ink)", fontFamily: "'Inter', sans-serif", letterSpacing: "-0.02em" }}>
-                        {ret.mpcsMesPasado > 0 ? `${val.toFixed(2)}%` : "—"}
-                      </div>
-                      <div style={{ fontSize: 10, color: "var(--ink-4)", marginTop: 2 }}>vs {r.prevClosedLabel}</div>
-                    </div>
-                    {/* Sparkline con eje X */}
-                    <div style={{ flex: 1, height: 52 }}>
-                      <ResponsiveContainer width="100%" height={52}>
-                        <ComposedChart data={sparkData} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
-                          <XAxis
-                            dataKey="mes"
-                            tick={{ fontSize: 9, fill: "#9CA3AF" }}
-                            axisLine={false}
-                            tickLine={false}
-                            interval={0}
-                          />
-                          <Line type="monotone" dataKey="v" stroke={lineColor} strokeWidth={1.5} dot={{ r: 2, fill: lineColor }} />
-                        </ComposedChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
       </div>
 
       {/* Snapshot diario → ver pestaña Retención */}
