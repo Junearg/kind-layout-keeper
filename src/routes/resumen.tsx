@@ -71,39 +71,38 @@ function Resumen() {
       {/* Header — 2 tarjetas cuadradas compactas */}
       <div style={{ display: "flex", gap: 16, marginBottom: 0 }}>
         {/* Bajas del mes */}
-        <div className="card orange" style={{ width: 220, minHeight: 200, padding: "16px 20px", flexShrink: 0 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div>
-              <div className="card-eyebrow" style={{ fontSize: 11 }}>Bajas del mes</div>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 2 }}>{r.latestClosedLabel}</div>
-            </div>
-            <span style={{ fontSize: 16, opacity: 0.6 }}>↗</span>
-          </div>
+        <div className="card orange" style={{ width: 300, minHeight: 160, padding: "16px 20px", flexShrink: 0 }}>
           {(() => {
-            const baseExacta = ret && ret.mpcsMesPasado > 0;
-            const baseEstimada = r.activeAccounts + r.bajasMesActual;
-            const rateEstimado = baseEstimada > 0 ? (r.bajasMesActual / baseEstimada) * 100 : null;
-            const rateDisplay = baseExacta ? ret!.churnBruto.toFixed(2) : rateEstimado?.toFixed(2) ?? null;
+            const tableau = getTableauChurn(r.period);
+            const netas = tableau.bajas != null && tableau.recuperadas != null ? tableau.bajas - tableau.recuperadas : null;
+            const deltaPts = tableau.churnNeto != null && tableau.churnBruto != null ? tableau.churnNeto - tableau.churnBruto : null;
             return (
-              <>
-                <div style={{ fontSize: 42, fontWeight: 700, marginTop: 8, lineHeight: 1, fontFamily: "'Inter', sans-serif", letterSpacing: "-0.02em" }}>
-                  {rateDisplay != null ? `${rateDisplay}%` : nfmt(r.bajasMesActual)}
-                </div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 6 }}>
-                  {baseExacta
-                    ? `${nfmt(r.bajasMesActual)} bajas · base ${nfmt(ret!.mpcsMesPasado)}`
-                    : rateDisplay != null
-                      ? `${nfmt(r.bajasMesActual)} bajas · base ≈ ${nfmt(baseEstimada)} (est.)`
-                      : "cargando…"}
-                </div>
-                {r.monthDeltaPct != null && (
-                  <div style={{ marginTop: 10 }}>
-                    <span className="callout" style={{ fontSize: 11 }}>
-                      {r.monthDeltaPct >= 0 ? "↑" : "↓"} {pctFmt(r.monthDeltaPct)} vs {r.prevClosedLabel}
-                    </span>
+              <div style={{ display: "flex", gap: 12 }}>
+                {/* Bruto */}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Churn Bruto</div>
+                  <div style={{ fontSize: 38, fontWeight: 800, color: "white", lineHeight: 1, fontFamily: "'Inter', sans-serif", letterSpacing: "-0.02em" }}>
+                    {tableau.churnBruto != null ? `${tableau.churnBruto.toFixed(2)}%` : "—"}
                   </div>
-                )}
-              </>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", marginTop: 6, lineHeight: 1.5 }}>
+                    {tableau.bajas != null ? `${nfmt(tableau.bajas)} bajas` : ""}
+                    {tableau.mpcsPrev != null ? <><br />{nfmt(tableau.mpcsPrev)} MPCs</> : ""}
+                  </div>
+                </div>
+                {/* Separador */}
+                <div style={{ width: 1, background: "rgba(255,255,255,0.2)", alignSelf: "stretch" }} />
+                {/* Neto */}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Churn Neto</div>
+                  <div style={{ fontSize: 38, fontWeight: 800, color: "white", lineHeight: 1, fontFamily: "'Inter', sans-serif", letterSpacing: "-0.02em" }}>
+                    {tableau.churnNeto != null ? `${tableau.churnNeto.toFixed(2)}%` : "—"}
+                  </div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", marginTop: 6, lineHeight: 1.5 }}>
+                    {netas != null && tableau.recuperadas != null ? <>{nfmt(netas)} netas · {nfmt(tableau.recuperadas)} recup.<br /></> : ""}
+                    {deltaPts != null ? `${deltaPts >= 0 ? "+" : ""}${deltaPts.toFixed(2)} pts vs bruto` : ""}
+                  </div>
+                </div>
+              </div>
             );
           })()}
         </div>
@@ -123,49 +122,52 @@ function Resumen() {
           <TierMiniBars tierDist={r.tierDist} />
         </div>
 
-        {/* Churn Bruto + Churn Neto — fuente: Tableau */}
-        {(() => {
-          const tableau = getTableauChurn(r.period);
-          const sparkData = getTableauTrend(r.period, 7).map(d => ({ mes: d.mes.slice(0, 7), bruto: d.bruto, neto: d.neto }));
-          return (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
-              {([ { label: "CHURN BRUTO", val: tableau.churnBruto }, { label: "CHURN NETO", val: tableau.churnNeto } ] as const).map(({ label, val }) => {
-                const isHigh = val != null && val > 5;
-                const color = isHigh ? "#DC2626" : ORANGE;
-                const dataKey = label === "CHURN BRUTO" ? "bruto" : "neto";
-                return (
-                  <div key={label} style={{ flex: 1, border: "1px solid var(--rule)", borderRadius: 12, padding: "10px 14px 6px", background: "var(--paper)", minWidth: 200 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div style={{ flexShrink: 0 }}>
-                        <div style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--ink-3)", marginBottom: 2 }}>{label}</div>
-                        <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1, color: isHigh ? "#DC2626" : "var(--ink)", fontFamily: "'Inter', sans-serif", letterSpacing: "-0.02em" }}>
-                          {val != null ? `${val.toFixed(2)}%` : "—"}
-                        </div>
-                        <div style={{ fontSize: 10, color: "var(--ink-4)", marginTop: 2 }}>
-                          {label === "CHURN BRUTO"
-                            ? `${tableau.bajas != null ? nfmt(tableau.bajas) : "—"} bajas · ${tableau.mpcsPrev != null ? nfmt(tableau.mpcsPrev) : "—"} MPCs`
-                            : `neto: ${tableau.bajas != null && tableau.recuperadas != null ? nfmt(tableau.bajas - tableau.recuperadas) : "—"} · ${tableau.recuperadas != null ? nfmt(tableau.recuperadas) : "—"} recup.`}
-                        </div>
-                      </div>
-                      <div style={{ flex: 1, height: 52 }}>
-                        <ResponsiveContainer width="100%" height={52}>
-                          <ComposedChart data={sparkData} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
-                            <XAxis dataKey="mes" tick={{ fontSize: 9, fill: "#9CA3AF" }} axisLine={false} tickLine={false} interval={0}
-                              tickFormatter={v => { const parts = v.split("-"); return parts[1] ? `${["","Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][parseInt(parts[1])] ?? ""} ${String(parts[0]).slice(2)}` : v; }} />
-                            <Line type="monotone" dataKey={dataKey} stroke={color} strokeWidth={1.5} dot={{ r: 2, fill: color }} connectNulls />
-                          </ComposedChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()}
       </div>
 
       {/* Snapshot diario → ver pestaña Retención */}
+
+      {/* Histórico de Churn (Tableau) — evolución mensual bruto vs neto */}
+      {(() => {
+        const mesTick = (v: string) => {
+          const p = v.split("-");
+          return p[1] ? `${["", "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"][parseInt(p[1])] ?? ""} ${String(p[0]).slice(2)}` : v;
+        };
+        const data = getTableauTrend(r.period, 12)
+          .filter((d) => d.bruto != null || d.neto != null)
+          .map((d) => ({
+            mes: d.mes,
+            bruto: d.bruto != null ? Number(d.bruto.toFixed(2)) : null,
+            neto: d.neto != null ? Number(d.neto.toFixed(2)) : null,
+          }));
+        if (data.length < 2) return null;
+        return (
+          <>
+            <div className="divider" style={{ marginTop: 24 }}>
+              <span className="kicker">Churn</span>
+              <span className="alt">/ evolución mensual · bruto vs neto</span>
+              <span className="rule" />
+            </div>
+            <div className="card" style={{ padding: "16px 20px" }}>
+              <div style={{ width: "100%", height: 260 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--rule)" vertical={false} />
+                    <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} tickFormatter={mesTick} />
+                    <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} width={42} />
+                    <Tooltip formatter={(v: number, name: string) => [`${v}%`, name === "bruto" ? "Bruto" : "Neto"]} labelFormatter={mesTick} />
+                    <Line type="monotone" dataKey="bruto" name="bruto" stroke="#DC2626" strokeWidth={2} dot={{ r: 3, fill: "#DC2626" }} connectNulls />
+                    <Line type="monotone" dataKey="neto" name="neto" stroke={ORANGE} strokeWidth={2} dot={{ r: 3, fill: ORANGE }} connectNulls />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+              <div style={{ display: "flex", gap: 16, marginTop: 8, fontSize: 12, color: "var(--ink-3)" }}>
+                <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#DC2626", marginRight: 6, verticalAlign: "middle" }} />Churn Bruto</span>
+                <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: ORANGE, marginRight: 6, verticalAlign: "middle" }} />Churn Neto</span>
+              </div>
+            </div>
+          </>
+        );
+      })()}
 
       {/* Tendencia */}
       <div className="divider">
@@ -175,7 +177,15 @@ function Resumen() {
         <span className="rule" />
       </div>
 
-      <TrendCard trend={r.churnTrend.slice(-12)} delta={r.monthDeltaPct} prevLabel={r.prevClosedLabel} latestLabel={r.latestClosedLabel} />
+      <TrendCard
+        trend={r.churnTrend.slice(-12).map((d) => {
+          const tab = getTableauChurn(d.key);
+          return tab.bajas != null ? { ...d, bajas: tab.bajas } : d;
+        })}
+        delta={r.monthDeltaPct}
+        prevLabel={r.prevClosedLabel}
+        latestLabel={r.latestClosedLabel}
+      />
       <MotivosStackedCard rows={r.bajasRows} />
 
       {/* Retención vs Plan — oculto por ahora */}

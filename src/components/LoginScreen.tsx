@@ -131,7 +131,7 @@ export function LoginScreen() {
         {/* Divider */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "20px 0 16px" }}>
           <div style={{ flex: 1, height: 1, background: "var(--rule)" }} />
-          <span className="fs-11 muted">¿Sos del equipo Fudo?</span>
+          <span className="fs-11 muted">¿Vas a ingresar por primera vez?</span>
           <div style={{ flex: 1, height: 1, background: "var(--rule)" }} />
         </div>
 
@@ -183,9 +183,6 @@ export function LoginScreen() {
             >
               {reqLoading ? "Enviando…" : "Pedir link de acceso"}
             </button>
-            <p className="muted fs-11" style={{ textAlign: "center", lineHeight: 1.5 }}>
-              Solo disponible para cuentas <strong>@fu.do</strong>
-            </p>
           </form>
         )}
       </div>
