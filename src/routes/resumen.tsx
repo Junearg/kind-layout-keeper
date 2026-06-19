@@ -125,8 +125,8 @@ function Resumen() {
 
         {/* Churn Bruto + Churn Neto — fuente: Tableau */}
         {(() => {
-          const tableau = getTableauChurn(period);
-          const sparkData = getTableauTrend(period, 7).map(d => ({ mes: d.mes.slice(0, 7), bruto: d.bruto, neto: d.neto }));
+          const tableau = getTableauChurn(r.period);
+          const sparkData = getTableauTrend(r.period, 7).map(d => ({ mes: d.mes.slice(0, 7), bruto: d.bruto, neto: d.neto }));
           return (
             <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
               {([ { label: "CHURN BRUTO", val: tableau.churnBruto }, { label: "CHURN NETO", val: tableau.churnNeto } ] as const).map(({ label, val }) => {
