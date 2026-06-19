@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PAISES_CONOCIDOS, type Pais } from "@/contexts/CountryContext";
 import { useFeedback } from "@/data/supabase-feedback";
+import { usePeriodosDisponibles } from "@/data/supabase-segmentacion";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -227,7 +228,7 @@ function KpiCard({ label, value, sub }: { label: string; value: string; sub?: st
 // ── Main exported component ──────────────────────────────────────────────────
 
 export function ChurnedSection() {
-  const { data: availableMonths = [], isLoading: loadingMonths } = useChurnedMonths();
+  const { data: availableMonths = [], isLoading: loadingMonths } = usePeriodosDisponibles();
 
   const [periodoMes, setPeriodoMes] = useState<string>("");
   const [cols, setCols] = useState<ColFilters>(EMPTY_FILTERS);

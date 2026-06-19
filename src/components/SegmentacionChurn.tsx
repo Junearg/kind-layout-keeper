@@ -11,6 +11,7 @@ import {
   type SegmentacionData, type BajaRow, type GmvSeg,
 } from "@/data/supabase-segmentacion";
 import { mesLargo } from "@/data/schema";
+import { usePeriod } from "@/contexts/PeriodContext";
 
 const COUNTRY_COLORS: Record<string, string> = {
   Argentina: "#F4A07A", Chile: "#7BAEE8", México: "#6FCFB2",
@@ -33,11 +34,12 @@ const pctfmt = (n: number, d = 2) => `${n.toFixed(d)}%`;
 type Tab = "pais" | "plan" | "gmv" | "ejecutivo";
 
 export function SegmentacionChurn() {
-  const { data: periodos } = usePeriodosDisponibles();
+  const { data: periodos, isLoading: periodosLoading } = usePeriodosDisponibles();
+  const { selectedPeriod } = usePeriod();
   const [periodo, setPeriodo] = useState<string>("");
   const [tab, setTab]         = useState<Tab>("pais");
 
-  const activePeriodo = periodo || periodos?.[0] || "";
+  const activePeriodo = periodo || periodos?.[0] || selectedPeriod || "";
 
   const { data, isLoading, error } = useSupabaseSegmentacion(activePeriodo);
 
@@ -108,7 +110,8 @@ export function SegmentacionChurn() {
         })}
       </div>
 
-      {(!activePeriodo || isLoading) && <div className="fs-12 muted">Cargando segmentación…</div>}
+      {isLoading && <div className="fs-12 muted">Cargando segmentación…</div>}
+      {!isLoading && !activePeriodo && !periodosLoading && <div className="fs-12 muted">No hay períodos disponibles.</div>}
       {error && <div className="fs-12" style={{ color: "#DC2626" }}>Error cargando datos</div>}
       {data && (
         <>
