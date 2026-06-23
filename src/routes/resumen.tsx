@@ -188,6 +188,9 @@ function Resumen() {
       />
       <MotivosStackedCard rows={r.bajasRows} />
 
+      {/* Snapshot diario — datos por país */}
+      <DailySection pais={selectedPais} />
+
       {/* Retención vs Plan — oculto por ahora */}
       {false && ret && (
         <>
@@ -447,8 +450,64 @@ type ChurnRowLite = {
   submotivo?: string | null;
   comentarios?: string | null;
   idHubspot?: string | null;
-  nombre?: string;
+  nombre?: string | null;
+  pais?: string | null;
 };
+
+async function exportMotivosExcel(rows: ChurnRowLite[]) {
+  const ExcelJS = (await import("exceljs")).default;
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Motivos de baja");
+
+  ws.columns = [
+    { header: "Cliente",     key: "nombre",      width: 32 },
+    { header: "País",        key: "pais",         width: 14 },
+    { header: "Fecha baja",  key: "fechaBaja",    width: 14 },
+    { header: "Motivo",      key: "motivo",       width: 28 },
+    { header: "Submotivo",   key: "submotivo",    width: 28 },
+    { header: "Comentarios", key: "comentarios",  width: 50 },
+  ];
+
+  // Estilo cabecera
+  const headerRow = ws.getRow(1);
+  headerRow.eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF05A28" } };
+    cell.alignment = { vertical: "middle" };
+  });
+  headerRow.height = 20;
+
+  for (const r of rows) {
+    ws.addRow({
+      nombre:      r.nombre ?? "",
+      pais:        r.pais ?? "",
+      fechaBaja:   r.fechaBaja ? r.fechaBaja.slice(0, 10) : "",
+      motivo:      r.motivo,
+      submotivo:   r.submotivo ?? "",
+      comentarios: r.comentarios ?? "",
+    });
+  }
+
+  // Zebra stripes
+  ws.eachRow((row, idx) => {
+    if (idx === 1) return;
+    row.eachCell((cell) => {
+      cell.fill = {
+        type: "pattern", pattern: "solid",
+        fgColor: { argb: idx % 2 === 0 ? "FFFAFAF7" : "FFFFFFFF" },
+      };
+    });
+  });
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "motivos-baja.xlsx";
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 function MotivosStackedCard({ rows }: { rows: ChurnRowLite[] | null }) {
   const [from, setFrom] = useState("");
@@ -558,6 +617,12 @@ function MotivosStackedCard({ rows }: { rows: ChurnRowLite[] | null }) {
               ⚠ {pctSinMotivo.toFixed(1)}% sin motivo
             </span>
           )}
+          <button
+            onClick={() => exportMotivosExcel(filteredForDonut)}
+            style={{ fontSize: 12, padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rule)", background: "var(--paper)", cursor: "pointer", color: "var(--ink-2)", display: "flex", alignItems: "center", gap: 5, fontFamily: "inherit" }}
+          >
+            ↓ Exportar Excel
+          </button>
         </div>
       </div>
 
