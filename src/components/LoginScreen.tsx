@@ -11,10 +11,14 @@ export function LoginScreen() {
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState<string | null>(null);
 
-  // ── Access request state ──────────────────────────────────────────────────────
-  const [reqEmail, setReqEmail]     = useState("");
-  const [reqLoading, setReqLoading] = useState(false);
-  const [reqStatus, setReqStatus]   = useState<"idle" | "sent" | "duplicate" | "error">("idle");
+  // ── Signup state ──────────────────────────────────────────────────────────────
+  const [signupMode, setSignupMode] = useState(false);
+  const [signupEmail, setSignupEmail]       = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
+  const [signupConfirm, setSignupConfirm]   = useState("");
+  const [signupLoading, setSignupLoading]   = useState(false);
+  const [signupError, setSignupError]       = useState<string | null>(null);
+  const [signupSuccess, setSignupSuccess]   = useState(false);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -27,34 +31,52 @@ export function LoginScreen() {
 
   const isFudoDomain = (e: string) => e.trim().toLowerCase().endsWith("@fu.do");
 
-  const onRequest = async (e: FormEvent) => {
+  const onSignup = async (e: FormEvent) => {
     e.preventDefault();
-    const trimmed = reqEmail.trim().toLowerCase();
-    if (!isFudoDomain(trimmed)) return;
+    const trimmed = signupEmail.trim().toLowerCase();
 
-    setReqLoading(true);
-    setReqStatus("idle");
-
-    // Intentar insertar — falla con unique violation si ya existe
-    const { error } = await (supabase as any)
-      .from("access_requests")
-      .insert({ email: trimmed });
-
-    if (error) {
-      if (error.code === "23505") {
-        setReqStatus("duplicate");
-      } else {
-        setReqStatus("error");
-      }
-      setReqLoading(false);
+    if (!isFudoDomain(trimmed)) {
+      setSignupError("Solo se permiten emails @fu.do");
       return;
     }
 
-    // Intentar notificar al admin (falla silenciosamente si la Edge Function no está deployada)
-    supabase.functions.invoke("notify-admin", { body: { email: trimmed } }).catch(() => {});
+    if (signupPassword.length < 8) {
+      setSignupError("La contraseña debe tener al menos 8 caracteres");
+      return;
+    }
 
-    setReqStatus("sent");
-    setReqLoading(false);
+    if (signupPassword !== signupConfirm) {
+      setSignupError("Las contraseñas no coinciden");
+      return;
+    }
+
+    setSignupLoading(true);
+    setSignupError(null);
+
+    const { error } = await supabase.auth.signUp({
+      email: trimmed,
+      password: signupPassword,
+    });
+
+    setSignupLoading(false);
+
+    if (error) {
+      if (error.message.includes("already registered")) {
+        setSignupError("Este email ya está registrado. Usa contraseña para entrar.");
+      } else {
+        setSignupError(error.message);
+      }
+      return;
+    }
+
+    setSignupSuccess(true);
+    setTimeout(() => {
+      setSignupMode(false);
+      setSignupSuccess(false);
+      setEmail(trimmed);
+      setSignupPassword("");
+      setSignupConfirm("");
+    }, 2000);
   };
 
   return (
@@ -135,55 +157,121 @@ export function LoginScreen() {
           <div style={{ flex: 1, height: 1, background: "var(--rule)" }} />
         </div>
 
-        {/* Access request form */}
-        {reqStatus === "sent" ? (
-          <div style={{ textAlign: "center", padding: "12px 0" }}>
-            <div style={{ fontSize: 24, marginBottom: 8 }}>📬</div>
-            <div style={{ fontWeight: 600, fontSize: 13 }}>Solicitud enviada</div>
-            <div className="muted fs-12" style={{ marginTop: 4, lineHeight: 1.5 }}>
-              El administrador revisará tu solicitud y recibirás un link de acceso por email.
-            </div>
-          </div>
+        {/* Signup mode toggle */}
+        {!signupMode ? (
+          <button
+            type="button"
+            onClick={() => setSignupMode(true)}
+            style={{
+              width: "100%", padding: "10px 14px", borderRadius: 10,
+              background: "var(--orange-fill)", color: "#fff",
+              border: 0, fontSize: 13, fontWeight: 600, cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            Crear cuenta con contraseña
+          </button>
         ) : (
-          <form onSubmit={onRequest} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span className="fs-11" style={{ color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                Tu email @fu.do
-              </span>
-              <input
-                type="email"
-                placeholder="nombre@fu.do"
-                value={reqEmail}
-                onChange={(e) => { setReqEmail(e.target.value); setReqStatus("idle"); }}
-                style={inputStyle}
-              />
-            </label>
+          <>
+            <form onSubmit={onSignup} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <span className="fs-11" style={{ color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                  Email @fu.do
+                </span>
+                <input
+                  type="email"
+                  placeholder="nombre@fu.do"
+                  required
+                  value={signupEmail}
+                  onChange={(e) => {
+                    setSignupEmail(e.target.value);
+                    setSignupError(null);
+                  }}
+                  style={inputStyle}
+                />
+              </label>
 
-            {reqStatus === "duplicate" && (
-              <div className="fs-12" style={{ color: "#b45309", background: "#fffbeb", padding: "8px 10px", borderRadius: 8 }}>
-                Ya existe una solicitud para este email. El administrador la revisará pronto.
-              </div>
-            )}
-            {reqStatus === "error" && (
-              <div className="fs-12" style={{ color: "#b42318", background: "#fef3f2", padding: "8px 10px", borderRadius: 8 }}>
-                Ocurrió un error. Intentá de nuevo.
-              </div>
-            )}
+              <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <span className="fs-11" style={{ color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                  Contraseña
+                </span>
+                <input
+                  type="password"
+                  placeholder="Mínimo 8 caracteres"
+                  required
+                  value={signupPassword}
+                  onChange={(e) => {
+                    setSignupPassword(e.target.value);
+                    setSignupError(null);
+                  }}
+                  style={inputStyle}
+                />
+              </label>
 
-            <button
-              type="submit"
-              disabled={reqLoading || !isFudoDomain(reqEmail)}
-              style={{
-                padding: "10px 14px", borderRadius: 10,
-                background: "var(--orange-fill)", color: "#fff",
-                border: 0, fontSize: 13, fontWeight: 600, cursor: "pointer",
-                opacity: (reqLoading || !isFudoDomain(reqEmail)) ? 0.5 : 1,
-                fontFamily: "inherit",
-              }}
-            >
-              {reqLoading ? "Enviando…" : "Pedir link de acceso"}
-            </button>
-          </form>
+              <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <span className="fs-11" style={{ color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                  Confirmar contraseña
+                </span>
+                <input
+                  type="password"
+                  placeholder="Repite la contraseña"
+                  required
+                  value={signupConfirm}
+                  onChange={(e) => {
+                    setSignupConfirm(e.target.value);
+                    setSignupError(null);
+                  }}
+                  style={inputStyle}
+                />
+              </label>
+
+              {signupError && (
+                <div className="fs-12" style={{ color: "#b42318", background: "#fef3f2", padding: "8px 10px", borderRadius: 8 }}>
+                  {signupError}
+                </div>
+              )}
+
+              {signupSuccess && (
+                <div className="fs-12" style={{ color: "#15803d", background: "#f0fdf4", padding: "8px 10px", borderRadius: 8 }}>
+                  ✓ Cuenta creada. Redirigiendo...
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="submit"
+                  disabled={signupLoading || signupSuccess}
+                  style={{
+                    flex: 1, padding: "10px 14px", borderRadius: 10,
+                    background: "var(--ink)", color: "var(--paper)",
+                    border: 0, fontSize: 13, fontWeight: 600, cursor: "pointer",
+                    opacity: signupLoading || signupSuccess ? 0.6 : 1,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {signupLoading ? "Creando…" : "Crear cuenta"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSignupMode(false);
+                    setSignupError(null);
+                    setSignupEmail("");
+                    setSignupPassword("");
+                    setSignupConfirm("");
+                  }}
+                  style={{
+                    flex: 1, padding: "10px 14px", borderRadius: 10,
+                    background: "var(--paper-2)", color: "var(--ink)",
+                    border: 0, fontSize: 13, fontWeight: 600, cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  Volver
+                </button>
+              </div>
+            </form>
+          </>
         )}
       </div>
     </div>
